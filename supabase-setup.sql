@@ -7,6 +7,7 @@ create table products (
   price integer not null, -- pence
   category text not null check (category in ('furniture','decor','art')),
   subcategory text,
+  era text,
   description text not null,
   image text,
   icon text not null default 'generic',
@@ -50,3 +51,8 @@ create table inquiries (
 alter table inquiries enable row level security;
 -- Intentionally no public policies: only the service role (admin API) can
 -- read or write this table.
+
+-- MIGRATION: if you already ran this file before (table already exists),
+-- just run this one line separately in SQL Editor to add the new "era"
+-- field without losing any existing products:
+-- alter table products add column if not exists era text;

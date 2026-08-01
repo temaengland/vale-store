@@ -26,6 +26,7 @@ export default async function ProductPage({
       <div>
         <p className="text-xs tracking-widest text-muted uppercase">
           {product.subcategory ?? product.category}
+          {product.era ? ` · ${product.era}` : ""}
         </p>
         <h1 className="mt-2 font-serif text-3xl">{product.name}</h1>
         <p className="mt-3 text-lg text-muted">

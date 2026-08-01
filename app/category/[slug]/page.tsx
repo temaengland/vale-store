@@ -3,12 +3,66 @@ import { getCategory, getProductsByCategory } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import Link from "next/link";
 
+function buildHref(
+  categorySlug: string,
+  params: { sub?: string; era?: string }
+) {
+  const qs = new URLSearchParams();
+  if (params.sub) qs.set("sub", params.sub);
+  if (params.era) qs.set("era", params.era);
+  const query = qs.toString();
+  return `/category/${categorySlug}${query ? `?${query}` : ""}`;
+}
+
+function FilterRow({
+  label,
+  options,
+  active,
+  buildHrefFor,
+}: {
+  label: string;
+  options: string[];
+  active?: string;
+  buildHrefFor: (value?: string) => string;
+}) {
+  return (
+    <div className="mt-4 first:mt-0">
+      <p className="mb-2 text-xs tracking-widest text-muted">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={buildHrefFor(undefined)}
+          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+            !active
+              ? "border-ink text-ink"
+              : "border-border-strong text-muted hover:text-ink"
+          }`}
+        >
+          All
+        </Link>
+        {options.map((o) => (
+          <Link
+            key={o}
+            href={buildHrefFor(o)}
+            className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+              active === o
+                ? "border-ink text-ink"
+                : "border-border-strong text-muted hover:text-ink"
+            }`}
+          >
+            {o}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default async function CategoryPage({
   params,
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { sub?: string };
+  searchParams: { sub?: string; era?: string };
 }) {
   const category = getCategory(params.slug);
   if (!category) return notFound();
@@ -17,35 +71,33 @@ export default async function CategoryPage({
   if (searchParams.sub) {
     items = items.filter((p) => p.subcategory === searchParams.sub);
   }
+  if (searchParams.era) {
+    items = items.filter((p) => p.era === searchParams.era);
+  }
 
   return (
     <div>
       <h1 className="font-serif text-3xl">{category.name}</h1>
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Link
-          href={`/category/${category.slug}`}
-          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-            !searchParams.sub
-              ? "border-ink text-ink"
-              : "border-border-strong text-muted hover:text-ink"
-          }`}
-        >
-          All
-        </Link>
-        {category.subcategories.map((s) => (
-          <Link
-            key={s}
-            href={`/category/${category.slug}?sub=${encodeURIComponent(s)}`}
-            className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-              searchParams.sub === s
-                ? "border-ink text-ink"
-                : "border-border-strong text-muted hover:text-ink"
-            }`}
-          >
-            {s}
-          </Link>
-        ))}
+      <div className="mt-5">
+        <FilterRow
+          label="TYPE"
+          options={category.subcategories}
+          active={searchParams.sub}
+          buildHrefFor={(value) =>
+            buildHref(category.slug, { sub: value, era: searchParams.era })
+          }
+        />
+        {category.eras && (
+          <FilterRow
+            label="ERA"
+            options={category.eras}
+            active={searchParams.era}
+            buildHrefFor={(value) =>
+              buildHref(category.slug, { sub: searchParams.sub, era: value })
+            }
+          />
+        )}
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-4">

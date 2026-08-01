@@ -6,6 +6,7 @@ const categoryIcon: Record<string, IconName> = {
   furniture: "sofa",
   jewelry: "ring",
   decor: "vase",
+  art: "painting",
 };
 
 export default function CategoryTile({

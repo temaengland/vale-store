@@ -4,17 +4,19 @@ export type Product = {
   slug: string;
   name: string;
   price: number; // in pence
-  category: "furniture" | "jewelry" | "decor";
+  category: "furniture" | "jewelry" | "decor" | "art";
   subcategory?: string;
+  era?: string; // period/style, e.g. "Victorian" — currently used for Art
   description: string;
   image?: string; // real uploaded photo URL, set via the admin panel
   icon: IconName; // fallback illustration shown until `image` is set
 };
 
 export type Category = {
-  slug: "furniture" | "jewelry" | "decor";
+  slug: "furniture" | "jewelry" | "decor" | "art";
   name: string;
   subcategories: string[];
+  eras?: string[]; // optional second filter axis, only set for categories that need it
 };
 
 export const categories: Category[] = [
@@ -31,7 +33,13 @@ export const categories: Category[] = [
   {
     slug: "decor",
     name: "Decor",
-    subcategories: ["Vases", "Mirrors", "Textiles", "Tableware", "Art"],
+    subcategories: ["Vases", "Mirrors", "Textiles", "Tableware"],
+  },
+  {
+    slug: "art",
+    name: "Art",
+    subcategories: ["Paintings", "Prints and drawings", "Sculpture"],
+    eras: ["Georgian", "Victorian", "Edwardian", "Mid-century", "Contemporary"],
   },
 ];
 
@@ -77,6 +85,17 @@ export const products: Product[] = [
     description:
       "A studio-thrown stoneware vase with a reactive glaze. Each piece is unique.",
     icon: "vase",
+  },
+  {
+    slug: "framed-oil-landscape",
+    name: "Framed oil landscape, 19th c.",
+    price: 42000,
+    category: "art",
+    subcategory: "Paintings",
+    era: "Victorian",
+    description:
+      "An English landscape in oil on canvas, gilt frame, 19th century. Unsigned. Sold with a condition report on request.",
+    icon: "painting",
   },
 ];
 

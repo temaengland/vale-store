@@ -7,8 +7,9 @@ type AdminProduct = {
   slug: string;
   name: string;
   price: number;
-  category: "furniture" | "jewelry" | "decor";
+  category: "furniture" | "jewelry" | "decor" | "art";
   subcategory?: string;
+  era?: string;
   description: string;
   image?: string;
   icon: string;
@@ -20,6 +21,7 @@ const emptyForm = {
   price: "",
   category: "furniture" as AdminProduct["category"],
   subcategory: "",
+  era: "",
   description: "",
   image: "",
   icon: "generic",
@@ -94,6 +96,7 @@ export default function ProductsPanel() {
       price: String(p.price / 100),
       category: p.category,
       subcategory: p.subcategory ?? "",
+      era: p.era ?? "",
       description: p.description,
       image: p.image ?? "",
       icon: p.icon,
@@ -194,6 +197,7 @@ export default function ProductsPanel() {
             <option value="furniture">Furniture</option>
             <option value="jewelry">Jewelry</option>
             <option value="decor">Decor</option>
+            <option value="art">Art</option>
           </select>
         </div>
 
@@ -204,6 +208,17 @@ export default function ProductsPanel() {
             onChange={(e) =>
               setForm((f) => ({ ...f, subcategory: e.target.value }))
             }
+            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted">
+            Era <span className="normal-case text-muted">(optional, e.g. Victorian)</span>
+          </label>
+          <input
+            value={form.era}
+            onChange={(e) => setForm((f) => ({ ...f, era: e.target.value }))}
             className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
           />
         </div>
