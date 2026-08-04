@@ -1,8 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getAllCategories, getAllProducts } from "@/lib/data";
 import CategoryTile from "@/components/CategoryTile";
 import ProductCard from "@/components/ProductCard";
-import { ItemIllustration } from "@/components/ItemIllustration";
 
 export default async function HomePage() {
   const categories = getAllCategories();
@@ -12,11 +12,22 @@ export default async function HomePage() {
 
   return (
     <div>
-      <div className="flex aspect-[16/7] items-center justify-center rounded-xl bg-[#EDE6DA] text-[#A89A82]">
-        <ItemIllustration icon="sofa" className="h-1/3 w-1/3 opacity-60" />
+      <div className="relative aspect-[16/7] w-full overflow-hidden rounded-xl">
+        <Image
+          src="/images/hero.jpg"
+          alt="A warm, light-filled living room styled with vintage and contemporary furniture"
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 1152px"
+          className="object-cover"
+        />
       </div>
 
-      <p className="mt-8 text-xs tracking-widest text-muted">
+      <p className="mt-2 text-right text-[11px] text-muted">
+        Photo: Spacejoy / Unsplash
+      </p>
+
+      <p className="mt-6 text-xs tracking-widest text-muted">
         EVESHAM, WORCESTERSHIRE
       </p>
       <h1 className="mt-3 font-serif text-4xl leading-tight">
