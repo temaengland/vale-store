@@ -7,7 +7,7 @@ export default function Header() {
     <header className="border-b border-border">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Link href="/">
-          <Logo className="h-10 w-auto" />
+          <Logo className="h-12 w-auto" />
         </Link>
         <nav className="flex gap-8 text-sm text-muted">
           {categories.map((c) => (
