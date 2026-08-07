@@ -13,6 +13,8 @@ type AdminProduct = {
   description: string;
   image?: string;
   icon: string;
+  cost_price?: number;
+  status?: "available" | "sold";
 };
 
 const emptyForm = {
@@ -25,6 +27,8 @@ const emptyForm = {
   description: "",
   image: "",
   icon: "generic",
+  cost_price: "",
+  status: "available" as "available" | "sold",
 };
 
 export default function ProductsPanel() {
@@ -68,7 +72,13 @@ export default function ProductsPanel() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const payload = { ...form, price: Math.round(Number(form.price) * 100) };
+    const payload = {
+      ...form,
+      price: Math.round(Number(form.price) * 100),
+      cost_price: form.cost_price
+        ? Math.round(Number(form.cost_price) * 100)
+        : null,
+    };
     const res = await fetch(
       editingId ? `/api/admin/products/${editingId}` : "/api/admin/products",
       {
@@ -100,9 +110,12 @@ export default function ProductsPanel() {
       description: p.description,
       image: p.image ?? "",
       icon: p.icon,
+      cost_price: p.cost_price ? String(p.cost_price / 100) : "",
+      status: p.status ?? "available",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this item?")) return;
@@ -110,9 +123,47 @@ export default function ProductsPanel() {
     loadProducts();
   }
 
+  const withCost = products.filter((p) => typeof p.cost_price === "number");
+  const totalListed = products.reduce((sum, p) => sum + p.price, 0);
+  const totalCost = withCost.reduce((sum, p) => sum + (p.cost_price ?? 0), 0);
+  const totalPotentialProfit = withCost.reduce(
+    (sum, p) => sum + (p.price - (p.cost_price ?? 0)),
+    0
+  );
+  const sold = products.filter((p) => p.status === "sold" && typeof p.cost_price === "number");
+  const totalRealizedProfit = sold.reduce(
+    (sum, p) => sum + (p.price - (p.cost_price ?? 0)),
+    0
+  );
+
   return (
     <div>
       {loadError && <p className="mt-4 text-sm text-red-600">{loadError}</p>}
+
+      {products.length > 0 && (
+        <div className="mt-6 grid grid-cols-2 gap-3 rounded-xl border border-border p-5 sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted">Inventory value</p>
+            <p className="mt-1 text-lg">£{(totalListed / 100).toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted">Invested (cost)</p>
+            <p className="mt-1 text-lg">£{(totalCost / 100).toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted">Potential profit</p>
+            <p className="mt-1 text-lg">
+              £{(totalPotentialProfit / 100).toFixed(2)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted">Realized profit (sold)</p>
+            <p className="mt-1 text-lg">
+              £{(totalRealizedProfit / 100).toFixed(2)}
+            </p>
+          </div>
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -223,6 +274,53 @@ export default function ProductsPanel() {
           />
         </div>
 
+        <div>
+          <label className="text-xs text-muted">
+            Cost price (£){" "}
+            <span className="normal-case text-muted">
+              — what you paid, kept private
+            </span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={form.cost_price}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, cost_price: e.target.value }))
+            }
+            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+          />
+          {form.price && form.cost_price && (
+            <p className="mt-1 text-xs text-muted">
+              Profit: £
+              {(Number(form.price) - Number(form.cost_price)).toFixed(2)} (
+              {(
+                ((Number(form.price) - Number(form.cost_price)) /
+                  Number(form.price)) *
+                100
+              ).toFixed(0)}
+              % margin)
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs text-muted">Status</label>
+          <select
+            value={form.status}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                status: e.target.value as "available" | "sold",
+              }))
+            }
+            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+          >
+            <option value="available">Available</option>
+            <option value="sold">Sold</option>
+          </select>
+        </div>
+
         <div className="col-span-full">
           <label className="text-xs text-muted">Description</label>
           <textarea
@@ -276,9 +374,23 @@ export default function ProductsPanel() {
               <div className="h-14 w-14 rounded-md bg-surface" />
             )}
             <div className="flex-1">
-              <p className="text-sm">{p.name}</p>
+              <p className="text-sm">
+                {p.name}
+                {p.status === "sold" && (
+                  <span className="ml-2 rounded-full bg-surface px-2 py-0.5 text-xs text-muted">
+                    Sold
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-muted">
                 £{(p.price / 100).toFixed(2)} · {p.category}
+                {typeof p.cost_price === "number" && (
+                  <>
+                    {" "}
+                    · profit £{((p.price - p.cost_price) / 100).toFixed(2)} (
+                    {(((p.price - p.cost_price) / p.price) * 100).toFixed(0)}%)
+                  </>
+                )}
               </p>
             </div>
             <button

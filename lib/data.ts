@@ -12,13 +12,19 @@ import {
 // products automatically the moment Supabase env vars are added — no
 // other code needs to change.
 
+// Columns safe to expose to visitors. cost_price is deliberately excluded —
+// it's business-sensitive and only ever fetched via the admin API routes,
+// which use the service role key on the server, never the public anon key.
+const PUBLIC_PRODUCT_COLUMNS =
+  "id, slug, name, price, category, subcategory, era, description, image, icon, status, created_at";
+
 export async function getAllProducts(): Promise<Product[]> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from("products")
-      .select("*")
+      .select(PUBLIC_PRODUCT_COLUMNS)
       .order("created_at", { ascending: false });
-    if (!error && data) return data as Product[];
+    if (!error && data) return data as unknown as Product[];
   }
   return seedProducts;
 }

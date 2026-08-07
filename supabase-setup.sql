@@ -8,6 +8,8 @@ create table products (
   category text not null check (category in ('furniture','decor','art')),
   subcategory text,
   era text,
+  cost_price integer, -- in pence; what you paid for it — never shown publicly
+  status text not null default 'available', -- available / sold
   description text not null,
   image text,
   icon text not null default 'generic',
@@ -56,3 +58,5 @@ alter table inquiries enable row level security;
 -- just run this one line separately in SQL Editor to add the new "era"
 -- field without losing any existing products:
 -- alter table products add column if not exists era text;
+-- alter table products add column if not exists cost_price integer;
+-- alter table products add column if not exists status text not null default 'available';

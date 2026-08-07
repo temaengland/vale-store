@@ -15,7 +15,7 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Vale & co — Furniture, jewelry and decor",
+  title: "CharmChase — Furniture, jewelry and decor",
   description:
     "Furniture, jewelry and decor sourced from estate sales across Worcestershire, Oxfordshire and Warwickshire.",
 };

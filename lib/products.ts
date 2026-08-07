@@ -3,13 +3,21 @@ import { IconName } from "@/components/ItemIllustration";
 export type Product = {
   slug: string;
   name: string;
-  price: number; // in pence
+  price: number; // in pence — the sale/listing price shown to customers
   category: "furniture" | "jewelry" | "decor" | "art";
   subcategory?: string;
   era?: string; // period/style, e.g. "Victorian" — currently used for Art
   description: string;
   image?: string; // real uploaded photo URL, set via the admin panel
   icon: IconName; // fallback illustration shown until `image` is set
+  status?: "available" | "sold"; // safe to show publicly (e.g. a "Sold" badge)
+};
+
+// Admin-only fields — never fetched on public pages, only via the
+// password-protected /admin API routes (which use the service role key).
+export type AdminProduct = Product & {
+  id: string;
+  costPrice?: number; // in pence — what you paid for it; profit = price - costPrice
 };
 
 export type Category = {
