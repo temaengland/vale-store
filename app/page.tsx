@@ -30,7 +30,7 @@ export default async function HomePage() {
       <p className="mt-6 text-xs tracking-widest text-muted">
         EVESHAM, WORCESTERSHIRE
       </p>
-      <h1 className="mt-3 font-serif text-4xl leading-tight">
+      <h1 className="mt-3 font-serif text-3xl leading-tight sm:text-4xl">
         Furniture, decor and art
         <br />
         with a history
