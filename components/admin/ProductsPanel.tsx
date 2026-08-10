@@ -7,7 +7,7 @@ type AdminProduct = {
   slug: string;
   name: string;
   price: number;
-  category: "furniture" | "jewelry" | "decor" | "art" | "silver";
+  category: "furniture" | "jewelry" | "decor" | "art";
   subcategory?: string;
   era?: string;
   description: string;
@@ -246,10 +246,9 @@ export default function ProductsPanel() {
             className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
           >
             <option value="furniture">Furniture</option>
-            <option value="jewelry">Jewelry</option>
+            <option value="jewelry">Jewelry &amp; Watches</option>
             <option value="decor">Decor</option>
             <option value="art">Art</option>
-            <option value="silver">Silver</option>
           </select>
         </div>
 

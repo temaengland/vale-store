@@ -9,15 +9,12 @@ const SAGE_DARK = "#5C6247";
 const CREAM = "#EDE6D8";
 const CHARCOAL = "#332E27";
 const FRAME_LIGHT = "#6B5940";
-const PEWTER = "#9CA3AA";
-const PEWTER_DARK = "#6E747A";
 
 export const categoryTileBg: Record<string, string> = {
   furniture: "#EAE2D4",
   jewelry: "#F1E9D8",
   decor: "#E8E6DC",
   art: "#EDE6D8",
-  silver: "#E6E7E5",
 };
 
 export function CategoryIcon({
@@ -65,22 +62,6 @@ export function CategoryIcon({
           <rect x="19" y="19" width="62" height="62" rx="3" fill={CREAM} />
           <path d="M19 65 L37 41 L50 54 L65 31 L81 52 V81 H19 Z" fill={TERRACOTTA} />
           <circle cx="63" cy="32" r="6" fill={BRASS} />
-        </svg>
-      );
-    case "silver":
-      return (
-        <svg viewBox="0 0 100 100" className={className}>
-          <path
-            d="M22 46 Q22 34 36 32 H64 Q78 34 78 46 V58 Q78 78 50 78 Q22 78 22 58 Z"
-            fill={PEWTER}
-          />
-          <path
-            d="M78 44 Q92 42 92 54 Q92 64 80 62 Z"
-            fill={PEWTER_DARK}
-          />
-          <path d="M20 46 H80" stroke={PEWTER_DARK} strokeWidth="3" />
-          <rect x="44" y="16" width="12" height="10" rx="3" fill={PEWTER_DARK} />
-          <circle cx="50" cy="14" r="4" fill={PEWTER_DARK} />
         </svg>
       );
     default:

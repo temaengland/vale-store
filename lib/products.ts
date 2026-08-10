@@ -4,7 +4,7 @@ export type Product = {
   slug: string;
   name: string;
   price: number; // in pence — the sale/listing price shown to customers
-  category: "furniture" | "jewelry" | "decor" | "art" | "silver";
+  category: "furniture" | "jewelry" | "decor" | "art";
   subcategory?: string;
   era?: string; // period/style, e.g. "Victorian" — currently used for Art
   description: string;
@@ -21,7 +21,7 @@ export type AdminProduct = Product & {
 };
 
 export type Category = {
-  slug: "furniture" | "jewelry" | "decor" | "art" | "silver";
+  slug: "furniture" | "jewelry" | "decor" | "art";
   name: string;
   subcategories: string[];
   eras?: string[]; // optional second filter axis, only set for categories that need it
@@ -36,7 +36,15 @@ export const categories: Category[] = [
   {
     slug: "jewelry",
     name: "Jewelry & Watches",
-    subcategories: ["Rings", "Necklaces", "Bracelets", "Earrings", "Watches"],
+    subcategories: [
+      "Rings",
+      "Necklaces",
+      "Bracelets",
+      "Earrings",
+      "Watches",
+      "Silver",
+      "Silver Plate",
+    ],
   },
   {
     slug: "decor",
@@ -48,11 +56,6 @@ export const categories: Category[] = [
     name: "Art",
     subcategories: ["Paintings", "Prints and drawings", "Sculpture"],
     eras: ["Georgian", "Victorian", "Edwardian", "Mid-century", "Contemporary"],
-  },
-  {
-    slug: "silver",
-    name: "Silver",
-    subcategories: ["Silver", "Silver Plate"],
   },
 ];
 
@@ -114,9 +117,8 @@ export const products: Product[] = [
     slug: "victorian-silver-teapot",
     name: "Victorian silver-plated teapot",
     price: 18500,
-    category: "silver",
+    category: "jewelry",
     subcategory: "Silver Plate",
-    era: "Victorian",
     description:
       "An ornate silver-plated teapot with engraved floral detailing, Victorian era. Good polished condition, no dents.",
     icon: "teapot",

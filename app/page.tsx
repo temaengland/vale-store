@@ -39,7 +39,7 @@ export default async function HomePage() {
       <p className="mt-10 text-xs tracking-widest text-muted">
         SHOP BY CATEGORY
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {categories.map((c) => (
           <CategoryTile
             key={c.slug}
