@@ -4,7 +4,7 @@ export type Product = {
   slug: string;
   name: string;
   price: number; // in pence — the sale/listing price shown to customers
-  category: "furniture" | "jewelry" | "decor" | "art";
+  category: "furniture" | "jewelry" | "decor" | "art" | "silver";
   subcategory?: string;
   era?: string; // period/style, e.g. "Victorian" — currently used for Art
   description: string;
@@ -21,7 +21,7 @@ export type AdminProduct = Product & {
 };
 
 export type Category = {
-  slug: "furniture" | "jewelry" | "decor" | "art";
+  slug: "furniture" | "jewelry" | "decor" | "art" | "silver";
   name: string;
   subcategories: string[];
   eras?: string[]; // optional second filter axis, only set for categories that need it
@@ -35,7 +35,7 @@ export const categories: Category[] = [
   },
   {
     slug: "jewelry",
-    name: "Jewelry",
+    name: "Jewelry & Watches",
     subcategories: ["Rings", "Necklaces", "Bracelets", "Earrings", "Watches"],
   },
   {
@@ -48,6 +48,11 @@ export const categories: Category[] = [
     name: "Art",
     subcategories: ["Paintings", "Prints and drawings", "Sculpture"],
     eras: ["Georgian", "Victorian", "Edwardian", "Mid-century", "Contemporary"],
+  },
+  {
+    slug: "silver",
+    name: "Silver",
+    subcategories: ["Silver", "Silver Plate"],
   },
 ];
 
@@ -104,6 +109,17 @@ export const products: Product[] = [
     description:
       "An English landscape in oil on canvas, gilt frame, 19th century. Unsigned. Sold with a condition report on request.",
     icon: "painting",
+  },
+  {
+    slug: "victorian-silver-teapot",
+    name: "Victorian silver-plated teapot",
+    price: 18500,
+    category: "silver",
+    subcategory: "Silver Plate",
+    era: "Victorian",
+    description:
+      "An ornate silver-plated teapot with engraved floral detailing, Victorian era. Good polished condition, no dents.",
+    icon: "teapot",
   },
 ];
 

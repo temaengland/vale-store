@@ -10,6 +10,7 @@ export type IconName =
   | "sofa"
   | "mirror"
   | "ring"
+  | "teapot"
   | "generic";
 
 const paths: Record<IconName, string> = {
@@ -22,6 +23,8 @@ const paths: Record<IconName, string> = {
   sofa: "M16 42 H84 V68 H16 Z M20 42 V32 Q20 28 24 28 H36 Q40 28 40 32 V42 M60 42 V32 Q60 28 64 28 H76 Q80 28 80 32 V42 M20 68 V76 M80 68 V76",
   mirror: "M50 15 A24 30 0 1 0 50.01 15 M50 75 V88",
   ring: "M50 45 A20 20 0 1 0 50.01 45 M40 45 L50 22 L60 45 M44 45 H56",
+  teapot:
+    "M28 48 Q28 38 40 36 H62 Q74 38 74 48 V58 Q74 74 50 74 Q26 74 26 58 Z M74 46 Q86 44 86 54 Q86 62 76 60 M50 30 L50 36 M44 30 H56",
   generic: "M25 25 H75 V75 H25 Z M25 25 L75 75 M75 25 L25 75",
 };
 
@@ -55,6 +58,7 @@ export const iconTones: Record<IconName, { bg: string; fg: string }> = {
   vase: { bg: "#E4DED0", fg: "#9C8E72" },
   sofa: { bg: "#DAD2C4", fg: "#8C7D63" },
   mirror: { bg: "#E8E1D3", fg: "#9C8E72" },
+  teapot: { bg: "#E4E5E1", fg: "#8C9096" },
   ring: { bg: "#EAD9BE", fg: "#A6803F" },
   generic: { bg: "#E4E0D6", fg: "#9C9484" },
 };

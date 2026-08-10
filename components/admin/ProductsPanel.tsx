@@ -7,7 +7,7 @@ type AdminProduct = {
   slug: string;
   name: string;
   price: number;
-  category: "furniture" | "jewelry" | "decor" | "art";
+  category: "furniture" | "jewelry" | "decor" | "art" | "silver";
   subcategory?: string;
   era?: string;
   description: string;
@@ -249,6 +249,7 @@ export default function ProductsPanel() {
             <option value="jewelry">Jewelry</option>
             <option value="decor">Decor</option>
             <option value="art">Art</option>
+            <option value="silver">Silver</option>
           </select>
         </div>
 
