@@ -148,7 +148,10 @@ export default function ImageCropUpload({
             only what's inside the frame will be used.
           </p>
 
-          <div className="flex max-h-[46vh] items-center justify-center rounded-md bg-surface p-2">
+          <div
+            className="crop-viewport flex items-center justify-center rounded-md bg-surface p-2"
+            style={{ maxHeight: "34vh", overflow: "hidden" }}
+          >
             <ReactCrop
               crop={crop}
               onChange={(_, percentCrop) => setCrop(percentCrop)}
@@ -163,7 +166,13 @@ export default function ImageCropUpload({
                 src={rawImage}
                 alt=""
                 onLoad={onImageLoad}
-                className="max-h-[44vh] max-w-full object-contain"
+                style={{
+                  maxHeight: "38vh",
+                  maxWidth: "100%",
+                  width: "auto",
+                  height: "auto",
+                  display: "block",
+                }}
               />
             </ReactCrop>
           </div>
