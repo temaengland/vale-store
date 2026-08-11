@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ImageCropUpload from "@/components/admin/ImageCropUpload";
 
 type AdminProduct = {
   id: string;
@@ -35,7 +36,6 @@ export default function ProductsPanel() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
 
@@ -54,20 +54,6 @@ export default function ProductsPanel() {
   useEffect(() => {
     loadProducts();
   }, []);
-
-  async function handleUpload(file: File) {
-    setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-    setUploading(false);
-    if (!res.ok) {
-      alert("Upload failed. Check the console / server logs.");
-      return;
-    }
-    const data = await res.json();
-    setForm((f) => ({ ...f, image: data.url }));
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -175,27 +161,11 @@ export default function ProductsPanel() {
 
         <div className="col-span-full">
           <label className="text-xs text-muted">Photo</label>
-          <div className="mt-1 flex items-center gap-4">
-            {form.image && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={form.image}
-                alt=""
-                className="h-20 w-20 rounded-md object-cover"
-              />
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleUpload(f);
-              }}
-              className="text-sm"
+          <div className="mt-1">
+            <ImageCropUpload
+              value={form.image}
+              onChange={(url) => setForm((f) => ({ ...f, image: url }))}
             />
-            {uploading && (
-              <span className="text-xs text-muted">Uploading…</span>
-            )}
           </div>
         </div>
 
