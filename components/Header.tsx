@@ -32,7 +32,7 @@ export default function Header() {
         </nav>
 
         <a
-          href="https://wa.me/440000000000"
+          href="https://wa.me/447918527790"
           target="_blank"
           rel="noreferrer"
           className="hidden rounded-full border border-border-strong px-4 py-1.5 text-sm hover:text-ink md:inline-block"
@@ -86,7 +86,7 @@ export default function Header() {
             About
           </Link>
           <a
-            href="https://wa.me/440000000000"
+            href="https://wa.me/447918527790"
             target="_blank"
             rel="noreferrer"
             onClick={() => setOpen(false)}

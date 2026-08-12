@@ -40,15 +40,29 @@ export default function ProductsPanel() {
   const [loadError, setLoadError] = useState("");
 
   async function loadProducts() {
-    const res = await fetch("/api/admin/products");
-    if (!res.ok) {
+    setLoadError("");
+    try {
+      const res = await fetch("/api/admin/products");
+      if (!res.ok) {
+        if (res.status === 401) {
+          setLoadError("Your session expired — please log out and log back in.");
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setLoadError(
+            data.error
+              ? `Couldn't load items: ${data.error}`
+              : "Couldn't load items — try refreshing the page."
+          );
+        }
+        return;
+      }
+      const data = await res.json();
+      setProducts(data.products ?? []);
+    } catch {
       setLoadError(
-        "Couldn't load products. Check that Supabase env vars are set."
+        "Couldn't reach the server — check your internet connection and try again."
       );
-      return;
     }
-    const data = await res.json();
-    setProducts(data.products ?? []);
   }
 
   useEffect(() => {
@@ -124,7 +138,17 @@ export default function ProductsPanel() {
 
   return (
     <div>
-      {loadError && <p className="mt-4 text-sm text-red-600">{loadError}</p>}
+      {loadError && (
+        <div className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p>{loadError}</p>
+          <button
+            onClick={loadProducts}
+            className="mt-1.5 font-medium underline"
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       {products.length > 0 && (
         <div className="mt-6 grid grid-cols-2 gap-3 rounded-xl border border-border p-5 sm:grid-cols-4">

@@ -5,7 +5,7 @@ import { Product, formatPrice } from "@/lib/products";
 
 // Replace with the real business WhatsApp number, in international format
 // with no + or spaces, e.g. 447911123456 for a UK mobile.
-const WHATSAPP_NUMBER = "440000000000";
+const WHATSAPP_NUMBER = "447918527790";
 
 export default function InquiryForm({ product }: { product: Product }) {
   const [name, setName] = useState("");
