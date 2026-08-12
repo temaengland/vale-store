@@ -365,13 +365,13 @@ export default function ProductsPanel() {
             </div>
             <button
               onClick={() => startEdit(p)}
-              className="text-sm text-muted hover:text-ink"
+              className="shrink-0 rounded-md px-2.5 py-2 text-sm text-muted hover:text-ink"
             >
               Edit
             </button>
             <button
               onClick={() => handleDelete(p.id)}
-              className="text-sm text-red-600"
+              className="shrink-0 rounded-md px-2.5 py-2 text-sm text-red-600"
             >
               Delete
             </button>

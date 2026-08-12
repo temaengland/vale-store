@@ -6,6 +6,7 @@ import ReactCrop, {
   PixelCrop,
   centerCrop,
   makeAspectCrop,
+  convertToPixelCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { cropToBlob, rotateImage90 } from "@/lib/cropImage";
@@ -16,6 +17,10 @@ function centeredSquareCrop(width: number, height: number): Crop {
     width,
     height
   );
+}
+
+function centeredFreeCrop(): Crop {
+  return { unit: "%", width: 90, height: 90, x: 5, y: 5 };
 }
 
 export default function ImageCropUpload({
@@ -30,9 +35,26 @@ export default function ImageCropUpload({
   const [pixelCrop, setPixelCrop] = useState<PixelCrop>();
   const [lockSquare, setLockSquare] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
   const imgRef = useRef<HTMLImageElement>(null);
 
+  function applyCrop(nextCrop: Crop, width: number, height: number) {
+    setCrop(nextCrop);
+    // Compute the pixel crop immediately too — ReactCrop only fires its own
+    // onComplete after the user drags the frame, so without this, tapping
+    // "Use this crop" without first touching the frame would silently do
+    // nothing (the button stays effectively disabled).
+    setPixelCrop(convertToPixelCrop(nextCrop, width, height));
+  }
+
   function handleFileSelect(file: File) {
+    setError("");
+    if (file.size > 25 * 1024 * 1024) {
+      setError(
+        "That photo is quite large (over 25MB) — try a smaller photo, or take a new one at a lower resolution."
+      );
+      return;
+    }
     const url = URL.createObjectURL(file);
     setRawImage(url);
     setCrop(undefined);
@@ -41,23 +63,23 @@ export default function ImageCropUpload({
 
   function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
     const { width, height } = e.currentTarget;
-    setCrop(
-      lockSquare
-        ? centeredSquareCrop(width, height)
-        : centerCrop(
-            { unit: "%", width: 90, height: 90, x: 5, y: 5 },
-            width,
-            height
-          )
+    applyCrop(
+      lockSquare ? centeredSquareCrop(width, height) : centeredFreeCrop(),
+      width,
+      height
     );
   }
 
   async function rotate(direction: 1 | -1) {
     if (!imgRef.current || !rawImage) return;
-    const newUrl = await rotateImage90(imgRef.current, direction);
-    setRawImage(newUrl);
-    setCrop(undefined);
-    setPixelCrop(undefined);
+    try {
+      const newUrl = await rotateImage90(imgRef.current, direction);
+      setRawImage(newUrl);
+      setCrop(undefined);
+      setPixelCrop(undefined);
+    } catch {
+      setError("Couldn't rotate that image — try a different photo.");
+    }
   }
 
   function toggleAspect() {
@@ -65,14 +87,10 @@ export default function ImageCropUpload({
     setLockSquare(next);
     if (imgRef.current) {
       const { width, height } = imgRef.current;
-      setCrop(
-        next
-          ? centeredSquareCrop(width, height)
-          : centerCrop(
-              { unit: "%", width: 90, height: 90, x: 5, y: 5 },
-              width,
-              height
-            )
+      applyCrop(
+        next ? centeredSquareCrop(width, height) : centeredFreeCrop(),
+        width,
+        height
       );
     }
   }
@@ -80,20 +98,22 @@ export default function ImageCropUpload({
   function resetCrop() {
     if (imgRef.current) {
       const { width, height } = imgRef.current;
-      setCrop(
-        lockSquare
-          ? centeredSquareCrop(width, height)
-          : centerCrop(
-              { unit: "%", width: 90, height: 90, x: 5, y: 5 },
-              width,
-              height
-            )
+      applyCrop(
+        lockSquare ? centeredSquareCrop(width, height) : centeredFreeCrop(),
+        width,
+        height
       );
     }
   }
 
   async function confirmCrop() {
-    if (!imgRef.current || !pixelCrop) return;
+    setError("");
+    if (!imgRef.current || !pixelCrop || pixelCrop.width < 5) {
+      setError(
+        "No crop area selected yet — drag the frame over the part of the photo you want, then try again."
+      );
+      return;
+    }
     setUploading(true);
     try {
       const blob = await cropToBlob(imgRef.current, pixelCrop);
@@ -104,12 +124,21 @@ export default function ImageCropUpload({
         body: fd,
       });
       if (!res.ok) {
-        alert("Upload failed. Check the console / server logs.");
+        const data = await res.json().catch(() => ({}));
+        setError(
+          data.error
+            ? `Upload failed: ${data.error}`
+            : "Upload failed — check your connection and try again."
+        );
         return;
       }
       const data = await res.json();
       onChange(data.url);
       setRawImage(null);
+    } catch (e) {
+      setError(
+        "Something went wrong preparing that photo. Try a different one, or a smaller photo."
+      );
     } finally {
       setUploading(false);
     }
@@ -117,6 +146,7 @@ export default function ImageCropUpload({
 
   function cancelCrop() {
     setRawImage(null);
+    setError("");
   }
 
   return (
@@ -140,6 +170,12 @@ export default function ImageCropUpload({
           className="text-sm"
         />
       </div>
+
+      {error && (
+        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
 
       {rawImage && (
         <div className="mt-4 rounded-lg border border-border p-4">
@@ -181,28 +217,28 @@ export default function ImageCropUpload({
             <button
               type="button"
               onClick={() => rotate(-1)}
-              className="rounded-md border border-border-strong px-3 py-1.5 text-xs text-muted hover:text-ink"
+              className="min-h-[42px] rounded-md border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink"
             >
               ⟲ Rotate left
             </button>
             <button
               type="button"
               onClick={() => rotate(1)}
-              className="rounded-md border border-border-strong px-3 py-1.5 text-xs text-muted hover:text-ink"
+              className="min-h-[42px] rounded-md border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink"
             >
               ⟳ Rotate right
             </button>
             <button
               type="button"
               onClick={toggleAspect}
-              className="rounded-md border border-border-strong px-3 py-1.5 text-xs text-muted hover:text-ink"
+              className="min-h-[42px] rounded-md border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink"
             >
               {lockSquare ? "Unlock free crop" : "Lock to square"}
             </button>
             <button
               type="button"
               onClick={resetCrop}
-              className="rounded-md border border-border-strong px-3 py-1.5 text-xs text-muted hover:text-ink"
+              className="min-h-[42px] rounded-md border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink"
             >
               Reset frame
             </button>
@@ -212,15 +248,15 @@ export default function ImageCropUpload({
             <button
               type="button"
               onClick={confirmCrop}
-              disabled={uploading || !pixelCrop}
-              className="rounded-md bg-ink px-4 py-2 text-sm text-white disabled:opacity-50"
+              disabled={uploading}
+              className="min-h-[44px] rounded-md bg-ink px-5 py-2 text-sm text-white disabled:opacity-50"
             >
               {uploading ? "Uploading…" : "Use this crop"}
             </button>
             <button
               type="button"
               onClick={cancelCrop}
-              className="rounded-md border border-border-strong px-4 py-2 text-sm text-muted"
+              className="min-h-[44px] rounded-md border border-border-strong px-5 py-2 text-sm text-muted"
             >
               Cancel
             </button>
