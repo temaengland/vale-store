@@ -115,8 +115,21 @@ export default function ImageCropUpload({
       return;
     }
     setUploading(true);
+
+    let blob: Blob;
     try {
-      const blob = await cropToBlob(imgRef.current, pixelCrop);
+      blob = await cropToBlob(imgRef.current, pixelCrop);
+    } catch (e) {
+      setError(
+        `Couldn't process that photo (${
+          e instanceof Error ? e.message : "unknown error"
+        }). Try a different photo.`
+      );
+      setUploading(false);
+      return;
+    }
+
+    try {
       const fd = new FormData();
       fd.append("file", blob, "photo.jpg");
       const res = await fetch("/api/admin/upload", {
@@ -124,12 +137,14 @@ export default function ImageCropUpload({
         body: fd,
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(
-          data.error
-            ? `Upload failed: ${data.error}`
-            : "Upload failed — check your connection and try again."
-        );
+        const text = await res.text();
+        let message = text;
+        try {
+          message = JSON.parse(text).error ?? text;
+        } catch {
+          /* not JSON — use raw text */
+        }
+        setError(`Upload failed (${res.status}): ${message || "no details returned"}`);
         return;
       }
       const data = await res.json();
@@ -137,7 +152,9 @@ export default function ImageCropUpload({
       setRawImage(null);
     } catch (e) {
       setError(
-        "Something went wrong preparing that photo. Try a different one, or a smaller photo."
+        `Network request failed (${
+          e instanceof Error ? e.message : "unknown error"
+        }). Check your connection and try again.`
       );
     } finally {
       setUploading(false);
@@ -185,7 +202,7 @@ export default function ImageCropUpload({
           </p>
 
           <div
-            className="crop-viewport flex items-center justify-center rounded-md bg-surface p-2"
+            className="crop-viewport mx-auto flex w-fit items-center justify-center rounded-md bg-surface p-2"
             style={{ maxHeight: "34vh", overflow: "hidden" }}
           >
             <ReactCrop
