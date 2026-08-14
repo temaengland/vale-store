@@ -2,30 +2,50 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+function errMsg(e: unknown) {
+  return e instanceof Error ? e.message : "Unknown server error.";
+}
+
 export async function GET() {
-  if (!isAdminAuthed())
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    if (!isAdminAuthed())
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabaseAdmin()
-    .from("products")
-    .select("*")
-    .order("created_at", { ascending: false });
+    const { data, error } = await supabaseAdmin()
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ products: data });
+    if (error)
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ products: data });
+  } catch (e) {
+    return NextResponse.json(
+      { error: `Server error: ${errMsg(e)}` },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed())
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    if (!isAdminAuthed())
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
-  const { data, error } = await supabaseAdmin()
-    .from("products")
-    .insert([body])
-    .select()
-    .single();
+    const body = await req.json();
+    const { data, error } = await supabaseAdmin()
+      .from("products")
+      .insert([body])
+      .select()
+      .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ product: data });
+    if (error)
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ product: data });
+  } catch (e) {
+    return NextResponse.json(
+      { error: `Server error: ${errMsg(e)}` },
+      { status: 500 }
+    );
+  }
 }

@@ -23,6 +23,66 @@ function centeredFreeCrop(): Crop {
   return { unit: "%", width: 90, height: 90, x: 5, y: 5 };
 }
 
+// Small inline icons — kept dependency-free rather than pulling in an icon
+// library just for four glyphs.
+function RotateLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10a7 7 0 0 1 0 14h-1" />
+    </svg>
+  );
+}
+function RotateRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 14l5-5-5-5" />
+      <path d="M20 9H10a7 7 0 0 0 0 14h1" />
+    </svg>
+  );
+}
+function AspectIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="10" height="10" rx="1" />
+      <rect x="10" y="10" width="10" height="10" rx="1" />
+    </svg>
+  );
+}
+function ResetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v5h5" />
+    </svg>
+  );
+}
+
+function ToolbarButton({
+  onClick,
+  active,
+  icon,
+  label,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-w-[64px] flex-col items-center gap-1 rounded-md px-3 py-2 text-xs transition-colors ${
+        active ? "bg-white/15 text-white" : "text-white/80 hover:text-white"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
 export default function ImageCropUpload({
   value,
   onChange,
@@ -40,10 +100,6 @@ export default function ImageCropUpload({
 
   function applyCrop(nextCrop: Crop, width: number, height: number) {
     setCrop(nextCrop);
-    // Compute the pixel crop immediately too — ReactCrop only fires its own
-    // onComplete after the user drags the frame, so without this, tapping
-    // "Use this crop" without first touching the frame would silently do
-    // nothing (the button stays effectively disabled).
     setPixelCrop(convertToPixelCrop(nextCrop, width, height));
   }
 
@@ -188,95 +244,118 @@ export default function ImageCropUpload({
         />
       </div>
 
-      {error && (
+      {error && !rawImage && (
         <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
 
       {rawImage && (
-        <div className="mt-4 rounded-lg border border-border p-4">
-          <p className="mb-2 text-xs text-muted">
-            Drag the corners to resize the frame, drag inside to move it —
-            only what's inside the frame will be used.
-          </p>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
-            className="crop-viewport mx-auto flex w-fit items-center justify-center rounded-md bg-surface p-2"
-            style={{ maxHeight: "34vh", overflow: "hidden" }}
+            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl shadow-xl"
+            style={{ background: "#1f1c19" }}
           >
-            <ReactCrop
-              crop={crop}
-              onChange={(_, percentCrop) => setCrop(percentCrop)}
-              onComplete={(c) => setPixelCrop(c)}
-              aspect={lockSquare ? 1 : undefined}
-              minWidth={40}
-              minHeight={40}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                ref={imgRef}
-                src={rawImage}
-                alt=""
-                onLoad={onImageLoad}
-                style={{
-                  maxHeight: "38vh",
-                  maxWidth: "100%",
-                  width: "auto",
-                  height: "auto",
-                  display: "block",
-                }}
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <button
+                type="button"
+                onClick={cancelCrop}
+                aria-label="Close"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+              >
+                ✕
+              </button>
+              <p className="text-sm font-medium text-white">Edit photo</p>
+              <div className="w-8" />
+            </div>
+
+            {error && (
+              <p className="mx-4 mt-3 rounded-md bg-red-500/15 px-3 py-2 text-xs text-red-200">
+                {error}
+              </p>
+            )}
+
+            {/* Image canvas */}
+            <div className="flex flex-1 items-center justify-center overflow-hidden p-4">
+              <div
+                className="crop-viewport flex items-center justify-center"
+                style={{ maxHeight: "50vh" }}
+              >
+                <ReactCrop
+                  crop={crop}
+                  onChange={(_, percentCrop) => setCrop(percentCrop)}
+                  onComplete={(c) => setPixelCrop(c)}
+                  aspect={lockSquare ? 1 : undefined}
+                  minWidth={40}
+                  minHeight={40}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    ref={imgRef}
+                    src={rawImage}
+                    alt=""
+                    onLoad={onImageLoad}
+                    style={{
+                      maxHeight: "50vh",
+                      maxWidth: "100%",
+                      width: "auto",
+                      height: "auto",
+                      display: "block",
+                    }}
+                  />
+                </ReactCrop>
+              </div>
+            </div>
+
+            <p className="px-4 pb-1 text-center text-xs text-white/50">
+              Drag the corners to resize, drag inside to move — only what's
+              inside the frame will be used.
+            </p>
+
+            {/* Icon toolbar */}
+            <div className="flex items-center justify-center gap-1 border-t border-white/10 px-2 py-2">
+              <ToolbarButton
+                onClick={() => rotate(-1)}
+                icon={<RotateLeftIcon />}
+                label="Rotate"
               />
-            </ReactCrop>
-          </div>
+              <ToolbarButton
+                onClick={() => rotate(1)}
+                icon={<RotateRightIcon />}
+                label="Rotate"
+              />
+              <ToolbarButton
+                onClick={toggleAspect}
+                active={!lockSquare}
+                icon={<AspectIcon />}
+                label={lockSquare ? "Square" : "Free"}
+              />
+              <ToolbarButton
+                onClick={resetCrop}
+                icon={<ResetIcon />}
+                label="Reset"
+              />
+            </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => rotate(-1)}
-              className="min-h-[42px] rounded-md border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink"
-            >
-              ⟲ Rotate left
-            </button>
-            <button
-              type="button"
-              onClick={() => rotate(1)}
-              className="min-h-[42px] rounded-md border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink"
-            >
-              ⟳ Rotate right
-            </button>
-            <button
-              type="button"
-              onClick={toggleAspect}
-              className="min-h-[42px] rounded-md border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink"
-            >
-              {lockSquare ? "Unlock free crop" : "Lock to square"}
-            </button>
-            <button
-              type="button"
-              onClick={resetCrop}
-              className="min-h-[42px] rounded-md border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink"
-            >
-              Reset frame
-            </button>
-          </div>
-
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={confirmCrop}
-              disabled={uploading}
-              className="min-h-[44px] rounded-md bg-ink px-5 py-2 text-sm text-white disabled:opacity-50"
-            >
-              {uploading ? "Uploading…" : "Use this crop"}
-            </button>
-            <button
-              type="button"
-              onClick={cancelCrop}
-              className="min-h-[44px] rounded-md border border-border-strong px-5 py-2 text-sm text-muted"
-            >
-              Cancel
-            </button>
+            {/* Footer actions */}
+            <div className="flex gap-2 border-t border-white/10 p-4">
+              <button
+                type="button"
+                onClick={cancelCrop}
+                className="flex-1 rounded-full border border-white/20 py-2.5 text-sm text-white/80 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmCrop}
+                disabled={uploading}
+                className="flex-1 rounded-full bg-white py-2.5 text-sm font-medium text-black disabled:opacity-50"
+              >
+                {uploading ? "Uploading…" : "Done"}
+              </button>
+            </div>
           </div>
         </div>
       )}

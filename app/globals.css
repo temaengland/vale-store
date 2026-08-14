@@ -6,16 +6,16 @@ body {
   color: #1e1d1b;
 }
 
-/* Force the admin photo-crop image to stay small on screen, regardless of
-   the crop library's own CSS (which sets max-height: inherit on the image
-   and can end up unconstrained). */
+/* Force the admin photo-crop image to stay contained within the modal,
+   regardless of the crop library's own CSS (which sets max-height: inherit
+   on the image and can end up unconstrained). */
 .crop-viewport,
 .crop-viewport .ReactCrop,
 .crop-viewport .ReactCrop__child-wrapper {
-  max-height: 34vh !important;
+  max-height: 50vh !important;
 }
 .crop-viewport .ReactCrop__child-wrapper > img {
-  max-height: 34vh !important;
+  max-height: 50vh !important;
   max-width: 100% !important;
   width: auto !important;
   height: auto !important;
