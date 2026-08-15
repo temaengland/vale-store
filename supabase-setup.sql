@@ -5,7 +5,7 @@ create table products (
   slug text unique not null,
   name text not null,
   price integer not null, -- pence
-  category text not null check (category in ('furniture','decor','art')),
+  category text not null,
   subcategory text,
   era text,
   cost_price integer, -- in pence; what you paid for it — never shown publicly
@@ -60,3 +60,4 @@ alter table inquiries enable row level security;
 -- alter table products add column if not exists era text;
 -- alter table products add column if not exists cost_price integer;
 -- alter table products add column if not exists status text not null default 'available';
+-- alter table products drop constraint if exists products_category_check;

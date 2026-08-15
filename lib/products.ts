@@ -31,7 +31,16 @@ export const categories: Category[] = [
   {
     slug: "furniture",
     name: "Furniture",
-    subcategories: ["Living room", "Dining", "Bedroom", "Storage", "Lighting"],
+    subcategories: [
+      "Living room",
+      "Dining",
+      "Bedroom",
+      "Storage",
+      "Lighting",
+      "Desks & Office",
+      "Rugs & Carpets",
+      "Garden & Outdoor",
+    ],
   },
   {
     slug: "jewelry",
@@ -39,8 +48,11 @@ export const categories: Category[] = [
     subcategories: [
       "Rings",
       "Necklaces",
+      "Pendants",
       "Bracelets",
       "Earrings",
+      "Brooches",
+      "Cufflinks",
       "Watches",
       "Silver",
       "Silver Plate",
@@ -49,12 +61,27 @@ export const categories: Category[] = [
   {
     slug: "decor",
     name: "Decor",
-    subcategories: ["Vases", "Mirrors", "Textiles", "Tableware"],
+    subcategories: [
+      "Vases",
+      "Mirrors",
+      "Textiles",
+      "Tableware",
+      "Clocks",
+      "Candlesticks",
+      "Ornaments & Figurines",
+      "Boxes",
+    ],
   },
   {
     slug: "art",
     name: "Art",
-    subcategories: ["Paintings", "Prints and drawings", "Sculpture"],
+    subcategories: [
+      "Paintings",
+      "Prints and drawings",
+      "Sculpture",
+      "Photography",
+      "Ceramics",
+    ],
     eras: ["Georgian", "Victorian", "Edwardian", "Mid-century", "Contemporary"],
   },
 ];

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ImageCropUpload from "@/components/admin/ImageCropUpload";
+import { categories } from "@/lib/products";
 
 type AdminProduct = {
   id: string;
@@ -231,42 +232,70 @@ export default function ProductsPanel() {
           <label className="text-xs text-muted">Category</label>
           <select
             value={form.category}
-            onChange={(e) =>
+            onChange={(e) => {
+              const nextCategory = e.target.value as AdminProduct["category"];
+              // Reset subcategory/era whenever the category changes, since
+              // the old values almost certainly don't apply to the new one.
               setForm((f) => ({
                 ...f,
-                category: e.target.value as AdminProduct["category"],
-              }))
-            }
+                category: nextCategory,
+                subcategory: "",
+                era: "",
+              }));
+            }}
             className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
           >
-            <option value="furniture">Furniture</option>
-            <option value="jewelry">Jewelry &amp; Watches</option>
-            <option value="decor">Decor</option>
-            <option value="art">Art</option>
+            {categories.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </div>
 
         <div>
           <label className="text-xs text-muted">Subcategory</label>
-          <input
+          <select
             value={form.subcategory}
             onChange={(e) =>
               setForm((f) => ({ ...f, subcategory: e.target.value }))
             }
             className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
-          />
+          >
+            <option value="">Select a subcategory…</option>
+            {categories
+              .find((c) => c.slug === form.category)
+              ?.subcategories.map((sub) => (
+                <option key={sub} value={sub}>
+                  {sub}
+                </option>
+              ))}
+          </select>
         </div>
 
-        <div>
-          <label className="text-xs text-muted">
-            Era <span className="normal-case text-muted">(optional, e.g. Victorian)</span>
-          </label>
-          <input
-            value={form.era}
-            onChange={(e) => setForm((f) => ({ ...f, era: e.target.value }))}
-            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
-          />
-        </div>
+        {categories.find((c) => c.slug === form.category)?.eras && (
+          <div>
+            <label className="text-xs text-muted">
+              Era <span className="normal-case text-muted">(optional)</span>
+            </label>
+            <select
+              value={form.era}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, era: e.target.value }))
+              }
+              className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+            >
+              <option value="">Not specified</option>
+              {categories
+                .find((c) => c.slug === form.category)
+                ?.eras?.map((era) => (
+                  <option key={era} value={era}>
+                    {era}
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="text-xs text-muted">
