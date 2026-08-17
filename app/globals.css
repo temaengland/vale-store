@@ -20,3 +20,24 @@ body {
   width: auto !important;
   height: auto !important;
 }
+
+/* eBay-style crop selection: solid border (no marching-ants animation),
+   the area outside the frame dimmed, and clean solid square handles
+   instead of the library's default small semi-transparent ones. */
+.crop-viewport .ReactCrop__crop-selection {
+  animation: none !important;
+  background-image: none !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+}
+.crop-viewport .ReactCrop__drag-handle {
+  width: 18px !important;
+  height: 18px !important;
+  background-color: #fff !important;
+  border: none !important;
+  border-radius: 3px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.crop-viewport .ReactCrop__drag-bar {
+  display: none !important;
+}
