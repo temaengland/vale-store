@@ -5,6 +5,9 @@ import { ProductImage } from "@/components/ItemIllustration";
 import InquiryForm from "@/components/InquiryForm";
 import BuyNowButton from "@/components/BuyNowButton";
 
+// Always fetch fresh data — see note on the homepage for why this matters.
+export const dynamic = "force-dynamic";
+
 export default async function ProductPage({
   params,
   searchParams,

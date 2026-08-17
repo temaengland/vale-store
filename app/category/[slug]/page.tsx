@@ -3,6 +3,9 @@ import { getCategory, getProductsByCategory } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import Link from "next/link";
 
+// Always fetch fresh data — see note on the homepage for why this matters.
+export const dynamic = "force-dynamic";
+
 function buildHref(
   categorySlug: string,
   params: { sub?: string; era?: string }

@@ -4,6 +4,11 @@ import { getAllCategories, getAllProducts } from "@/lib/data";
 import CategoryTile from "@/components/CategoryTile";
 import ProductCard from "@/components/ProductCard";
 
+// Always fetch fresh data — without this, deletes/edits made in the admin
+// panel can take a while to show up on the live site because Next.js may
+// cache this page's data.
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const categories = getAllCategories();
   const products = await getAllProducts();

@@ -39,6 +39,8 @@ export default function ProductsPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   async function loadProducts() {
     setLoadError("");
@@ -380,8 +382,52 @@ export default function ProductsPanel() {
         </div>
       </form>
 
-      <div className="mt-10 space-y-3">
-        {products.map((p) => (
+      {/* Category tabs + search — makes it easy to find one item among many */}
+      <div className="mt-10 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setFilterCategory("all")}
+          className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+            filterCategory === "all"
+              ? "border-ink text-ink"
+              : "border-border-strong text-muted hover:text-ink"
+          }`}
+        >
+          All ({products.length})
+        </button>
+        {categories.map((c) => {
+          const count = products.filter((p) => p.category === c.slug).length;
+          return (
+            <button
+              key={c.slug}
+              onClick={() => setFilterCategory(c.slug)}
+              className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+                filterCategory === c.slug
+                  ? "border-ink text-ink"
+                  : "border-border-strong text-muted hover:text-ink"
+              }`}
+            >
+              {c.name} ({count})
+            </button>
+          );
+        })}
+      </div>
+      <input
+        type="text"
+        placeholder="Search by name…"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="mt-3 w-full max-w-sm rounded-md border border-border-strong px-3 py-2 text-sm"
+      />
+
+      <div className="mt-4 space-y-3">
+        {products
+          .filter(
+            (p) => filterCategory === "all" || p.category === filterCategory
+          )
+          .filter((p) =>
+            p.name.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+          .map((p) => (
           <div
             key={p.id}
             className="flex items-center gap-4 rounded-lg border border-border p-3"
@@ -435,6 +481,15 @@ export default function ProductsPanel() {
             No items yet — add your first one above.
           </p>
         )}
+        {products.length > 0 &&
+          products.filter(
+            (p) => filterCategory === "all" || p.category === filterCategory
+          ).filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+            .length === 0 && (
+            <p className="text-sm text-muted">
+              No items match this filter or search.
+            </p>
+          )}
       </div>
     </div>
   );
