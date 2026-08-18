@@ -16,7 +16,7 @@ import {
 // it's business-sensitive and only ever fetched via the admin API routes,
 // which use the service role key on the server, never the public anon key.
 const PUBLIC_PRODUCT_COLUMNS =
-  "id, slug, name, price, category, subcategory, era, description, image, icon, status, created_at";
+  "id, slug, name, price, category, subcategory, era, description, image, images, icon, status, created_at";
 
 export async function getAllProducts(): Promise<Product[]> {
   if (isSupabaseConfigured && supabase) {

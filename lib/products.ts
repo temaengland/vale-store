@@ -8,9 +8,10 @@ export type Product = {
   subcategory?: string;
   era?: string; // period/style, e.g. "Victorian" — currently used for Art
   description: string;
-  image?: string; // real uploaded photo URL, set via the admin panel
-  icon: IconName; // fallback illustration shown until `image` is set
-  status?: "available" | "sold"; // safe to show publicly (e.g. a "Sold" badge)
+  image?: string; // legacy single-photo field, kept for older records
+  images?: string[]; // real uploaded photo URLs, set via the admin panel — first one is the cover photo
+  icon: IconName; // fallback illustration shown until any photo is set
+  status?: "available" | "unavailable" | "sold"; // safe to show publicly (e.g. a "Sold" badge)
 };
 
 // Admin-only fields — never fetched on public pages, only via the

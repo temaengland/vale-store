@@ -8,6 +8,8 @@ import ProductCard from "@/components/ProductCard";
 // panel can take a while to show up on the live site because Next.js may
 // cache this page's data.
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function HomePage() {
   const categories = getAllCategories();

@@ -5,6 +5,8 @@ import Link from "next/link";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 function buildHref(
   categorySlug: string,

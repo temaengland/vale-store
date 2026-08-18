@@ -64,25 +64,29 @@ export const iconTones: Record<IconName, { bg: string; fg: string }> = {
 };
 
 // Drop-in image slot: shows the real photo if the product has one uploaded,
-// otherwise falls back to the line-art placeholder. This is the only piece
-// that needs to change once photos exist — nothing else in the page.
+// otherwise falls back to the line-art placeholder. Accepts either the
+// newer `images` array (first photo = cover) or the older single `image`
+// field, so older records keep working without a data migration.
 export function ProductImage({
   image,
+  images,
   icon,
   alt,
   className = "",
 }: {
   image?: string | null;
+  images?: string[] | null;
   icon: IconName;
   alt: string;
   className?: string;
 }) {
   const tone = iconTones[icon];
-  if (image) {
+  const cover = images && images.length > 0 ? images[0] : image;
+  if (cover) {
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
-        src={image}
+        src={cover}
         alt={alt}
         className={`object-cover ${className}`}
       />

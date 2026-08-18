@@ -7,6 +7,7 @@ export default function ProductCard({ product }: { product: Product }) {
     <Link href={`/product/${product.slug}`} className="group block">
       <ProductImage
         image={product.image}
+        images={product.images}
         icon={product.icon}
         alt={product.name}
         className="aspect-square w-full rounded-xl"

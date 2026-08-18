@@ -14,9 +14,10 @@ type AdminProduct = {
   era?: string;
   description: string;
   image?: string;
+  images?: string[];
   icon: string;
   cost_price?: number;
-  status?: "available" | "sold";
+  status?: "available" | "unavailable" | "sold";
 };
 
 const emptyForm = {
@@ -28,9 +29,10 @@ const emptyForm = {
   era: "",
   description: "",
   image: "",
+  images: [] as string[],
   icon: "generic",
   cost_price: "",
-  status: "available" as "available" | "sold",
+  status: "available" as "available" | "unavailable" | "sold",
 };
 
 export default function ProductsPanel() {
@@ -112,6 +114,7 @@ export default function ProductsPanel() {
       era: p.era ?? "",
       description: p.description,
       image: p.image ?? "",
+      images: p.images ?? [],
       icon: p.icon,
       cost_price: p.cost_price ? String(p.cost_price / 100) : "",
       status: p.status ?? "available",
@@ -190,8 +193,8 @@ export default function ProductsPanel() {
           <label className="text-xs text-muted">Photo</label>
           <div className="mt-1">
             <ImageCropUpload
-              value={form.image}
-              onChange={(url) => setForm((f) => ({ ...f, image: url }))}
+              value={form.images}
+              onChange={(urls) => setForm((f) => ({ ...f, images: urls }))}
             />
           </div>
         </div>
@@ -336,12 +339,13 @@ export default function ProductsPanel() {
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                status: e.target.value as "available" | "sold",
+                status: e.target.value as "available" | "unavailable" | "sold",
               }))
             }
             className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
           >
             <option value="available">Available</option>
+            <option value="unavailable">Unavailable</option>
             <option value="sold">Sold</option>
           </select>
         </div>
@@ -355,7 +359,7 @@ export default function ProductsPanel() {
             onChange={(e) =>
               setForm((f) => ({ ...f, description: e.target.value }))
             }
-            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+            className="mt-1 max-h-32 w-full resize-none overflow-y-auto rounded-md border border-border-strong px-3 py-2 text-sm"
           />
         </div>
 
@@ -432,22 +436,27 @@ export default function ProductsPanel() {
             key={p.id}
             className="flex items-center gap-4 rounded-lg border border-border p-3"
           >
-            {p.image ? (
+            {(p.images && p.images.length > 0) || p.image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={p.image}
+                src={p.images && p.images.length > 0 ? p.images[0] : p.image}
                 alt=""
                 className="h-14 w-14 rounded-md object-cover"
               />
             ) : (
               <div className="h-14 w-14 rounded-md bg-surface" />
             )}
-            <div className="flex-1">
-              <p className="text-sm">
+            <div className="min-w-0 flex-1">
+              <p className="line-clamp-1 text-sm">
                 {p.name}
                 {p.status === "sold" && (
                   <span className="ml-2 rounded-full bg-surface px-2 py-0.5 text-xs text-muted">
                     Sold
+                  </span>
+                )}
+                {p.status === "unavailable" && (
+                  <span className="ml-2 rounded-full bg-surface px-2 py-0.5 text-xs text-muted">
+                    Unavailable
                   </span>
                 )}
               </p>

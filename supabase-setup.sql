@@ -12,6 +12,7 @@ create table products (
   status text not null default 'available', -- available / sold
   description text not null,
   image text,
+  images text[], -- multiple photos; first one is the cover photo
   icon text not null default 'generic',
   created_at timestamptz not null default now()
 );
@@ -61,3 +62,4 @@ alter table inquiries enable row level security;
 -- alter table products add column if not exists cost_price integer;
 -- alter table products add column if not exists status text not null default 'available';
 -- alter table products drop constraint if exists products_category_check;
+-- alter table products add column if not exists images text[];

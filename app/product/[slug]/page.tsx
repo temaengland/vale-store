@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { getProduct } from "@/lib/data";
 import { formatPrice } from "@/lib/products";
-import { ProductImage } from "@/components/ItemIllustration";
+import ProductGallery from "@/components/ProductGallery";
 import InquiryForm from "@/components/InquiryForm";
 import BuyNowButton from "@/components/BuyNowButton";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function ProductPage({
   params,
@@ -20,11 +22,11 @@ export default async function ProductPage({
 
   return (
     <div className="grid gap-10 sm:grid-cols-2">
-      <ProductImage
-        image={product.image}
+      <ProductGallery
+        images={product.images}
+        legacyImage={product.image}
         icon={product.icon}
         alt={product.name}
-        className="aspect-square w-full rounded-xl"
       />
       <div>
         <p className="text-xs tracking-widest text-muted uppercase">

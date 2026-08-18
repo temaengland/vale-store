@@ -87,9 +87,10 @@ export default function ImageCropUpload({
   value,
   onChange,
 }: {
-  value?: string;
-  onChange: (url: string) => void;
+  value?: string[];
+  onChange: (urls: string[]) => void;
 }) {
+  const photos = value ?? [];
   const [rawImage, setRawImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>();
   const [pixelCrop, setPixelCrop] = useState<PixelCrop>();
@@ -97,6 +98,18 @@ export default function ImageCropUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const imgRef = useRef<HTMLImageElement>(null);
+
+  function removePhoto(index: number) {
+    onChange(photos.filter((_, i) => i !== index));
+  }
+
+  function movePhoto(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= photos.length) return;
+    const next = [...photos];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  }
 
   function applyCrop(nextCrop: Crop, width: number, height: number) {
     setCrop(nextCrop);
@@ -204,7 +217,7 @@ export default function ImageCropUpload({
         return;
       }
       const data = await res.json();
-      onChange(data.url);
+      onChange([...photos, data.url]);
       setRawImage(null);
     } catch (e) {
       setError(
@@ -224,25 +237,71 @@ export default function ImageCropUpload({
 
   return (
     <div>
-      <div className="flex items-center gap-4">
-        {value && !rawImage && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={value}
-            alt=""
-            className="h-20 w-20 rounded-md object-cover"
-          />
-        )}
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleFileSelect(f);
-          }}
-          className="text-sm"
-        />
-      </div>
+      {photos.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-3">
+          {photos.map((src, i) => (
+            <div key={src} className="group relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                className="h-20 w-20 rounded-md border border-border object-cover"
+              />
+              {i === 0 && (
+                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                  Cover
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => removePhoto(i)}
+                aria-label="Remove photo"
+                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs text-ink shadow border border-border-strong"
+              >
+                ✕
+              </button>
+              <div className="mt-1 flex justify-center gap-1">
+                {i > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => movePhoto(i, -1)}
+                    aria-label="Move left"
+                    className="text-xs text-muted hover:text-ink"
+                  >
+                    ←
+                  </button>
+                )}
+                {i < photos.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={() => movePhoto(i, 1)}
+                    aria-label="Move right"
+                    className="text-xs text-muted hover:text-ink"
+                  >
+                    →
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFileSelect(f);
+          e.target.value = ""; // allow selecting the same file again
+        }}
+        className="text-sm"
+      />
+      <p className="mt-1 text-xs text-muted">
+        {photos.length === 0
+          ? "Add a photo — you can add more than one."
+          : "Add another photo, or reorder/remove the ones above. The first photo is the cover shown on the site."}
+      </p>
 
       {error && !rawImage && (
         <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
