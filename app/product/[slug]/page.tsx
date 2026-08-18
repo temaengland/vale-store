@@ -4,6 +4,7 @@ import { formatPrice } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
 import InquiryForm from "@/components/InquiryForm";
 import BuyNowButton from "@/components/BuyNowButton";
+import ExpandableDescription from "@/components/ExpandableDescription";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -37,9 +38,9 @@ export default async function ProductPage({
         <p className="mt-3 text-lg text-muted">
           {formatPrice(product.price)}
         </p>
-        <p className="mt-6 text-sm leading-relaxed text-muted">
-          {product.description}
-        </p>
+        <div className="mt-6">
+          <ExpandableDescription text={product.description} />
+        </div>
 
         {searchParams.paid ? (
           <p className="mt-8 rounded-md bg-surface px-4 py-3 text-sm text-ink">
