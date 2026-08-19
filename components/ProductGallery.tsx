@@ -29,19 +29,21 @@ export default function ProductGallery({
 
   return (
     <div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={photos[active]}
-        alt={alt}
-        className="aspect-square w-full rounded-xl object-cover"
-      />
+      <div className="aspect-square w-full overflow-hidden rounded-xl bg-surface">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={photos[active]}
+          alt={alt}
+          className="h-full w-full object-contain"
+        />
+      </div>
       {photos.length > 1 && (
         <div className="mt-3 flex gap-2 overflow-x-auto">
           {photos.map((src, i) => (
             <button
               key={src}
               onClick={() => setActive(i)}
-              className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
+              className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 bg-surface transition-colors ${
                 i === active ? "border-ink" : "border-transparent"
               }`}
             >
@@ -49,7 +51,7 @@ export default function ProductGallery({
               <img
                 src={src}
                 alt=""
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             </button>
           ))}

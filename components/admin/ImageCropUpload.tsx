@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactCrop, {
   Crop,
   PixelCrop,
@@ -11,6 +11,11 @@ import ReactCrop, {
 import "react-image-crop/dist/ReactCrop.css";
 import { cropToBlob, rotateImage90 } from "@/lib/cropImage";
 
+type PendingPhoto = {
+  id: string;
+  url: string;
+};
+
 function centeredSquareCrop(width: number, height: number): Crop {
   return centerCrop(
     makeAspectCrop({ unit: "%", width: 90 }, 1, width, height),
@@ -19,12 +24,8 @@ function centeredSquareCrop(width: number, height: number): Crop {
   );
 }
 
-function centeredFreeCrop(): Crop {
-  return { unit: "%", width: 90, height: 90, x: 5, y: 5 };
-}
-
 // Small inline icons — kept dependency-free rather than pulling in an icon
-// library just for four glyphs.
+// library just for a few glyphs.
 function RotateLeftIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -41,19 +42,25 @@ function RotateRightIcon() {
     </svg>
   );
 }
-function AspectIcon() {
+function CropIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="4" width="10" height="10" rx="1" />
-      <rect x="10" y="10" width="10" height="10" rx="1" />
+      <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+      <path d="M18 22V8a2 2 0 0 0-2-2H2" />
     </svg>
   );
 }
-function ResetIcon() {
+function ChevronLeftIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 12a9 9 0 1 0 3-6.7" />
-      <path d="M3 4v5h5" />
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+function ChevronRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18l6-6-6-6" />
     </svg>
   );
 }
@@ -91,10 +98,12 @@ export default function ImageCropUpload({
   onChange: (urls: string[]) => void;
 }) {
   const photos = value ?? [];
+  const [pending, setPending] = useState<PendingPhoto[]>([]);
+  const [editIndex, setEditIndex] = useState<number | null>(null);
   const [rawImage, setRawImage] = useState<string | null>(null);
+  const [cropMode, setCropMode] = useState(false);
   const [crop, setCrop] = useState<Crop>();
   const [pixelCrop, setPixelCrop] = useState<PixelCrop>();
-  const [lockSquare, setLockSquare] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const imgRef = useRef<HTMLImageElement>(null);
@@ -111,39 +120,65 @@ export default function ImageCropUpload({
     onChange(next);
   }
 
-  function applyCrop(nextCrop: Crop, width: number, height: number) {
-    setCrop(nextCrop);
-    setPixelCrop(convertToPixelCrop(nextCrop, width, height));
+  // Handles selecting one or many photos at once (up to 10) — they're
+  // queued as thumbnails first; nothing uploads until each one is confirmed.
+  function handleFilesSelect(files: FileList) {
+    setError("");
+    const list = Array.from(files).slice(0, 10);
+    const tooBig = list.find((f) => f.size > 25 * 1024 * 1024);
+    if (tooBig) {
+      setError(
+        `"${tooBig.name}" is quite large (over 25MB) — try a smaller photo, or take a new one at a lower resolution.`
+      );
+    }
+    const usable = list.filter((f) => f.size <= 25 * 1024 * 1024);
+    const newPending = usable.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      url: URL.createObjectURL(file),
+    }));
+    setPending((p) => [...p, ...newPending]);
   }
 
-  function handleFileSelect(file: File) {
+  function openEditor(index: number) {
     setError("");
-    if (file.size > 25 * 1024 * 1024) {
-      setError(
-        "That photo is quite large (over 25MB) — try a smaller photo, or take a new one at a lower resolution."
-      );
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setRawImage(url);
+    setEditIndex(index);
+    setCropMode(false);
     setCrop(undefined);
     setPixelCrop(undefined);
   }
 
-  function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
-    const { width, height } = e.currentTarget;
-    applyCrop(
-      lockSquare ? centeredSquareCrop(width, height) : centeredFreeCrop(),
-      width,
-      height
-    );
+  // Keep rawImage in sync with whichever pending photo is being edited —
+  // this is what makes the ‹ › navigation work without closing the modal.
+  useEffect(() => {
+    if (editIndex !== null && pending[editIndex]) {
+      setRawImage(pending[editIndex].url);
+    } else if (editIndex !== null) {
+      // The photo at this index was removed (e.g. just uploaded) — close.
+      setEditIndex(null);
+      setRawImage(null);
+    }
+  }, [editIndex, pending]);
+
+  function removePending(id: string) {
+    setPending((p) => p.filter((item) => item.id !== id));
+  }
+
+  function enableCrop() {
+    if (!imgRef.current) return;
+    const { width, height } = imgRef.current;
+    setCropMode(true);
+    setCrop(centeredSquareCrop(width, height));
+    setPixelCrop(convertToPixelCrop(centeredSquareCrop(width, height), width, height));
   }
 
   async function rotate(direction: 1 | -1) {
-    if (!imgRef.current || !rawImage) return;
+    if (!imgRef.current || !rawImage || editIndex === null) return;
     try {
       const newUrl = await rotateImage90(imgRef.current, direction);
-      setRawImage(newUrl);
+      setPending((p) =>
+        p.map((item, i) => (i === editIndex ? { ...item, url: newUrl } : item))
+      );
+      setCropMode(false);
       setCrop(undefined);
       setPixelCrop(undefined);
     } catch {
@@ -151,43 +186,28 @@ export default function ImageCropUpload({
     }
   }
 
-  function toggleAspect() {
-    const next = !lockSquare;
-    setLockSquare(next);
-    if (imgRef.current) {
-      const { width, height } = imgRef.current;
-      applyCrop(
-        next ? centeredSquareCrop(width, height) : centeredFreeCrop(),
-        width,
-        height
-      );
-    }
+  function goToPending(index: number) {
+    if (index < 0 || index >= pending.length) return;
+    openEditor(index);
   }
 
-  function resetCrop() {
-    if (imgRef.current) {
-      const { width, height } = imgRef.current;
-      applyCrop(
-        lockSquare ? centeredSquareCrop(width, height) : centeredFreeCrop(),
-        width,
-        height
-      );
-    }
-  }
-
-  async function confirmCrop() {
+  async function confirmPhoto() {
     setError("");
-    if (!imgRef.current || !pixelCrop || pixelCrop.width < 5) {
-      setError(
-        "No crop area selected yet — drag the frame over the part of the photo you want, then try again."
-      );
-      return;
-    }
+    if (!imgRef.current || editIndex === null) return;
+
+    const useCrop = cropMode && pixelCrop && pixelCrop.width >= 5;
     setUploading(true);
 
     let blob: Blob;
     try {
-      blob = await cropToBlob(imgRef.current, pixelCrop);
+      blob = useCrop
+        ? await cropToBlob(imgRef.current, pixelCrop!)
+        : await cropToBlob(imgRef.current, {
+            x: 0,
+            y: 0,
+            width: imgRef.current.width,
+            height: imgRef.current.height,
+          });
     } catch (e) {
       setError(
         `Couldn't process that photo (${
@@ -218,7 +238,20 @@ export default function ImageCropUpload({
       }
       const data = await res.json();
       onChange([...photos, data.url]);
-      setRawImage(null);
+      const finishedId = pending[editIndex].id;
+      const remaining = pending.filter((item) => item.id !== finishedId);
+      setPending(remaining);
+      // Move on to the next pending photo automatically, like eBay's ‹ ›
+      // flow — or close if that was the last one.
+      if (remaining.length > 0) {
+        setEditIndex(Math.min(editIndex, remaining.length - 1));
+        setCropMode(false);
+        setCrop(undefined);
+        setPixelCrop(undefined);
+      } else {
+        setEditIndex(null);
+        setRawImage(null);
+      }
     } catch (e) {
       setError(
         `Network request failed (${
@@ -230,7 +263,8 @@ export default function ImageCropUpload({
     }
   }
 
-  function cancelCrop() {
+  function closeEditor() {
+    setEditIndex(null);
     setRawImage(null);
     setError("");
   }
@@ -238,78 +272,112 @@ export default function ImageCropUpload({
   return (
     <div>
       {photos.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-3">
-          {photos.map((src, i) => (
-            <div key={src} className="group relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt=""
-                className="h-20 w-20 rounded-md border border-border object-cover"
-              />
-              {i === 0 && (
-                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                  Cover
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => removePhoto(i)}
-                aria-label="Remove photo"
-                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs text-ink shadow border border-border-strong"
-              >
-                ✕
-              </button>
-              <div className="mt-1 flex justify-center gap-1">
-                {i > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => movePhoto(i, -1)}
-                    aria-label="Move left"
-                    className="text-xs text-muted hover:text-ink"
-                  >
-                    ←
-                  </button>
+        <div className="mb-3">
+          <p className="mb-1.5 text-xs text-muted">Added photos</p>
+          <div className="flex flex-wrap gap-3">
+            {photos.map((src, i) => (
+              <div key={src} className="group relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt=""
+                  className="h-20 w-20 rounded-md border border-border bg-surface object-contain"
+                />
+                {i === 0 && (
+                  <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                    Cover
+                  </span>
                 )}
-                {i < photos.length - 1 && (
-                  <button
-                    type="button"
-                    onClick={() => movePhoto(i, 1)}
-                    aria-label="Move right"
-                    className="text-xs text-muted hover:text-ink"
-                  >
-                    →
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removePhoto(i)}
+                  aria-label="Remove photo"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border-strong bg-white text-xs text-ink shadow"
+                >
+                  ✕
+                </button>
+                <div className="mt-1 flex justify-center gap-1">
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => movePhoto(i, -1)}
+                      aria-label="Move left"
+                      className="text-xs text-muted hover:text-ink"
+                    >
+                      ←
+                    </button>
+                  )}
+                  {i < photos.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={() => movePhoto(i, 1)}
+                      aria-label="Move right"
+                      className="text-xs text-muted hover:text-ink"
+                    >
+                      →
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pending.length > 0 && (
+        <div className="mb-3">
+          <p className="mb-1.5 text-xs text-muted">
+            Waiting — tap one to review and add it
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {pending.map((item, i) => (
+              <div key={item.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => openEditor(i)}
+                  className="block h-20 w-20 overflow-hidden rounded-md border-2 border-dashed border-border-strong bg-surface"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.url} alt="" className="h-full w-full object-contain opacity-80" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removePending(item.id)}
+                  aria-label="Remove"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border-strong bg-white text-xs text-ink shadow"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       <input
         type="file"
         accept="image/*"
+        multiple
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) handleFileSelect(f);
-          e.target.value = ""; // allow selecting the same file again
+          if (e.target.files && e.target.files.length > 0) {
+            handleFilesSelect(e.target.files);
+          }
+          e.target.value = ""; // allow selecting the same file(s) again
         }}
         className="text-sm"
       />
       <p className="mt-1 text-xs text-muted">
-        {photos.length === 0
-          ? "Add a photo — you can add more than one."
-          : "Add another photo, or reorder/remove the ones above. The first photo is the cover shown on the site."}
+        Select up to 10 photos at once. Each one is used exactly as shown —
+        crop is optional, only if you want to trim it.
       </p>
 
-      {error && !rawImage && (
+      {error && editIndex === null && (
         <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
 
-      {rawImage && (
+      {rawImage && editIndex !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
             className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl shadow-xl"
@@ -319,13 +387,16 @@ export default function ImageCropUpload({
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <button
                 type="button"
-                onClick={cancelCrop}
+                onClick={closeEditor}
                 aria-label="Close"
                 className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
               >
                 ✕
               </button>
-              <p className="text-sm font-medium text-white">Edit photo</p>
+              <p className="text-sm font-medium text-white">
+                Edit photo
+                {pending.length > 1 ? ` (${editIndex + 1}/${pending.length})` : ""}
+              </p>
               <div className="w-8" />
             </div>
 
@@ -335,26 +406,52 @@ export default function ImageCropUpload({
               </p>
             )}
 
-            {/* Image canvas */}
-            <div className="flex flex-1 items-center justify-center overflow-hidden p-4">
+            {/* Image canvas with prev/next like eBay's editor */}
+            <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4">
+              {pending.length > 1 && editIndex > 0 && (
+                <button
+                  type="button"
+                  onClick={() => goToPending(editIndex - 1)}
+                  aria-label="Previous photo"
+                  className="absolute left-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink shadow"
+                >
+                  <ChevronLeftIcon />
+                </button>
+              )}
+
               <div
                 className="crop-viewport flex items-center justify-center"
                 style={{ maxHeight: "50vh" }}
               >
-                <ReactCrop
-                  crop={crop}
-                  onChange={(_, percentCrop) => setCrop(percentCrop)}
-                  onComplete={(c) => setPixelCrop(c)}
-                  aspect={lockSquare ? 1 : undefined}
-                  minWidth={40}
-                  minHeight={40}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                {cropMode ? (
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(_, percentCrop) => setCrop(percentCrop)}
+                    onComplete={(c) => setPixelCrop(c)}
+                    aspect={1}
+                    minWidth={40}
+                    minHeight={40}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      ref={imgRef}
+                      src={rawImage}
+                      alt=""
+                      style={{
+                        maxHeight: "50vh",
+                        maxWidth: "100%",
+                        width: "auto",
+                        height: "auto",
+                        display: "block",
+                      }}
+                    />
+                  </ReactCrop>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     ref={imgRef}
                     src={rawImage}
                     alt=""
-                    onLoad={onImageLoad}
                     style={{
                       maxHeight: "50vh",
                       maxWidth: "100%",
@@ -363,13 +460,25 @@ export default function ImageCropUpload({
                       display: "block",
                     }}
                   />
-                </ReactCrop>
+                )}
               </div>
+
+              {pending.length > 1 && editIndex < pending.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => goToPending(editIndex + 1)}
+                  aria-label="Next photo"
+                  className="absolute right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink shadow"
+                >
+                  <ChevronRightIcon />
+                </button>
+              )}
             </div>
 
             <p className="px-4 pb-1 text-center text-xs text-white/50">
-              Drag the corners to resize, drag inside to move — only what's
-              inside the frame will be used.
+              {cropMode
+                ? "Drag the corners to resize, drag inside to move."
+                : "Shown exactly as it will appear on the site. Tap Crop to trim it."}
             </p>
 
             {/* Icon toolbar */}
@@ -385,15 +494,10 @@ export default function ImageCropUpload({
                 label="Rotate"
               />
               <ToolbarButton
-                onClick={toggleAspect}
-                active={!lockSquare}
-                icon={<AspectIcon />}
-                label={lockSquare ? "Square" : "Free"}
-              />
-              <ToolbarButton
-                onClick={resetCrop}
-                icon={<ResetIcon />}
-                label="Reset"
+                onClick={enableCrop}
+                active={cropMode}
+                icon={<CropIcon />}
+                label="Crop"
               />
             </div>
 
@@ -401,14 +505,14 @@ export default function ImageCropUpload({
             <div className="flex gap-2 border-t border-white/10 p-4">
               <button
                 type="button"
-                onClick={cancelCrop}
+                onClick={closeEditor}
                 className="flex-1 rounded-full border border-white/20 py-2.5 text-sm text-white/80 hover:bg-white/5"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={confirmCrop}
+                onClick={confirmPhoto}
                 disabled={uploading}
                 className="flex-1 rounded-full bg-white py-2.5 text-sm font-medium text-black disabled:opacity-50"
               >

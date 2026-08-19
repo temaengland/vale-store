@@ -83,13 +83,15 @@ export function ProductImage({
   const tone = iconTones[icon];
   const cover = images && images.length > 0 ? images[0] : image;
   if (cover) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
-      <img
-        src={cover}
-        alt={alt}
-        className={`object-cover ${className}`}
-      />
+      <div className={`overflow-hidden bg-surface ${className}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={cover}
+          alt={alt}
+          className="h-full w-full object-contain"
+        />
+      </div>
     );
   }
   return (
