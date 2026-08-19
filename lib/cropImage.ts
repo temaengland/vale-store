@@ -23,23 +23,31 @@ export function rotateImage90(
 }
 
 // Crops the (already correctly-oriented) displayed image to the given pixel
-// area, resizes to a sensible max size for the web, and returns a
-// compressed JPEG blob.
+// area, at the photo's own full native resolution — nothing is shrunk,
+// stretched, or forced into a smaller square. maxOutputSize is only a
+// generous safety ceiling against extreme cases (e.g. a 12,000px panorama),
+// not a normal downscale.
 export async function cropToBlob(
   image: HTMLImageElement,
   crop: { x: number; y: number; width: number; height: number },
-  maxOutputSize = 1200,
-  quality = 0.85
+  maxOutputSize = 4000,
+  quality = 0.95
 ): Promise<Blob> {
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
   const cropW = crop.width * scaleX;
   const cropH = crop.height * scaleY;
 
-  const outputSize = Math.min(maxOutputSize, Math.max(cropW, cropH));
+  // Scale down only if genuinely oversized, and keep the crop's own aspect
+  // ratio rather than forcing a square canvas.
+  const largestSide = Math.max(cropW, cropH);
+  const scale = largestSide > maxOutputSize ? maxOutputSize / largestSide : 1;
+  const outW = Math.round(cropW * scale);
+  const outH = Math.round(cropH * scale);
+
   const canvas = document.createElement("canvas");
-  canvas.width = outputSize;
-  canvas.height = outputSize;
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(
     image,
@@ -49,8 +57,8 @@ export async function cropToBlob(
     cropH,
     0,
     0,
-    outputSize,
-    outputSize
+    outW,
+    outH
   );
 
   return new Promise((resolve, reject) => {

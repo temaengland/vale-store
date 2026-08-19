@@ -17,6 +17,7 @@ type AdminProduct = {
   images?: string[];
   icon: string;
   cost_price?: number;
+  shipping_cost?: number;
   status?: "available" | "unavailable" | "sold";
 };
 
@@ -32,6 +33,7 @@ const emptyForm = {
   images: [] as string[],
   icon: "generic",
   cost_price: "",
+  shipping_cost: "",
   status: "available" as "available" | "unavailable" | "sold",
 };
 
@@ -83,6 +85,9 @@ export default function ProductsPanel() {
       cost_price: form.cost_price
         ? Math.round(Number(form.cost_price) * 100)
         : null,
+      shipping_cost: form.shipping_cost
+        ? Math.round(Number(form.shipping_cost) * 100)
+        : null,
     };
     const res = await fetch(
       editingId ? `/api/admin/products/${editingId}` : "/api/admin/products",
@@ -117,6 +122,7 @@ export default function ProductsPanel() {
       images: p.images ?? [],
       icon: p.icon,
       cost_price: p.cost_price ? String(p.cost_price / 100) : "",
+      shipping_cost: p.shipping_cost ? String(p.shipping_cost / 100) : "",
       status: p.status ?? "available",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -330,6 +336,24 @@ export default function ProductsPanel() {
               % margin)
             </p>
           )}
+        </div>
+
+        <div>
+          <label className="text-xs text-muted">
+            Shipping cost (£){" "}
+            <span className="normal-case text-muted">
+              — shown to buyers, added at checkout
+            </span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={form.shipping_cost}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, shipping_cost: e.target.value }))
+            }
+            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+          />
         </div>
 
         <div>

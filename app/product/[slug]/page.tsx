@@ -38,6 +38,12 @@ export default async function ProductPage({
         <p className="mt-3 text-lg text-muted">
           {formatPrice(product.price)}
         </p>
+        {typeof product.shipping_cost === "number" &&
+          product.shipping_cost > 0 && (
+            <p className="mt-1 text-xs text-muted">
+              + {formatPrice(product.shipping_cost)} estimated shipping
+            </p>
+          )}
         <div className="mt-6">
           <ExpandableDescription text={product.description} />
         </div>

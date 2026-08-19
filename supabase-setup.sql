@@ -9,6 +9,7 @@ create table products (
   subcategory text,
   era text,
   cost_price integer, -- in pence; what you paid for it — never shown publicly
+  shipping_cost integer, -- in pence; estimated shipping, shown to buyers
   status text not null default 'available', -- available / sold
   description text not null,
   image text,
@@ -63,3 +64,4 @@ alter table inquiries enable row level security;
 -- alter table products add column if not exists status text not null default 'available';
 -- alter table products drop constraint if exists products_category_check;
 -- alter table products add column if not exists images text[];
+-- alter table products add column if not exists shipping_cost integer;
