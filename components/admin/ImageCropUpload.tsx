@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import ReactCrop, {
   Crop,
   PixelCrop,
@@ -15,16 +15,19 @@ type PendingPhoto = {
   url: string;
 };
 
+// Which photo the editor modal is currently working on: either a
+// not-yet-uploaded photo from the "pending" queue, or one of the photos
+// already added to the item (re-opened for a fix).
+type EditTarget =
+  | { kind: "pending"; index: number }
+  | { kind: "existing"; index: number };
+
 function centeredStartCrop(width: number, height: number): Crop {
   // A generous starting box, but not locked to any particular aspect —
   // every side and corner can be dragged independently, since the site
   // now displays photos fully (contain) rather than force-cropping to a
   // square, so a non-square crop is completely fine.
-  return centerCrop(
-    { unit: "%", width: 90, height: 90 },
-    width,
-    height
-  );
+  return centerCrop({ unit: "%", width: 90, height: 90 }, width, height);
 }
 
 // Small inline icons — kept dependency-free rather than pulling in an icon
@@ -102,8 +105,8 @@ export default function ImageCropUpload({
 }) {
   const photos = value ?? [];
   const [pending, setPending] = useState<PendingPhoto[]>([]);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [rawImage, setRawImage] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [workingUrl, setWorkingUrl] = useState<string | null>(null);
   const [cropMode, setCropMode] = useState(false);
   const [crop, setCrop] = useState<Crop>();
   const [pixelCrop, setPixelCrop] = useState<PixelCrop>();
@@ -142,25 +145,24 @@ export default function ImageCropUpload({
     setPending((p) => [...p, ...newPending]);
   }
 
-  function openEditor(index: number) {
+  function openPending(index: number) {
     setError("");
-    setEditIndex(index);
+    setEditTarget({ kind: "pending", index });
+    setWorkingUrl(pending[index].url);
     setCropMode(false);
     setCrop(undefined);
     setPixelCrop(undefined);
   }
 
-  // Keep rawImage in sync with whichever pending photo is being edited —
-  // this is what makes the ‹ › navigation work without closing the modal.
-  useEffect(() => {
-    if (editIndex !== null && pending[editIndex]) {
-      setRawImage(pending[editIndex].url);
-    } else if (editIndex !== null) {
-      // The photo at this index was removed (e.g. just uploaded) — close.
-      setEditIndex(null);
-      setRawImage(null);
-    }
-  }, [editIndex, pending]);
+  // Re-opens an already-added photo so it can be re-cropped or rotated.
+  function openExisting(index: number) {
+    setError("");
+    setEditTarget({ kind: "existing", index });
+    setWorkingUrl(photos[index]);
+    setCropMode(false);
+    setCrop(undefined);
+    setPixelCrop(undefined);
+  }
 
   function removePending(id: string) {
     setPending((p) => p.filter((item) => item.id !== id));
@@ -176,28 +178,28 @@ export default function ImageCropUpload({
   }
 
   async function rotate(direction: 1 | -1) {
-    if (!imgRef.current || !rawImage || editIndex === null) return;
+    if (!imgRef.current || !workingUrl) return;
     try {
       const newUrl = await rotateImage90(imgRef.current, direction);
-      setPending((p) =>
-        p.map((item, i) => (i === editIndex ? { ...item, url: newUrl } : item))
-      );
+      setWorkingUrl(newUrl);
       setCropMode(false);
       setCrop(undefined);
       setPixelCrop(undefined);
     } catch {
-      setError("Couldn't rotate that image — try a different photo.");
+      setError(
+        "Couldn't rotate that image — if it's an already-added photo, try removing and re-uploading it instead."
+      );
     }
   }
 
   function goToPending(index: number) {
     if (index < 0 || index >= pending.length) return;
-    openEditor(index);
+    openPending(index);
   }
 
   async function confirmPhoto() {
     setError("");
-    if (!imgRef.current || editIndex === null) return;
+    if (!imgRef.current || !editTarget) return;
 
     const useCrop = cropMode && pixelCrop && pixelCrop.width >= 5;
     setUploading(true);
@@ -213,10 +215,13 @@ export default function ImageCropUpload({
             height: imgRef.current.height,
           });
     } catch (e) {
+      const isSecurityError = e instanceof DOMException && e.name === "SecurityError";
       setError(
-        `Couldn't process that photo (${
-          e instanceof Error ? e.message : "unknown error"
-        }). Try a different photo.`
+        isSecurityError
+          ? "Couldn't re-process this photo due to a security restriction. Try removing it and uploading it again instead."
+          : `Couldn't process that photo (${
+              e instanceof Error ? e.message : "unknown error"
+            }). Try a different photo.`
       );
       setUploading(false);
       return;
@@ -241,20 +246,33 @@ export default function ImageCropUpload({
         return;
       }
       const data = await res.json();
+
+      if (editTarget.kind === "existing") {
+        // Replace that exact photo in place, keeping its position/cover status.
+        const next = [...photos];
+        next[editTarget.index] = data.url;
+        onChange(next);
+        setEditTarget(null);
+        setWorkingUrl(null);
+        return;
+      }
+
+      // Pending photo: add it to the item's photos, then move on to the
+      // next pending photo automatically, like eBay's ‹ › flow.
       onChange([...photos, data.url]);
-      const finishedId = pending[editIndex].id;
+      const finishedId = pending[editTarget.index].id;
       const remaining = pending.filter((item) => item.id !== finishedId);
       setPending(remaining);
-      // Move on to the next pending photo automatically, like eBay's ‹ ›
-      // flow — or close if that was the last one.
       if (remaining.length > 0) {
-        setEditIndex(Math.min(editIndex, remaining.length - 1));
+        const nextIndex = Math.min(editTarget.index, remaining.length - 1);
+        setEditTarget({ kind: "pending", index: nextIndex });
+        setWorkingUrl(remaining[nextIndex].url);
         setCropMode(false);
         setCrop(undefined);
         setPixelCrop(undefined);
       } else {
-        setEditIndex(null);
-        setRawImage(null);
+        setEditTarget(null);
+        setWorkingUrl(null);
       }
     } catch (e) {
       setError(
@@ -268,8 +286,8 @@ export default function ImageCropUpload({
   }
 
   function closeEditor() {
-    setEditIndex(null);
-    setRawImage(null);
+    setEditTarget(null);
+    setWorkingUrl(null);
     setError("");
   }
 
@@ -277,24 +295,31 @@ export default function ImageCropUpload({
     <div>
       {photos.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1.5 text-xs text-muted">Added photos</p>
+          <p className="mb-1.5 text-xs text-muted">
+            Added photos — tap one to re-crop or rotate it
+          </p>
           <div className="flex flex-wrap gap-3">
             {photos.map((src, i) => (
-              <div key={src} className="group relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={src}
-                  alt=""
-                  className="h-20 w-20 rounded-md border border-border bg-surface object-contain"
-                />
+              <div key={src} className="relative">
+                <button
+                  type="button"
+                  onClick={() => openExisting(i)}
+                  className="block h-20 w-20 overflow-hidden rounded-md border border-border bg-surface"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" className="h-full w-full object-contain" />
+                </button>
                 {i === 0 && (
-                  <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                  <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
                     Cover
                   </span>
                 )}
                 <button
                   type="button"
-                  onClick={() => removePhoto(i)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removePhoto(i);
+                  }}
                   aria-label="Remove photo"
                   className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border-strong bg-white text-xs text-ink shadow"
                 >
@@ -304,7 +329,10 @@ export default function ImageCropUpload({
                   {i > 0 && (
                     <button
                       type="button"
-                      onClick={() => movePhoto(i, -1)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        movePhoto(i, -1);
+                      }}
                       aria-label="Move left"
                       className="text-xs text-muted hover:text-ink"
                     >
@@ -314,7 +342,10 @@ export default function ImageCropUpload({
                   {i < photos.length - 1 && (
                     <button
                       type="button"
-                      onClick={() => movePhoto(i, 1)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        movePhoto(i, 1);
+                      }}
                       aria-label="Move right"
                       className="text-xs text-muted hover:text-ink"
                     >
@@ -338,7 +369,7 @@ export default function ImageCropUpload({
               <div key={item.id} className="relative">
                 <button
                   type="button"
-                  onClick={() => openEditor(i)}
+                  onClick={() => openPending(i)}
                   className="block h-20 w-20 overflow-hidden rounded-md border-2 border-dashed border-border-strong bg-surface"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -346,7 +377,10 @@ export default function ImageCropUpload({
                 </button>
                 <button
                   type="button"
-                  onClick={() => removePending(item.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removePending(item.id);
+                  }}
                   aria-label="Remove"
                   className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border-strong bg-white text-xs text-ink shadow"
                 >
@@ -375,13 +409,13 @@ export default function ImageCropUpload({
         crop is optional, only if you want to trim it.
       </p>
 
-      {error && editIndex === null && (
+      {error && !editTarget && (
         <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
 
-      {rawImage && editIndex !== null && (
+      {workingUrl && editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
             className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl shadow-xl"
@@ -398,8 +432,10 @@ export default function ImageCropUpload({
                 ✕
               </button>
               <p className="text-sm font-medium text-white">
-                Edit photo
-                {pending.length > 1 ? ` (${editIndex + 1}/${pending.length})` : ""}
+                {editTarget.kind === "existing" ? "Edit photo" : "Edit photo"}
+                {editTarget.kind === "pending" && pending.length > 1
+                  ? ` (${editTarget.index + 1}/${pending.length})`
+                  : ""}
               </p>
               <div className="w-8" />
             </div>
@@ -410,12 +446,12 @@ export default function ImageCropUpload({
               </p>
             )}
 
-            {/* Image canvas with prev/next like eBay's editor */}
+            {/* Image canvas with prev/next like eBay's editor (pending queue only) */}
             <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4">
-              {pending.length > 1 && editIndex > 0 && (
+              {editTarget.kind === "pending" && pending.length > 1 && editTarget.index > 0 && (
                 <button
                   type="button"
-                  onClick={() => goToPending(editIndex - 1)}
+                  onClick={() => goToPending(editTarget.index - 1)}
                   aria-label="Previous photo"
                   className="absolute left-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink shadow"
                 >
@@ -438,8 +474,9 @@ export default function ImageCropUpload({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       ref={imgRef}
-                      src={rawImage}
+                      src={workingUrl}
                       alt=""
+                      crossOrigin="anonymous"
                       style={{
                         maxHeight: "58vh",
                         maxWidth: "100%",
@@ -453,8 +490,9 @@ export default function ImageCropUpload({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     ref={imgRef}
-                    src={rawImage}
+                    src={workingUrl}
                     alt=""
+                    crossOrigin="anonymous"
                     style={{
                       maxHeight: "58vh",
                       maxWidth: "100%",
@@ -466,16 +504,18 @@ export default function ImageCropUpload({
                 )}
               </div>
 
-              {pending.length > 1 && editIndex < pending.length - 1 && (
-                <button
-                  type="button"
-                  onClick={() => goToPending(editIndex + 1)}
-                  aria-label="Next photo"
-                  className="absolute right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink shadow"
-                >
-                  <ChevronRightIcon />
-                </button>
-              )}
+              {editTarget.kind === "pending" &&
+                pending.length > 1 &&
+                editTarget.index < pending.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={() => goToPending(editTarget.index + 1)}
+                    aria-label="Next photo"
+                    className="absolute right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink shadow"
+                  >
+                    <ChevronRightIcon />
+                  </button>
+                )}
             </div>
 
             <p className="px-4 pb-1 text-center text-xs text-white/50">
