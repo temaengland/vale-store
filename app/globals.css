@@ -38,6 +38,36 @@ body {
   border-radius: 3px !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
+.crop-viewport .ReactCrop .ord-n,
+.crop-viewport .ReactCrop .ord-e,
+.crop-viewport .ReactCrop .ord-s,
+.crop-viewport .ReactCrop .ord-w {
+  display: block !important;
+}
 .crop-viewport .ReactCrop__drag-bar {
   background: transparent;
+}
+/* On touch devices the library hides the N/E/S/W edge handles entirely,
+   leaving only diagonal corner-dragging — that's what made side-dragging
+   impossible on mobile. Force them visible and make them chunky enough
+   to grab comfortably with a finger. */
+@media (pointer: coarse) {
+  .crop-viewport .ReactCrop .ord-n,
+  .crop-viewport .ReactCrop .ord-e,
+  .crop-viewport .ReactCrop .ord-s,
+  .crop-viewport .ReactCrop .ord-w {
+    display: block !important;
+  }
+  .crop-viewport .ReactCrop__drag-bar.ord-n,
+  .crop-viewport .ReactCrop__drag-bar.ord-s {
+    height: 28px !important;
+  }
+  .crop-viewport .ReactCrop__drag-bar.ord-e,
+  .crop-viewport .ReactCrop__drag-bar.ord-w {
+    width: 28px !important;
+  }
+  .crop-viewport .ReactCrop__drag-handle {
+    width: 26px !important;
+    height: 26px !important;
+  }
 }
