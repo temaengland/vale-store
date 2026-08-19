@@ -4,49 +4,63 @@ import { stripe } from "@/lib/stripe";
 import { getProduct } from "@/lib/data";
 
 export async function POST(req: NextRequest) {
-  const { slug } = await req.json();
-  const product = await getProduct(slug);
-
-  if (!product) {
-    return NextResponse.json({ error: "Item not found." }, { status: 404 });
-  }
-
-  const origin = req.headers.get("origin") ?? "";
-
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-    {
-      quantity: 1,
-      price_data: {
-        currency: "gbp",
-        unit_amount: product.price,
-        product_data: {
-          name: product.name,
-          description: product.description,
-          images:
-            product.images && product.images.length > 0
-              ? [product.images[0]]
-              : product.image
-              ? [product.image]
-              : undefined,
-        },
-      },
-    },
-  ];
-
-  if (product.shipping_cost && product.shipping_cost > 0) {
-    lineItems.push({
-      quantity: 1,
-      price_data: {
-        currency: "gbp",
-        unit_amount: product.shipping_cost,
-        product_data: {
-          name: "Estimated shipping",
-        },
-      },
-    });
-  }
-
   try {
+    const { slug } = await req.json();
+    const product = await getProduct(slug);
+
+    if (!product) {
+      return NextResponse.json({ error: "Item not found." }, { status: 404 });
+    }
+
+    if (product.status && product.status !== "available") {
+      return NextResponse.json(
+        { error: "This item is no longer available for purchase." },
+        { status: 409 }
+      );
+    }
+
+    const origin = req.headers.get("origin") ?? "";
+
+    // Stripe rejects product descriptions over ~500 characters — trim so a
+    // long pasted description never silently breaks checkout.
+    const safeDescription =
+      product.description.length > 480
+        ? product.description.slice(0, 477) + "..."
+        : product.description;
+
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "gbp",
+          unit_amount: product.price,
+          product_data: {
+            name: product.name,
+            description: safeDescription,
+            images:
+              product.images && product.images.length > 0
+                ? [product.images[0]]
+                : product.image
+                ? [product.image]
+                : undefined,
+          },
+        },
+      },
+    ];
+
+    if (product.shipping_cost && product.shipping_cost > 0) {
+      lineItems.push({
+        quantity: 1,
+        price_data: {
+          currency: "gbp",
+          unit_amount: product.shipping_cost,
+          product_data: {
+            name: "Estimated shipping",
+          },
+        },
+      });
+    }
+
     const session = await stripe().checkout.sessions.create({
       mode: "payment",
       line_items: lineItems,
@@ -71,8 +85,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error.";
     return NextResponse.json(
-      { error: "Payments aren't set up yet." },
+      { error: `Checkout couldn't be started: ${message}` },
       { status: 500 }
     );
   }

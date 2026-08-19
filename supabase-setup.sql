@@ -10,7 +10,7 @@ create table products (
   era text,
   cost_price integer, -- in pence; what you paid for it — never shown publicly
   shipping_cost integer, -- in pence; estimated shipping, shown to buyers
-  status text not null default 'available', -- available / sold
+  status text not null default 'available', -- available / unavailable / sold
   description text not null,
   image text,
   images text[], -- multiple photos; first one is the cover photo

@@ -48,7 +48,21 @@ export default async function ProductPage({
           <ExpandableDescription text={product.description} />
         </div>
 
-        {searchParams.paid ? (
+        {product.status && product.status !== "available" ? (
+          <div className="mt-8">
+            <p className="rounded-md bg-surface px-4 py-3 text-sm text-ink">
+              {product.status === "sold"
+                ? "This piece has sold."
+                : "This piece isn't currently available."}
+            </p>
+            <div className="my-6 flex items-center gap-3 text-xs text-muted">
+              <span className="h-px flex-1 bg-border" />
+              ASK ABOUT SIMILAR PIECES
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <InquiryForm product={product} />
+          </div>
+        ) : searchParams.paid ? (
           <p className="mt-8 rounded-md bg-surface px-4 py-3 text-sm text-ink">
             Payment received — thank you! We'll be in touch to arrange
             delivery or collection.

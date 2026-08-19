@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { name, email, phone, message, product_slug, product_name } = body;
-
-  if (!name || !email || !message) {
-    return NextResponse.json({ error: "Missing fields." }, { status: 400 });
-  }
-
   try {
+    const body = await req.json();
+    const { name, email, phone, message, product_slug, product_name } = body;
+
+    if (!name || !email || !message) {
+      return NextResponse.json({ error: "Missing fields." }, { status: 400 });
+    }
+
     const { error } = await supabaseAdmin()
       .from("inquiries")
       .insert([{ name, email, phone, message, product_slug, product_name }]);
@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ ok: true });
   } catch (e) {
-    // Supabase not configured yet — fail gracefully rather than crash.
+    const message = e instanceof Error ? e.message : "Unknown error.";
     return NextResponse.json(
-      { error: "Enquiries aren't set up yet." },
+      { error: `Enquiry couldn't be saved: ${message}` },
       { status: 500 }
     );
   }
