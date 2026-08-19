@@ -12,10 +12,10 @@ body {
 .crop-viewport,
 .crop-viewport .ReactCrop,
 .crop-viewport .ReactCrop__child-wrapper {
-  max-height: 50vh !important;
+  max-height: 58vh !important;
 }
 .crop-viewport .ReactCrop__child-wrapper > img {
-  max-height: 50vh !important;
+  max-height: 58vh !important;
   max-width: 100% !important;
   width: auto !important;
   height: auto !important;

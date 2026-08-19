@@ -5,7 +5,6 @@ import ReactCrop, {
   Crop,
   PixelCrop,
   centerCrop,
-  makeAspectCrop,
   convertToPixelCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
@@ -16,9 +15,13 @@ type PendingPhoto = {
   url: string;
 };
 
-function centeredSquareCrop(width: number, height: number): Crop {
+function centeredStartCrop(width: number, height: number): Crop {
+  // A generous starting box, but not locked to any particular aspect —
+  // every side and corner can be dragged independently, since the site
+  // now displays photos fully (contain) rather than force-cropping to a
+  // square, so a non-square crop is completely fine.
   return centerCrop(
-    makeAspectCrop({ unit: "%", width: 90 }, 1, width, height),
+    { unit: "%", width: 90, height: 90 },
     width,
     height
   );
@@ -167,8 +170,9 @@ export default function ImageCropUpload({
     if (!imgRef.current) return;
     const { width, height } = imgRef.current;
     setCropMode(true);
-    setCrop(centeredSquareCrop(width, height));
-    setPixelCrop(convertToPixelCrop(centeredSquareCrop(width, height), width, height));
+    const start = centeredStartCrop(width, height);
+    setCrop(start);
+    setPixelCrop(convertToPixelCrop(start, width, height));
   }
 
   async function rotate(direction: 1 | -1) {
@@ -421,14 +425,13 @@ export default function ImageCropUpload({
 
               <div
                 className="crop-viewport flex items-center justify-center"
-                style={{ maxHeight: "50vh" }}
+                style={{ maxHeight: "58vh" }}
               >
                 {cropMode ? (
                   <ReactCrop
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     onComplete={(c) => setPixelCrop(c)}
-                    aspect={1}
                     minWidth={40}
                     minHeight={40}
                   >
@@ -438,7 +441,7 @@ export default function ImageCropUpload({
                       src={rawImage}
                       alt=""
                       style={{
-                        maxHeight: "50vh",
+                        maxHeight: "58vh",
                         maxWidth: "100%",
                         width: "auto",
                         height: "auto",
@@ -453,7 +456,7 @@ export default function ImageCropUpload({
                     src={rawImage}
                     alt=""
                     style={{
-                      maxHeight: "50vh",
+                      maxHeight: "58vh",
                       maxWidth: "100%",
                       width: "auto",
                       height: "auto",
@@ -477,7 +480,7 @@ export default function ImageCropUpload({
 
             <p className="px-4 pb-1 text-center text-xs text-white/50">
               {cropMode
-                ? "Drag the corners to resize, drag inside to move."
+                ? "Drag any edge or corner to resize, drag inside to move."
                 : "Shown exactly as it will appear on the site. Tap Crop to trim it."}
             </p>
 
