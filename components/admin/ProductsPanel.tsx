@@ -18,6 +18,7 @@ type AdminProduct = {
   icon: string;
   cost_price?: number;
   shipping_cost?: number;
+  international_shipping_cost?: number;
   status?: "available" | "unavailable" | "sold";
 };
 
@@ -34,6 +35,7 @@ const emptyForm = {
   icon: "generic",
   cost_price: "",
   shipping_cost: "",
+  international_shipping_cost: "",
   status: "available" as "available" | "unavailable" | "sold",
 };
 
@@ -88,6 +90,9 @@ export default function ProductsPanel() {
       shipping_cost: form.shipping_cost
         ? Math.round(Number(form.shipping_cost) * 100)
         : null,
+      international_shipping_cost: form.international_shipping_cost
+        ? Math.round(Number(form.international_shipping_cost) * 100)
+        : null,
     };
     const res = await fetch(
       editingId ? `/api/admin/products/${editingId}` : "/api/admin/products",
@@ -123,6 +128,9 @@ export default function ProductsPanel() {
       icon: p.icon,
       cost_price: p.cost_price ? String(p.cost_price / 100) : "",
       shipping_cost: p.shipping_cost ? String(p.shipping_cost / 100) : "",
+      international_shipping_cost: p.international_shipping_cost
+        ? String(p.international_shipping_cost / 100)
+        : "",
       status: p.status ?? "available",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -340,9 +348,9 @@ export default function ProductsPanel() {
 
         <div>
           <label className="text-xs text-muted">
-            Shipping cost (£){" "}
+            UK shipping cost (£){" "}
             <span className="normal-case text-muted">
-              — shown to buyers, added at checkout
+              — shown to buyers, offered at checkout
             </span>
           </label>
           <input
@@ -351,6 +359,27 @@ export default function ProductsPanel() {
             value={form.shipping_cost}
             onChange={(e) =>
               setForm((f) => ({ ...f, shipping_cost: e.target.value }))
+            }
+            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted">
+            International shipping cost (£){" "}
+            <span className="normal-case text-muted">
+              — optional, leave blank to only offer UK shipping
+            </span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={form.international_shipping_cost}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                international_shipping_cost: e.target.value,
+              }))
             }
             className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
           />

@@ -38,12 +38,28 @@ export default async function ProductPage({
         <p className="mt-3 text-lg text-muted">
           {formatPrice(product.price)}
         </p>
-        {typeof product.shipping_cost === "number" &&
-          product.shipping_cost > 0 && (
-            <p className="mt-1 text-xs text-muted">
-              + {formatPrice(product.shipping_cost)} estimated shipping
+        {((typeof product.shipping_cost === "number" && product.shipping_cost > 0) ||
+          (typeof product.international_shipping_cost === "number" &&
+            product.international_shipping_cost > 0)) && (
+          <div className="mt-1 text-xs text-muted">
+            {typeof product.shipping_cost === "number" &&
+              product.shipping_cost > 0 && (
+                <p>+ {formatPrice(product.shipping_cost)} estimated UK shipping</p>
+              )}
+            {typeof product.international_shipping_cost === "number" &&
+              product.international_shipping_cost > 0 && (
+                <p>
+                  + {formatPrice(product.international_shipping_cost)} estimated
+                  international shipping
+                </p>
+              )}
+            <p className="mt-1">
+              Import duties and taxes for international orders are set by
+              your local customs authority and are the buyer's
+              responsibility.
             </p>
-          )}
+          </div>
+        )}
         <div className="mt-6">
           <ExpandableDescription text={product.description} />
         </div>

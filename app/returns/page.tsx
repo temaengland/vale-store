@@ -63,6 +63,18 @@ export default function ReturnsPage() {
         </section>
 
         <section>
+          <h2 className="font-medium text-ink">International orders</h2>
+          <p className="mt-2">
+            For orders shipped outside the UK, your order may be subject to
+            import duties, taxes and customs processing fees charged by your
+            country's customs authority. These charges are not included in
+            the item price or shipping cost and are the buyer's
+            responsibility. Any customs duties and taxes already paid are
+            not refunded if you return an item.
+          </p>
+        </section>
+
+        <section>
           <h2 className="font-medium text-ink">How to start a return</h2>
           <p className="mt-2">
             Message us via WhatsApp or the enquiry form with your order

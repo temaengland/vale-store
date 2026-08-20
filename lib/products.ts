@@ -12,7 +12,8 @@ export type Product = {
   images?: string[]; // real uploaded photo URLs, set via the admin panel — first one is the cover photo
   icon: IconName; // fallback illustration shown until any photo is set
   status?: "available" | "unavailable" | "sold"; // safe to show publicly (e.g. a "Sold" badge)
-  shipping_cost?: number; // in pence — estimated shipping, shown to buyers and added at checkout
+  shipping_cost?: number; // in pence — estimated UK shipping, shown to buyers and offered at checkout
+  international_shipping_cost?: number; // in pence — estimated international shipping, offered as an alternative at checkout
 };
 
 // Admin-only fields — never fetched on public pages, only via the

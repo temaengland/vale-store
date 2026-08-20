@@ -48,15 +48,32 @@ export async function POST(req: NextRequest) {
       },
     ];
 
+    // Let the buyer pick the shipping tier that matches where they live,
+    // rather than charging one flat rate for everyone — international
+    // delivery is usually a lot more expensive than UK delivery.
+    const shippingOptions: Stripe.Checkout.SessionCreateParams.ShippingOption[] =
+      [];
     if (product.shipping_cost && product.shipping_cost > 0) {
-      lineItems.push({
-        quantity: 1,
-        price_data: {
-          currency: "gbp",
-          unit_amount: product.shipping_cost,
-          product_data: {
-            name: "Estimated shipping",
+      shippingOptions.push({
+        shipping_rate_data: {
+          type: "fixed_amount",
+          fixed_amount: { amount: product.shipping_cost, currency: "gbp" },
+          display_name: "UK shipping",
+        },
+      });
+    }
+    if (
+      product.international_shipping_cost &&
+      product.international_shipping_cost > 0
+    ) {
+      shippingOptions.push({
+        shipping_rate_data: {
+          type: "fixed_amount",
+          fixed_amount: {
+            amount: product.international_shipping_cost,
+            currency: "gbp",
           },
+          display_name: "International shipping",
         },
       });
     }
@@ -69,8 +86,13 @@ export async function POST(req: NextRequest) {
       // to send it to the buyer.
       phone_number_collection: { enabled: true },
       shipping_address_collection: {
-        allowed_countries: ["GB", "IE", "US", "CA", "AU", "FR", "DE"],
+        allowed_countries: [
+          "GB", "IE",
+          "FR", "DE", "NL", "BE", "ES", "IT", "PT", "AT", "DK", "SE",
+          "US", "CA", "AU", "NZ", "CH", "NO",
+        ],
       },
+      ...(shippingOptions.length > 0 ? { shipping_options: shippingOptions } : {}),
       custom_fields: [
         {
           key: "delivery_notes",
