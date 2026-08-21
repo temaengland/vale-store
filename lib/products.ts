@@ -66,6 +66,7 @@ export const categories: Category[] = [
       "Brooches",
       "Cufflinks",
       "Watches",
+      "Medals",
       "Silver",
       "Silver Plate",
     ],
