@@ -3,24 +3,47 @@
 import Link from "next/link";
 import { useLanguage } from "@/lib/language-context";
 
+function buildHref(
+  categorySlug: string,
+  params: { sub?: string; era?: string }
+) {
+  const qs = new URLSearchParams();
+  if (params.sub) qs.set("sub", params.sub);
+  if (params.era) qs.set("era", params.era);
+  const query = qs.toString();
+  return `/category/${categorySlug}${query ? `?${query}` : ""}`;
+}
+
 export default function CategoryFilterRow({
   labelKey,
+  axis,
+  categorySlug,
+  currentSub,
+  currentEra,
   options,
-  active,
-  buildHrefFor,
 }: {
   labelKey: string;
+  axis: "sub" | "era";
+  categorySlug: string;
+  currentSub?: string;
+  currentEra?: string;
   options: string[];
-  active?: string;
-  buildHrefFor: (value?: string) => string;
 }) {
   const { t } = useLanguage();
+  const active = axis === "sub" ? currentSub : currentEra;
+
+  function hrefFor(value?: string) {
+    return axis === "sub"
+      ? buildHref(categorySlug, { sub: value, era: currentEra })
+      : buildHref(categorySlug, { sub: currentSub, era: value });
+  }
+
   return (
     <div className="mt-4 first:mt-0">
       <p className="mb-2 text-xs tracking-widest text-muted">{t(labelKey)}</p>
       <div className="flex flex-wrap gap-2">
         <Link
-          href={buildHrefFor(undefined)}
+          href={hrefFor(undefined)}
           className={`rounded-full border px-4 py-2 text-sm transition-colors ${
             !active
               ? "border-ink text-ink"
@@ -32,7 +55,7 @@ export default function CategoryFilterRow({
         {options.map((o) => (
           <Link
             key={o}
-            href={buildHrefFor(o)}
+            href={hrefFor(o)}
             className={`rounded-full border px-4 py-2 text-sm transition-colors ${
               active === o
                 ? "border-ink text-ink"

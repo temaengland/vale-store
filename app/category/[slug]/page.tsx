@@ -9,17 +9,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-function buildHref(
-  categorySlug: string,
-  params: { sub?: string; era?: string }
-) {
-  const qs = new URLSearchParams();
-  if (params.sub) qs.set("sub", params.sub);
-  if (params.era) qs.set("era", params.era);
-  const query = qs.toString();
-  return `/category/${categorySlug}${query ? `?${query}` : ""}`;
-}
-
 export default async function CategoryPage({
   params,
   searchParams,
@@ -47,20 +36,20 @@ export default async function CategoryPage({
       <div className="mt-5">
         <CategoryFilterRow
           labelKey="category.type"
+          axis="sub"
+          categorySlug={category.slug}
+          currentSub={searchParams.sub}
+          currentEra={searchParams.era}
           options={category.subcategories}
-          active={searchParams.sub}
-          buildHrefFor={(value) =>
-            buildHref(category.slug, { sub: value, era: searchParams.era })
-          }
         />
         {category.eras && (
           <CategoryFilterRow
             labelKey="category.era"
+            axis="era"
+            categorySlug={category.slug}
+            currentSub={searchParams.sub}
+            currentEra={searchParams.era}
             options={category.eras}
-            active={searchParams.era}
-            buildHrefFor={(value) =>
-              buildHref(category.slug, { sub: searchParams.sub, era: value })
-            }
           />
         )}
       </div>
