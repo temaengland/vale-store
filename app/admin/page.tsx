@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import ProductsPanel from "@/components/admin/ProductsPanel";
 import InquiriesPanel from "@/components/admin/InquiriesPanel";
+import OrdersPanel from "@/components/admin/OrdersPanel";
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(true);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"products" | "inquiries">("products");
+  const [tab, setTab] = useState<"products" | "orders" | "inquiries">(
+    "products"
+  );
 
   useEffect(() => {
     fetch("/api/admin/products").then((res) => {
@@ -76,7 +79,7 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6 flex gap-2 border-b border-border">
-        {(["products", "inquiries"] as const).map((t) => (
+        {(["products", "orders", "inquiries"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -86,12 +89,18 @@ export default function AdminPage() {
                 : "border-transparent text-muted hover:text-ink"
             }`}
           >
-            {t === "products" ? "Items" : "Enquiries"}
+            {t === "products" ? "Items" : t === "orders" ? "Orders" : "Enquiries"}
           </button>
         ))}
       </div>
 
-      {tab === "products" ? <ProductsPanel /> : <InquiriesPanel />}
+      {tab === "products" ? (
+        <ProductsPanel />
+      ) : tab === "orders" ? (
+        <OrdersPanel />
+      ) : (
+        <InquiriesPanel />
+      )}
     </div>
   );
 }

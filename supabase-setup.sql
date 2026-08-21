@@ -73,6 +73,29 @@ alter table product_translations enable row level security;
 create policy "Public can read product translations"
   on product_translations for select
   using (true);
+
+-- Every completed sale, recorded automatically by the Stripe webhook —
+-- this is the source of truth for accounting/HMRC reporting, not
+-- something anyone needs to fill in by hand.
+create table orders (
+  id uuid primary key default gen_random_uuid(),
+  stripe_session_id text unique not null,
+  customer_email text,
+  customer_name text,
+  customer_phone text,
+  shipping_address jsonb,
+  delivery_notes text,
+  items jsonb not null, -- [{slug, name, price, cost_price, shipping_display_name}]
+  subtotal integer not null, -- pence, items only
+  shipping_amount integer not null default 0, -- pence
+  total integer not null, -- pence, what the buyer actually paid
+  currency text not null default 'gbp',
+  created_at timestamptz not null default now()
+);
+alter table orders enable row level security;
+-- Intentionally no public policies: only the service role (webhook +
+-- admin API) can read or write this table — order/customer data is
+-- sensitive and never exposed to visitors.
 -- Writes only via the service role (admin API), same pattern as products.
 
 -- MIGRATION: if you already ran this file before (table already exists),
@@ -95,3 +118,19 @@ create policy "Public can read product translations"
 -- );
 -- alter table product_translations enable row level security;
 -- create policy "Public can read product translations" on product_translations for select using (true);
+-- create table if not exists orders (
+--   id uuid primary key default gen_random_uuid(),
+--   stripe_session_id text unique not null,
+--   customer_email text,
+--   customer_name text,
+--   customer_phone text,
+--   shipping_address jsonb,
+--   delivery_notes text,
+--   items jsonb not null,
+--   subtotal integer not null,
+--   shipping_amount integer not null default 0,
+--   total integer not null,
+--   currency text not null default 'gbp',
+--   created_at timestamptz not null default now()
+-- );
+-- alter table orders enable row level security;
