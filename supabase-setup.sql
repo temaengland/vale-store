@@ -57,6 +57,24 @@ alter table inquiries enable row level security;
 -- Intentionally no public policies: only the service role (admin API) can
 -- read or write this table.
 
+-- Caches auto-translated product name/description per language, so a
+-- product is only translated once (not on every single page view). Rows
+-- are created on demand by the /api/translate-product route the first
+-- time someone views a product in that language.
+create table product_translations (
+  product_id uuid not null references products(id) on delete cascade,
+  lang text not null,
+  name text not null,
+  description text not null,
+  created_at timestamptz not null default now(),
+  primary key (product_id, lang)
+);
+alter table product_translations enable row level security;
+create policy "Public can read product translations"
+  on product_translations for select
+  using (true);
+-- Writes only via the service role (admin API), same pattern as products.
+
 -- MIGRATION: if you already ran this file before (table already exists),
 -- just run this one line separately in SQL Editor to add the new "era"
 -- field without losing any existing products:
@@ -67,3 +85,13 @@ alter table inquiries enable row level security;
 -- alter table products add column if not exists images text[];
 -- alter table products add column if not exists shipping_cost integer;
 -- alter table products add column if not exists international_shipping_cost integer;
+-- create table if not exists product_translations (
+--   product_id uuid not null references products(id) on delete cascade,
+--   lang text not null,
+--   name text not null,
+--   description text not null,
+--   created_at timestamptz not null default now(),
+--   primary key (product_id, lang)
+-- );
+-- alter table product_translations enable row level security;
+-- create policy "Public can read product translations" on product_translations for select using (true);

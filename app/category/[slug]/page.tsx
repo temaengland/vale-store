@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { getCategory, getProductsByCategory } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
-import Link from "next/link";
+import CategoryFilterRow from "@/components/CategoryFilterRow";
+import T from "@/components/T";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -17,49 +18,6 @@ function buildHref(
   if (params.era) qs.set("era", params.era);
   const query = qs.toString();
   return `/category/${categorySlug}${query ? `?${query}` : ""}`;
-}
-
-function FilterRow({
-  label,
-  options,
-  active,
-  buildHrefFor,
-}: {
-  label: string;
-  options: string[];
-  active?: string;
-  buildHrefFor: (value?: string) => string;
-}) {
-  return (
-    <div className="mt-4 first:mt-0">
-      <p className="mb-2 text-xs tracking-widest text-muted">{label}</p>
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href={buildHrefFor(undefined)}
-          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-            !active
-              ? "border-ink text-ink"
-              : "border-border-strong text-muted hover:text-ink"
-          }`}
-        >
-          All
-        </Link>
-        {options.map((o) => (
-          <Link
-            key={o}
-            href={buildHrefFor(o)}
-            className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-              active === o
-                ? "border-ink text-ink"
-                : "border-border-strong text-muted hover:text-ink"
-            }`}
-          >
-            {o}
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 export default async function CategoryPage({
@@ -82,11 +40,13 @@ export default async function CategoryPage({
 
   return (
     <div>
-      <h1 className="font-serif text-3xl">{category.name}</h1>
+      <h1 className="font-serif text-3xl">
+        <T k={`category.name.${category.slug}`} />
+      </h1>
 
       <div className="mt-5">
-        <FilterRow
-          label="TYPE"
+        <CategoryFilterRow
+          labelKey="category.type"
           options={category.subcategories}
           active={searchParams.sub}
           buildHrefFor={(value) =>
@@ -94,8 +54,8 @@ export default async function CategoryPage({
           }
         />
         {category.eras && (
-          <FilterRow
-            label="ERA"
+          <CategoryFilterRow
+            labelKey="category.era"
             options={category.eras}
             active={searchParams.era}
             buildHrefFor={(value) =>

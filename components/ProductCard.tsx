@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { Product, formatPrice } from "@/lib/products";
 import { ProductImage } from "@/components/ItemIllustration";
+import { useLanguage } from "@/lib/language-context";
 
 export default function ProductCard({ product }: { product: Product }) {
+  const { t } = useLanguage();
   return (
     <Link href={`/product/${product.slug}`} className="group block">
       <div className="relative">
@@ -15,7 +19,7 @@ export default function ProductCard({ product }: { product: Product }) {
         />
         {product.status && product.status !== "available" && (
           <span className="absolute right-2 top-2 rounded-full bg-ink px-2.5 py-1 text-xs text-white">
-            {product.status === "sold" ? "Sold" : "Unavailable"}
+            {product.status === "sold" ? t("badge.sold") : t("badge.unavailable")}
           </span>
         )}
       </div>

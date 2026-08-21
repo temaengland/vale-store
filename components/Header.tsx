@@ -4,9 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { categories } from "@/lib/products";
 import Logo from "@/components/Logo";
+import CartIcon from "@/components/CartIcon";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/lib/language-context";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <header className="border-b border-border">
@@ -23,46 +27,54 @@ export default function Header() {
               href={`/category/${c.slug}`}
               className="hover:text-ink transition-colors"
             >
-              {c.name}
+              {t(`category.name.${c.slug}`)}
             </Link>
           ))}
           <Link href="/about" className="hover:text-ink transition-colors">
-            About
+            {t("nav.about")}
           </Link>
         </nav>
 
-        <a
-          href="https://wa.me/447918527790"
-          target="_blank"
-          rel="noreferrer"
-          className="hidden rounded-full border border-border-strong px-4 py-1.5 text-sm hover:text-ink md:inline-block"
-        >
-          WhatsApp us
-        </a>
+        <div className="hidden items-center gap-3 md:flex">
+          <a
+            href="https://wa.me/447918527790"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:text-ink"
+          >
+            {t("nav.whatsapp")}
+          </a>
+          <LanguageSwitcher />
+          <CartIcon />
+        </div>
 
-        {/* Mobile menu button — hidden on desktop */}
-        <button
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? "Close menu" : "Open menu"}
-          aria-expanded={open}
-          className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
-        >
-          <span
-            className={`block h-[1.5px] w-6 bg-ink transition-transform ${
-              open ? "translate-y-[7px] rotate-45" : ""
-            }`}
-          />
-          <span
-            className={`block h-[1.5px] w-6 bg-ink transition-opacity ${
-              open ? "opacity-0" : ""
-            }`}
-          />
-          <span
-            className={`block h-[1.5px] w-6 bg-ink transition-transform ${
-              open ? "-translate-y-[7px] -rotate-45" : ""
-            }`}
-          />
-        </button>
+        {/* Mobile: language + cart + menu button — hidden on desktop */}
+        <div className="flex items-center gap-1 md:hidden">
+          <LanguageSwitcher />
+          <CartIcon />
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            className="flex h-10 w-10 flex-col items-center justify-center gap-1.5"
+          >
+            <span
+              className={`block h-[1.5px] w-6 bg-ink transition-transform ${
+                open ? "translate-y-[7px] rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`block h-[1.5px] w-6 bg-ink transition-opacity ${
+                open ? "opacity-0" : ""
+              }`}
+            />
+            <span
+              className={`block h-[1.5px] w-6 bg-ink transition-transform ${
+                open ? "-translate-y-[7px] -rotate-45" : ""
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu panel */}
@@ -75,7 +87,7 @@ export default function Header() {
               onClick={() => setOpen(false)}
               className="py-2.5 text-ink"
             >
-              {c.name}
+              {t(`category.name.${c.slug}`)}
             </Link>
           ))}
           <Link
@@ -83,7 +95,7 @@ export default function Header() {
             onClick={() => setOpen(false)}
             className="py-2.5 text-ink"
           >
-            About
+            {t("nav.about")}
           </Link>
           <a
             href="https://wa.me/447918527790"
@@ -92,7 +104,7 @@ export default function Header() {
             onClick={() => setOpen(false)}
             className="mt-3 rounded-full border border-border-strong px-4 py-2.5 text-center text-ink"
           >
-            WhatsApp us
+            {t("nav.whatsapp")}
           </a>
         </nav>
       )}

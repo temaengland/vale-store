@@ -3,6 +3,8 @@ import Image from "next/image";
 import { getAllCategories, getAllProducts } from "@/lib/data";
 import CategoryTile from "@/components/CategoryTile";
 import ProductCard from "@/components/ProductCard";
+import PaidBanner from "@/components/PaidBanner";
+import T from "@/components/T";
 
 // Always fetch fresh data — without this, deletes/edits made in the admin
 // panel can take a while to show up on the live site because Next.js may
@@ -11,7 +13,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: { paid?: string };
+}) {
   const categories = getAllCategories();
   const products = await getAllProducts();
   const furnitureSubcats = categories.find((c) => c.slug === "furniture")!
@@ -19,6 +25,7 @@ export default async function HomePage() {
 
   return (
     <div>
+      {searchParams.paid && <PaidBanner />}
       <div className="relative aspect-[16/7] w-full overflow-hidden rounded-xl">
         <Image
           src="/images/hero.jpg"
@@ -35,16 +42,16 @@ export default async function HomePage() {
       </p>
 
       <p className="mt-6 text-xs tracking-widest text-muted">
-        EVESHAM, WORCESTERSHIRE
+        <T k="home.location" />
       </p>
       <h1 className="mt-3 font-serif text-3xl leading-tight sm:text-4xl">
-        Furniture, decor and art
+        <T k="home.headline1" />
         <br />
-        with a history
+        <T k="home.headline2" />
       </h1>
 
       <p className="mt-10 text-xs tracking-widest text-muted">
-        SHOP BY CATEGORY
+        <T k="home.shopByCategory" />
       </p>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {categories.map((c) => (
@@ -69,9 +76,11 @@ export default async function HomePage() {
       </div>
 
       <div className="mt-16 flex items-baseline justify-between">
-        <p className="text-xs tracking-widest text-muted">NEW THIS WEEK</p>
+        <p className="text-xs tracking-widest text-muted">
+          <T k="home.newThisWeek" />
+        </p>
         <Link href="/category/furniture" className="text-sm text-muted">
-          View all
+          <T k="home.viewAll" />
         </Link>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-4">
