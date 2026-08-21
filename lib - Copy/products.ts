@@ -56,7 +56,7 @@ export const categories: Category[] = [
   },
   {
     slug: "jewelry",
-    name: "Jewellery & Watches",
+    name: "Jewelry & Watches",
     subcategories: [
       "Rings",
       "Necklaces",

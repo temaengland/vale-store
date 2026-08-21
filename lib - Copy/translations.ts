@@ -18,7 +18,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "product.sending": "Sending…",
     "product.interestedIn": "Hi, I'm interested in the",
     "category.name.furniture": "Furniture",
-    "category.name.jewelry": "Jewellery & Watches",
+    "category.name.jewelry": "Jewelry & Watches",
     "category.name.decor": "Decor",
     "category.name.art": "Art",
     "nav.about": "About",
