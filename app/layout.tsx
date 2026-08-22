@@ -34,6 +34,11 @@ export const metadata: Metadata = {
     "Evesham antiques",
   ],
   alternates: { canonical: "/" },
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     siteName: "CharmChase",
     type: "website",
