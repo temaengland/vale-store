@@ -2,7 +2,7 @@ import { MetadataRoute } from "next";
 import { getAllProducts, getAllCategories } from "@/lib/data";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://charmchase.co.uk";
+  const baseUrl = "https://www.charmchase.co.uk";
   const products = await getAllProducts();
   const categories = getAllCategories();
 

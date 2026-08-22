@@ -18,7 +18,7 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://charmchase.co.uk"),
+  metadataBase: new URL("https://www.charmchase.co.uk"),
   title: {
     default: "CharmChase — Curated Antiques & Vintage",
     template: "%s — CharmChase",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   openGraph: {
     siteName: "CharmChase",
     type: "website",
-    url: "https://charmchase.co.uk",
+    url: "https://www.charmchase.co.uk",
     images: [{ url: "/images/hero.jpg" }],
   },
 };

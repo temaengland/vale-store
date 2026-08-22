@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/api/", "/cart"],
       },
     ],
-    sitemap: "https://charmchase.co.uk/sitemap.xml",
+    sitemap: "https://www.charmchase.co.uk/sitemap.xml",
   };
 }

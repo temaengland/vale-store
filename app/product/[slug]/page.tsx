@@ -61,7 +61,7 @@ export default async function ProductPage({
     sku: product.slug,
     offers: {
       "@type": "Offer",
-      url: `https://charmchase.co.uk/product/${product.slug}`,
+      url: `https://www.charmchase.co.uk/product/${product.slug}`,
       priceCurrency: "GBP",
       price: (product.price / 100).toFixed(2),
       availability:
