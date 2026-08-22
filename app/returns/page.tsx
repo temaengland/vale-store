@@ -1,3 +1,12 @@
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Returns & Refunds",
+  description:
+    "Our returns and refunds policy for antique and vintage purchases, including international orders and customs duties.",
+  alternates: { canonical: "/returns" },
+};
+
 export default function ReturnsPage() {
   return (
     <div className="max-w-2xl">

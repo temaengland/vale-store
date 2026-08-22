@@ -18,9 +18,28 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "CharmChase — Furniture, jewelry and decor",
+  metadataBase: new URL("https://charmchase.co.uk"),
+  title: {
+    default: "CharmChase — Curated Antiques & Vintage",
+    template: "%s — CharmChase",
+  },
   description:
-    "Furniture, jewelry and decor sourced from estate sales across Worcestershire, Oxfordshire and Warwickshire.",
+    "Curated antique and vintage furniture, jewellery, decor and art, sourced from estate sales across Worcestershire, Oxfordshire and Warwickshire.",
+  keywords: [
+    "antiques",
+    "vintage furniture",
+    "antique jewellery",
+    "estate sale finds",
+    "Worcestershire antiques",
+    "Evesham antiques",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    siteName: "CharmChase",
+    type: "website",
+    url: "https://charmchase.co.uk",
+    images: [{ url: "/images/hero.jpg" }],
+  },
 };
 
 export default function RootLayout({

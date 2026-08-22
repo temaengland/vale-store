@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 import { getCategory, getProductsByCategory } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import CategoryFilterRow from "@/components/CategoryFilterRow";
@@ -8,6 +9,20 @@ import T from "@/components/T";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const category = getCategory(params.slug);
+  if (!category) return {};
+  return {
+    title: category.name,
+    description: `Curated antique and vintage ${category.name.toLowerCase()}, sourced from estate sales across Worcestershire, Oxfordshire and Warwickshire.`,
+    alternates: { canonical: `/category/${category.slug}` },
+  };
+}
 
 export default async function CategoryPage({
   params,
