@@ -10,12 +10,13 @@ function BagIcon() {
       className="h-5 w-5"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M6 8h12l-1 12H7L6 8Z" />
-      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+      <path d="M7 8 5.2 19.5A1 1 0 0 0 6.2 21h11.6a1 1 0 0 0 1-1.5L17 8Z" />
+      <path d="M7 8h10" />
+      <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
     </svg>
   );
 }
