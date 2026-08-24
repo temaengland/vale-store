@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import ProductsPanel from "@/components/admin/ProductsPanel";
 import InquiriesPanel from "@/components/admin/InquiriesPanel";
 import OrdersPanel from "@/components/admin/OrdersPanel";
+import DraftsPanel from "@/components/admin/DraftsPanel";
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(true);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"products" | "orders" | "inquiries">(
+  const [tab, setTab] = useState<"products" | "drafts" | "orders" | "inquiries">(
     "products"
   );
 
@@ -79,7 +80,7 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6 flex gap-2 border-b border-border">
-        {(["products", "orders", "inquiries"] as const).map((t) => (
+        {(["products", "drafts", "orders", "inquiries"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -89,13 +90,21 @@ export default function AdminPage() {
                 : "border-transparent text-muted hover:text-ink"
             }`}
           >
-            {t === "products" ? "Items" : t === "orders" ? "Orders" : "Enquiries"}
+            {t === "products"
+              ? "Items"
+              : t === "drafts"
+              ? "Review drafts"
+              : t === "orders"
+              ? "Orders"
+              : "Enquiries"}
           </button>
         ))}
       </div>
 
       {tab === "products" ? (
         <ProductsPanel />
+      ) : tab === "drafts" ? (
+        <DraftsPanel />
       ) : tab === "orders" ? (
         <OrdersPanel />
       ) : (

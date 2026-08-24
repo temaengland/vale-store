@@ -16,6 +16,8 @@ create table products (
   image text,
   images text[], -- multiple photos; first one is the cover photo
   icon text not null default 'generic',
+  ebay_item_id text unique, -- links this product to its eBay listing, for sync matching
+  is_draft boolean not null default false, -- true = imported from eBay, awaiting review; hidden from the public site until published
   created_at timestamptz not null default now()
 );
 
@@ -98,6 +100,20 @@ alter table orders enable row level security;
 -- sensitive and never exposed to visitors.
 -- Writes only via the service role (admin API), same pattern as products.
 
+-- Maps an eBay category ID to the matching site category/subcategory, so
+-- the eBay sync can auto-assign a category to each imported draft.
+-- Populate this as real eBay category IDs show up during import — an
+-- unmapped category just leaves the draft's category blank for manual
+-- review, no code changes needed to add a new mapping.
+create table category_mapping (
+  ebay_category_id text primary key,
+  site_category text not null, -- matches a Category.slug in lib/products.ts
+  site_subcategory text,
+  created_at timestamptz not null default now()
+);
+alter table category_mapping enable row level security;
+-- Admin-only, same pattern as products writes.
+
 -- MIGRATION: if you already ran this file before (table already exists),
 -- just run this one line separately in SQL Editor to add the new "era"
 -- field without losing any existing products:
@@ -134,3 +150,12 @@ alter table orders enable row level security;
 --   created_at timestamptz not null default now()
 -- );
 -- alter table orders enable row level security;
+-- alter table products add column if not exists ebay_item_id text unique;
+-- alter table products add column if not exists is_draft boolean not null default false;
+-- create table if not exists category_mapping (
+--   ebay_category_id text primary key,
+--   site_category text not null,
+--   site_subcategory text,
+--   created_at timestamptz not null default now()
+-- );
+-- alter table category_mapping enable row level security;

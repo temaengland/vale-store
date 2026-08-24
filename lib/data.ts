@@ -23,6 +23,7 @@ export async function getAllProducts(): Promise<Product[]> {
     const { data, error } = await supabase
       .from("products")
       .select(PUBLIC_PRODUCT_COLUMNS)
+      .eq("is_draft", false)
       .order("created_at", { ascending: false });
     if (!error && data) return data as unknown as Product[];
   }
