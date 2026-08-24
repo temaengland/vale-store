@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { notifyIndexNow } from "@/lib/indexnow";
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Unknown server error.";
@@ -53,6 +54,11 @@ export async function PATCH(req: NextRequest) {
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
+
+    if (data && publish) {
+      notifyIndexNow([`https://www.charmchase.co.uk/product/${data.slug}`]);
+    }
+
     return NextResponse.json({ product: data });
   } catch (e) {
     return NextResponse.json(
