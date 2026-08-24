@@ -23,8 +23,32 @@ export default async function HomePage({
   const furnitureSubcats = categories.find((c) => c.slug === "furniture")!
     .subcategories;
 
+  // LocalBusiness structured data — tells Google this is a real local
+  // antiques business, matching the Google Business Profile (same name,
+  // address, phone). Helps with local search ("antiques Evesham" etc.)
+  // separately from the per-product schema on product pages.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "AntiqueStore",
+    name: "CharmChase",
+    image: "https://www.charmchase.co.uk/images/hero.jpg",
+    url: "https://www.charmchase.co.uk",
+    telephone: "+447918527790",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "51 High Street",
+      addressLocality: "Evesham",
+      addressRegion: "Worcestershire",
+      addressCountry: "GB",
+    },
+  };
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {searchParams.paid && <PaidBanner />}
       <div className="relative aspect-[16/7] w-full overflow-hidden rounded-xl">
         <Image
