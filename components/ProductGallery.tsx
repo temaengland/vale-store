@@ -135,7 +135,7 @@ export default function ProductGallery({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={src}
-                alt=""
+                alt={`${alt} — photo ${i + 1} of ${photos.length}`}
                 className="h-full w-full object-contain"
               />
             </button>

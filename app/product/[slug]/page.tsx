@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { getProduct } from "@/lib/data";
-import { formatPrice } from "@/lib/products";
+import { formatPrice, Product } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
 import ProductInfoPanel from "@/components/ProductInfoPanel";
 import BackLink from "@/components/BackLink";
@@ -19,10 +19,7 @@ export async function generateMetadata({
   const product = await getProduct(params.slug);
   if (!product) return {};
   const image = product.images?.[0] ?? product.image;
-  const shortDescription =
-    product.description.length > 155
-      ? product.description.slice(0, 152) + "..."
-      : product.description;
+  const shortDescription = buildMetaDescription(product);
   return {
     title: `${product.name} — ${formatPrice(product.price)}`,
     description: shortDescription,
@@ -33,6 +30,27 @@ export async function generateMetadata({
       images: image ? [{ url: image }] : undefined,
     },
   };
+}
+
+// Search engines want meta descriptions roughly 70–155 characters — too
+// short (e.g. a brief placeholder description) or too long both get
+// flagged. Pad short ones with name/category context; trim long ones.
+function buildMetaDescription(product: Product): string {
+  const MIN = 70;
+  const MAX = 155;
+  let text = product.description;
+
+  if (text.length < MIN) {
+    const details = [product.era, product.subcategory]
+      .filter(Boolean)
+      .join(" ");
+    const suffix = details
+      ? ` ${details} piece from CharmChase, Evesham.`
+      : " Available now from CharmChase, Evesham.";
+    text = `${product.name} — ${text}.${suffix}`;
+  }
+
+  return text.length > MAX ? text.slice(0, MAX - 3) + "..." : text;
 }
 
 export default async function ProductPage({
