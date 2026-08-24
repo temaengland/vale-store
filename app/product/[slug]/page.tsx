@@ -4,6 +4,7 @@ import { getProduct } from "@/lib/data";
 import { formatPrice } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
 import ProductInfoPanel from "@/components/ProductInfoPanel";
+import BackLink from "@/components/BackLink";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -74,22 +75,25 @@ export default async function ProductPage({
   };
 
   return (
-    <div className="grid gap-10 sm:grid-cols-2">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <ProductGallery
-        images={product.images}
-        legacyImage={product.image}
-        icon={product.icon}
-        alt={product.name}
-      />
-      <ProductInfoPanel
-        product={product}
-        paid={searchParams.paid}
-        canceled={searchParams.canceled}
-      />
+    <div>
+      <BackLink />
+      <div className="grid gap-10 sm:grid-cols-2">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <ProductGallery
+          images={product.images}
+          legacyImage={product.image}
+          icon={product.icon}
+          alt={product.name}
+        />
+        <ProductInfoPanel
+          product={product}
+          paid={searchParams.paid}
+          canceled={searchParams.canceled}
+        />
+      </div>
     </div>
   );
 }

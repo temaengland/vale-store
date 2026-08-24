@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import { getCategory, getProductsByCategory } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import CategoryFilterRow from "@/components/CategoryFilterRow";
+import BackLink from "@/components/BackLink";
 import T from "@/components/T";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
@@ -44,6 +45,7 @@ export default async function CategoryPage({
 
   return (
     <div>
+      <BackLink />
       <h1 className="font-serif text-3xl">
         <T k={`category.name.${category.slug}`} />
       </h1>
