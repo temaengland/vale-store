@@ -13,6 +13,9 @@ export default function Footer() {
           <Link href="/about" className="hover:text-ink transition-colors">
             {t("nav.about")}
           </Link>
+          <Link href="/faq" className="hover:text-ink transition-colors">
+            {t("footer.faq")}
+          </Link>
           <Link href="/returns" className="hover:text-ink transition-colors">
             {t("footer.returns")}
           </Link>

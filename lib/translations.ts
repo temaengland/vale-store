@@ -15,6 +15,7 @@ export const locales: { code: Locale; label: string; flag: string }[] = [
 // English only and shouldn't have to write them again in five languages.
 export const translations: Record<Locale, Record<string, string>> = {
   en: {
+    "footer.faq": "FAQ",
     "nav.back": "Back",
     "product.sending": "Sending…",
     "product.interestedIn": "Hi, I'm interested in the",
@@ -77,6 +78,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "All rights reserved.",
   },
   ru: {
+    "footer.faq": "Вопросы и ответы",
     "nav.back": "Назад",
     "product.sending": "Отправка…",
     "product.interestedIn": "Здравствуйте, меня интересует",
@@ -139,6 +141,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "Все права защищены.",
   },
   zh: {
+    "footer.faq": "常见问题",
     "nav.back": "返回",
     "product.sending": "发送中…",
     "product.interestedIn": "您好，我对以下商品感兴趣：",
@@ -201,6 +204,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "版权所有。",
   },
   fr: {
+    "footer.faq": "FAQ",
     "nav.back": "Retour",
     "product.sending": "Envoi…",
     "product.interestedIn": "Bonjour, je suis intéressé(e) par",
@@ -263,6 +267,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "Tous droits réservés.",
   },
   de: {
+    "footer.faq": "FAQ",
     "nav.back": "Zurück",
     "product.sending": "Wird gesendet…",
     "product.interestedIn": "Hallo, ich interessiere mich für",
@@ -325,6 +330,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "Alle Rechte vorbehalten.",
   },
   es: {
+    "footer.faq": "Preguntas frecuentes",
     "nav.back": "Atrás",
     "product.sending": "Enviando…",
     "product.interestedIn": "Hola, me interesa",
