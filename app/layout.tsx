@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/lib/cart-context";
 import { LanguageProvider } from "@/lib/language-context";
+import { Analytics } from "@vercel/analytics/next";
 
 const serif = Playfair_Display({
   subsets: ["latin"],
@@ -60,6 +61,7 @@ export default function RootLayout({
             <Header />
             <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
             <Footer />
+            <Analytics />
           </CartProvider>
         </LanguageProvider>
       </body>

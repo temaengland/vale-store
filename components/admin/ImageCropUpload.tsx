@@ -114,6 +114,66 @@ export default function ImageCropUpload({
   const [error, setError] = useState("");
   const imgRef = useRef<HTMLImageElement>(null);
 
+  // Drag-to-reorder for already-added photos — works the same way with a
+  // mouse or a finger, via the Pointer Events API.
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const thumbRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const dragStateRef = useRef<{
+    pointerId: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressNextClickRef = useRef(false);
+
+  function handlePhotoPointerDown(e: React.PointerEvent, index: number) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragStateRef.current = { pointerId: e.pointerId, moved: false };
+    setDraggingIndex(index);
+  }
+
+  function handlePhotoPointerMove(e: React.PointerEvent) {
+    const drag = dragStateRef.current;
+    if (!drag || draggingIndex === null || e.pointerId !== drag.pointerId)
+      return;
+
+    // Find which thumbnail the pointer is currently over, by comparing
+    // against each one's actual on-screen position — works regardless of
+    // how the photos wrap across rows.
+    let targetIndex: number | null = null;
+    for (let i = 0; i < thumbRefs.current.length; i++) {
+      const el = thumbRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        targetIndex = i;
+        break;
+      }
+    }
+    if (targetIndex === null || targetIndex === draggingIndex) return;
+
+    drag.moved = true;
+    const next = [...photos];
+    const [item] = next.splice(draggingIndex, 1);
+    next.splice(targetIndex, 0, item);
+    onChange(next);
+    setDraggingIndex(targetIndex);
+  }
+
+  function handlePhotoPointerUp() {
+    if (dragStateRef.current?.moved) {
+      // A real drag happened — swallow the click that the browser is
+      // about to fire on the thumbnail, so it doesn't also open the crop
+      // editor right after reordering.
+      suppressNextClickRef.current = true;
+    }
+    dragStateRef.current = null;
+    setDraggingIndex(null);
+  }
+
   function removePhoto(index: number) {
     onChange(photos.filter((_, i) => i !== index));
   }
@@ -123,6 +183,14 @@ export default function ImageCropUpload({
     if (target < 0 || target >= photos.length) return;
     const next = [...photos];
     [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  }
+
+  function setAsCover(index: number) {
+    if (index === 0) return;
+    const next = [...photos];
+    const [item] = next.splice(index, 1);
+    next.unshift(item);
     onChange(next);
   }
 
@@ -296,15 +364,34 @@ export default function ImageCropUpload({
       {photos.length > 0 && (
         <div className="mb-3">
           <p className="mb-1.5 text-xs text-muted">
-            Added photos — tap one to re-crop or rotate it
+            Added photos — tap one to re-crop it, or press and drag a photo
+            to reorder. The first one is the cover.
           </p>
           <div className="flex flex-wrap gap-3">
             {photos.map((src, i) => (
-              <div key={src} className="relative">
+              <div
+                key={src}
+                ref={(el) => {
+                  thumbRefs.current[i] = el;
+                }}
+                className={`relative transition-opacity ${
+                  draggingIndex === i ? "opacity-50" : ""
+                }`}
+              >
                 <button
                   type="button"
-                  onClick={() => openExisting(i)}
-                  className="block h-20 w-20 overflow-hidden rounded-md border border-border bg-surface"
+                  onPointerDown={(e) => handlePhotoPointerDown(e, i)}
+                  onPointerMove={handlePhotoPointerMove}
+                  onPointerUp={handlePhotoPointerUp}
+                  onPointerCancel={handlePhotoPointerUp}
+                  onClick={() => {
+                    if (suppressNextClickRef.current) {
+                      suppressNextClickRef.current = false;
+                      return;
+                    }
+                    openExisting(i);
+                  }}
+                  className="block h-20 w-20 touch-none cursor-grab overflow-hidden rounded-md border border-border bg-surface active:cursor-grabbing"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src} alt="" className="h-full w-full object-contain" />
@@ -325,7 +412,7 @@ export default function ImageCropUpload({
                 >
                   ✕
                 </button>
-                <div className="mt-1 flex justify-center gap-1">
+                <div className="mt-1 flex justify-center gap-1.5">
                   {i > 0 && (
                     <button
                       type="button"
@@ -353,6 +440,18 @@ export default function ImageCropUpload({
                     </button>
                   )}
                 </div>
+                {i > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAsCover(i);
+                    }}
+                    className="mt-0.5 block w-full text-center text-[10px] text-muted hover:text-ink underline underline-offset-2"
+                  >
+                    Set as cover
+                  </button>
+                )}
               </div>
             ))}
           </div>
