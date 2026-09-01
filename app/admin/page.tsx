@@ -5,15 +5,16 @@ import ProductsPanel from "@/components/admin/ProductsPanel";
 import InquiriesPanel from "@/components/admin/InquiriesPanel";
 import OrdersPanel from "@/components/admin/OrdersPanel";
 import DraftsPanel from "@/components/admin/DraftsPanel";
+import AnalyticsPanel from "@/components/admin/AnalyticsPanel";
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(true);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"products" | "drafts" | "orders" | "inquiries">(
-    "products"
-  );
+  const [tab, setTab] = useState<
+    "products" | "drafts" | "analytics" | "orders" | "inquiries"
+  >("products");
 
   useEffect(() => {
     fetch("/api/admin/products").then((res) => {
@@ -80,31 +81,37 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6 flex gap-2 border-b border-border">
-        {(["products", "drafts", "orders", "inquiries"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm border-b-2 -mb-px transition-colors ${
-              tab === t
-                ? "border-ink text-ink"
-                : "border-transparent text-muted hover:text-ink"
-            }`}
-          >
-            {t === "products"
-              ? "Items"
-              : t === "drafts"
-              ? "Review drafts"
-              : t === "orders"
-              ? "Orders"
-              : "Enquiries"}
-          </button>
-        ))}
+        {(["products", "drafts", "analytics", "orders", "inquiries"] as const).map(
+          (t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                tab === t
+                  ? "border-ink text-ink"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              {t === "products"
+                ? "Items"
+                : t === "drafts"
+                ? "Review drafts"
+                : t === "analytics"
+                ? "Analytics"
+                : t === "orders"
+                ? "Orders"
+                : "Enquiries"}
+            </button>
+          )
+        )}
       </div>
 
       {tab === "products" ? (
         <ProductsPanel />
       ) : tab === "drafts" ? (
         <DraftsPanel />
+      ) : tab === "analytics" ? (
+        <AnalyticsPanel />
       ) : tab === "orders" ? (
         <OrdersPanel />
       ) : (

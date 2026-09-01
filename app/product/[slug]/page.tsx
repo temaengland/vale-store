@@ -5,6 +5,7 @@ import { formatPrice, Product } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
 import ProductInfoPanel from "@/components/ProductInfoPanel";
 import BackLink from "@/components/BackLink";
+import { trackProductView } from "@/lib/trackView";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -62,6 +63,11 @@ export default async function ProductPage({
 }) {
   const product = await getProduct(params.slug);
   if (!product) return notFound();
+
+  // Awaited (not fire-and-forget) — in a serverless environment the
+  // function can be frozen right after the response is sent, which would
+  // cut off an un-awaited call before it finishes.
+  await trackProductView(product.slug);
 
   // Structured data (schema.org Product) — lets Google show price and
   // stock status directly in search results, and helps it understand

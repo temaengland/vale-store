@@ -114,6 +114,32 @@ create table category_mapping (
 alter table category_mapping enable row level security;
 -- Admin-only, same pattern as products writes.
 
+-- Simple view counters — how many times each product page and each
+-- category page has been opened. Incremented server-side on every real
+-- page load; shown in the admin "Analytics" tab.
+alter table products add column if not exists view_count integer not null default 0;
+
+create table category_views (
+  category text primary key, -- matches a Category.slug in lib/products.ts
+  count integer not null default 0
+);
+alter table category_views enable row level security;
+-- Admin-only, same pattern as products writes.
+
+-- Atomic increments — done as a single database-side operation so two
+-- visitors loading a page at the same moment never overwrite each other's
+-- count (which a plain "read then write" from the app could do).
+create or replace function increment_product_view(p_slug text)
+returns void as $$
+  update products set view_count = view_count + 1 where slug = p_slug;
+$$ language sql;
+
+create or replace function increment_category_view(p_category text)
+returns void as $$
+  insert into category_views (category, count) values (p_category, 1)
+  on conflict (category) do update set count = category_views.count + 1;
+$$ language sql;
+
 -- MIGRATION: if you already ran this file before (table already exists),
 -- just run this one line separately in SQL Editor to add the new "era"
 -- field without losing any existing products:
@@ -159,3 +185,16 @@ alter table category_mapping enable row level security;
 --   created_at timestamptz not null default now()
 -- );
 -- alter table category_mapping enable row level security;
+-- alter table products add column if not exists view_count integer not null default 0;
+-- create table if not exists category_views (
+--   category text primary key,
+--   count integer not null default 0
+-- );
+-- alter table category_views enable row level security;
+-- create or replace function increment_product_view(p_slug text) returns void as $$
+--   update products set view_count = view_count + 1 where slug = p_slug;
+-- $$ language sql;
+-- create or replace function increment_category_view(p_category text) returns void as $$
+--   insert into category_views (category, count) values (p_category, 1)
+--   on conflict (category) do update set count = category_views.count + 1;
+-- $$ language sql;

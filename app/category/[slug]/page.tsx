@@ -5,6 +5,7 @@ import ProductCard from "@/components/ProductCard";
 import CategoryFilterRow from "@/components/CategoryFilterRow";
 import BackLink from "@/components/BackLink";
 import T from "@/components/T";
+import { trackCategoryView } from "@/lib/trackView";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -34,6 +35,8 @@ export default async function CategoryPage({
 }) {
   const category = getCategory(params.slug);
   if (!category) return notFound();
+
+  await trackCategoryView(category.slug);
 
   let items = await getProductsByCategory(category.slug);
   if (searchParams.sub) {

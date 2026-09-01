@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProductImage, IconName } from "@/components/ItemIllustration";
 
 function ChevronLeftIcon() {
@@ -50,6 +50,26 @@ export default function ProductGallery({
     setActive((i) => (i === photos.length - 1 ? 0 : i + 1));
   }
 
+  // Swipe-to-change-photo — works the same way with a finger or a mouse
+  // drag, via the Pointer Events API. A swipe only counts once it clears
+  // a minimum distance, so a normal tap (to zoom) still works normally.
+  const swipeRef = useRef<{ startX: number; pointerId: number } | null>(null);
+  const SWIPE_THRESHOLD = 40;
+
+  function handleSwipeStart(e: React.PointerEvent) {
+    if (photos.length < 2) return;
+    swipeRef.current = { startX: e.clientX, pointerId: e.pointerId };
+  }
+  function handleSwipeEnd(e: React.PointerEvent) {
+    const swipe = swipeRef.current;
+    if (!swipe || e.pointerId !== swipe.pointerId) return;
+    const delta = e.clientX - swipe.startX;
+    swipeRef.current = null;
+    if (Math.abs(delta) < SWIPE_THRESHOLD) return;
+    if (delta > 0) goPrev();
+    else goNext();
+  }
+
   function openLightbox() {
     setZoomed(false);
     setLightboxOpen(true);
@@ -90,7 +110,9 @@ export default function ProductGallery({
           src={photos[active]}
           alt={alt}
           onClick={openLightbox}
-          className="h-full w-full cursor-zoom-in object-contain"
+          onPointerDown={handleSwipeStart}
+          onPointerUp={handleSwipeEnd}
+          className="h-full w-full touch-pan-y cursor-zoom-in object-contain"
         />
         <button
           type="button"
@@ -184,10 +206,12 @@ export default function ProductGallery({
               src={photos[active]}
               alt={alt}
               onClick={() => setZoomed((z) => !z)}
+              onPointerDown={!zoomed ? handleSwipeStart : undefined}
+              onPointerUp={!zoomed ? handleSwipeEnd : undefined}
               className={
                 zoomed
                   ? "max-w-none cursor-zoom-out"
-                  : "cursor-zoom-in object-contain"
+                  : "touch-pan-y cursor-zoom-in object-contain"
               }
               style={
                 zoomed
