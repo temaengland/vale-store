@@ -34,6 +34,7 @@ export default async function HomePage({
     image: "https://www.charmchase.co.uk/images/hero.jpg",
     url: "https://www.charmchase.co.uk",
     telephone: "+447918527790",
+    email: "CharmChaseuk@gmail.com",
     address: {
       "@type": "PostalAddress",
       streetAddress: "51 High Street",

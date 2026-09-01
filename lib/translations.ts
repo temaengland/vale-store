@@ -15,6 +15,7 @@ export const locales: { code: Locale; label: string; flag: string }[] = [
 // English only and shouldn't have to write them again in five languages.
 export const translations: Record<Locale, Record<string, string>> = {
   en: {
+    "footer.contact": "Contact",
     "footer.faq": "FAQ",
     "nav.back": "Back",
     "product.sending": "Sending…",
@@ -78,6 +79,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "All rights reserved.",
   },
   ru: {
+    "footer.contact": "Контакты",
     "footer.faq": "Вопросы и ответы",
     "nav.back": "Назад",
     "product.sending": "Отправка…",
@@ -141,6 +143,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "Все права защищены.",
   },
   zh: {
+    "footer.contact": "联系我们",
     "footer.faq": "常见问题",
     "nav.back": "返回",
     "product.sending": "发送中…",
@@ -204,6 +207,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "版权所有。",
   },
   fr: {
+    "footer.contact": "Contact",
     "footer.faq": "FAQ",
     "nav.back": "Retour",
     "product.sending": "Envoi…",
@@ -267,6 +271,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "Tous droits réservés.",
   },
   de: {
+    "footer.contact": "Kontakt",
     "footer.faq": "FAQ",
     "nav.back": "Zurück",
     "product.sending": "Wird gesendet…",
@@ -330,6 +335,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "footer.rights": "Alle Rechte vorbehalten.",
   },
   es: {
+    "footer.contact": "Contacto",
     "footer.faq": "Preguntas frecuentes",
     "nav.back": "Atrás",
     "product.sending": "Enviando…",
