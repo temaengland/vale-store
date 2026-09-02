@@ -27,6 +27,16 @@ function ZoomIcon() {
   );
 }
 
+const MAX_SCALE = 4;
+const SWIPE_THRESHOLD = 40;
+
+function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v));
+}
+
 export default function ProductGallery({
   images,
   legacyImage,
@@ -50,24 +60,132 @@ export default function ProductGallery({
     setActive((i) => (i === photos.length - 1 ? 0 : i + 1));
   }
 
-  // Swipe-to-change-photo — works the same way with a finger or a mouse
-  // drag, via the Pointer Events API. A swipe only counts once it clears
-  // a minimum distance, so a normal tap (to zoom) still works normally.
-  const swipeRef = useRef<{ startX: number; pointerId: number } | null>(null);
-  const SWIPE_THRESHOLD = 40;
+  // Pinch-to-zoom-and-pan directly on the main photo, without opening the
+  // fullscreen view:
+  //  - One finger, not zoomed  → swipe to the next/previous photo.
+  //  - Two fingers             → pinch to zoom in or out.
+  //  - One finger, zoomed in   → drag around to look at different parts.
+  //  - Pinch back down to ~1x  → settles back to the normal view.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const gesture = useRef<{
+    mode: "idle" | "swipe" | "pan" | "pinch";
+    pointers: Map<number, { x: number; y: number }>;
+    pinchStartDistance: number;
+    pinchStartScale: number;
+    panStart: { x: number; y: number };
+    panStartOffset: { x: number; y: number };
+    swipeStartX: number;
+  }>({
+    mode: "idle",
+    pointers: new Map(),
+    pinchStartDistance: 0,
+    pinchStartScale: 1,
+    panStart: { x: 0, y: 0 },
+    panStartOffset: { x: 0, y: 0 },
+    swipeStartX: 0,
+  });
 
-  function handleSwipeStart(e: React.PointerEvent) {
-    if (photos.length < 2) return;
-    swipeRef.current = { startX: e.clientX, pointerId: e.pointerId };
+  function panBounds(currentScale: number) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: (rect.width * (currentScale - 1)) / 2,
+      y: (rect.height * (currentScale - 1)) / 2,
+    };
   }
-  function handleSwipeEnd(e: React.PointerEvent) {
-    const swipe = swipeRef.current;
-    if (!swipe || e.pointerId !== swipe.pointerId) return;
-    const delta = e.clientX - swipe.startX;
-    swipeRef.current = null;
-    if (Math.abs(delta) < SWIPE_THRESHOLD) return;
-    if (delta > 0) goPrev();
-    else goNext();
+
+  function handlePointerDown(e: React.PointerEvent) {
+    const g = gesture.current;
+    g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (g.pointers.size === 1) {
+      if (scale > 1.01) {
+        g.mode = "pan";
+        g.panStart = { x: e.clientX, y: e.clientY };
+        g.panStartOffset = { ...offset };
+      } else if (photos.length > 1) {
+        g.mode = "swipe";
+        g.swipeStartX = e.clientX;
+      }
+    } else if (g.pointers.size === 2) {
+      g.mode = "pinch";
+      const [p1, p2] = Array.from(g.pointers.values());
+      g.pinchStartDistance = dist(p1, p2);
+      g.pinchStartScale = scale;
+    }
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    const g = gesture.current;
+    if (!g.pointers.has(e.pointerId)) return;
+    g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (g.mode === "pinch" && g.pointers.size === 2) {
+      const [p1, p2] = Array.from(g.pointers.values());
+      const distance = dist(p1, p2);
+      const nextScale = clamp(
+        g.pinchStartScale * (distance / g.pinchStartDistance),
+        1,
+        MAX_SCALE
+      );
+      setScale(nextScale);
+      const bounds = panBounds(nextScale);
+      setOffset((o) => ({
+        x: clamp(o.x, -bounds.x, bounds.x),
+        y: clamp(o.y, -bounds.y, bounds.y),
+      }));
+    } else if (g.mode === "pan") {
+      const bounds = panBounds(scale);
+      const nextX = clamp(
+        g.panStartOffset.x + (e.clientX - g.panStart.x),
+        -bounds.x,
+        bounds.x
+      );
+      const nextY = clamp(
+        g.panStartOffset.y + (e.clientY - g.panStart.y),
+        -bounds.y,
+        bounds.y
+      );
+      setOffset({ x: nextX, y: nextY });
+    }
+    // "swipe" mode needs no live update — resolved on release below.
+  }
+
+  function handlePointerUp(e: React.PointerEvent) {
+    const g = gesture.current;
+    const wasSwipe = g.mode === "swipe";
+    g.pointers.delete(e.pointerId);
+
+    if (wasSwipe) {
+      const delta = e.clientX - g.swipeStartX;
+      if (Math.abs(delta) >= SWIPE_THRESHOLD) {
+        if (delta > 0) goPrev();
+        else goNext();
+      }
+    }
+
+    if (g.pointers.size === 0) {
+      // All fingers lifted — if we're basically back to 1x, snap fully
+      // closed so the view resets cleanly for next time.
+      if (scale <= 1.05) {
+        setScale(1);
+        setOffset({ x: 0, y: 0 });
+      }
+      g.mode = "idle";
+    } else if (g.pointers.size === 1) {
+      // Went from two fingers to one — keep going as a pan if still
+      // zoomed in, so lifting just one finger doesn't interrupt anything.
+      if (scale > 1.01) {
+        g.mode = "pan";
+        const remaining = Array.from(g.pointers.values())[0];
+        g.panStart = remaining;
+        g.panStartOffset = { ...offset };
+      } else {
+        g.mode = "idle";
+      }
+    }
   }
 
   function openLightbox() {
@@ -77,6 +195,26 @@ export default function ProductGallery({
   function closeLightbox() {
     setLightboxOpen(false);
     setZoomed(false);
+  }
+
+  // Lightbox still has its own simple swipe (its zoom mode is separate,
+  // full-screen, with its own tap-to-zoom — unrelated to the pinch/pan
+  // above on the inline photo).
+  const lightboxSwipeRef = useRef<{ startX: number; pointerId: number } | null>(
+    null
+  );
+  function handleLightboxSwipeStart(e: React.PointerEvent) {
+    if (photos.length < 2) return;
+    lightboxSwipeRef.current = { startX: e.clientX, pointerId: e.pointerId };
+  }
+  function handleLightboxSwipeEnd(e: React.PointerEvent) {
+    const swipe = lightboxSwipeRef.current;
+    if (!swipe || e.pointerId !== swipe.pointerId) return;
+    const delta = e.clientX - swipe.startX;
+    lightboxSwipeRef.current = null;
+    if (Math.abs(delta) < SWIPE_THRESHOLD) return;
+    if (delta > 0) goPrev();
+    else goNext();
   }
 
   // Arrow-key navigation and Escape-to-close while the lightbox is open.
@@ -104,15 +242,28 @@ export default function ProductGallery({
 
   return (
     <div>
-      <div className="group relative aspect-square w-full overflow-hidden rounded-xl bg-surface">
+      <div
+        ref={containerRef}
+        className="group relative aspect-square w-full overflow-hidden rounded-xl bg-surface"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={photos[active]}
           alt={alt}
-          onClick={openLightbox}
-          onPointerDown={handleSwipeStart}
-          onPointerUp={handleSwipeEnd}
-          className="h-full w-full touch-pan-y cursor-zoom-in object-contain"
+          onClick={() => {
+            if (scale <= 1.01) openLightbox();
+          }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{
+            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+            transformOrigin: "center center",
+          }}
+          className={`h-full w-full touch-none object-contain ${
+            scale > 1.01 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
+          }`}
         />
         <button
           type="button"
@@ -142,6 +293,18 @@ export default function ProductGallery({
             </button>
           </>
         )}
+        {scale > 1.01 && (
+          <button
+            type="button"
+            onClick={() => {
+              setScale(1);
+              setOffset({ x: 0, y: 0 });
+            }}
+            className="absolute left-2 top-2 rounded-full bg-white/90 px-3 py-1 text-xs text-ink shadow"
+          >
+            Reset zoom
+          </button>
+        )}
       </div>
 
       {photos.length > 1 && (
@@ -149,7 +312,11 @@ export default function ProductGallery({
           {photos.map((src, i) => (
             <button
               key={src}
-              onClick={() => setActive(i)}
+              onClick={() => {
+                setActive(i);
+                setScale(1);
+                setOffset({ x: 0, y: 0 });
+              }}
               className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 bg-surface transition-colors ${
                 i === active ? "border-ink" : "border-transparent"
               }`}
@@ -206,8 +373,8 @@ export default function ProductGallery({
               src={photos[active]}
               alt={alt}
               onClick={() => setZoomed((z) => !z)}
-              onPointerDown={!zoomed ? handleSwipeStart : undefined}
-              onPointerUp={!zoomed ? handleSwipeEnd : undefined}
+              onPointerDown={!zoomed ? handleLightboxSwipeStart : undefined}
+              onPointerUp={!zoomed ? handleLightboxSwipeEnd : undefined}
               className={
                 zoomed
                   ? "max-w-none cursor-zoom-out"
