@@ -489,29 +489,30 @@ export default function ProductsPanel() {
             key={p.id}
             className="flex items-center gap-4 rounded-lg border border-border p-3"
           >
-            {(p.images && p.images.length > 0) || p.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={p.images && p.images.length > 0 ? p.images[0] : p.image}
-                alt=""
-                className="h-14 w-14 rounded-md object-cover"
-              />
-            ) : (
-              <div className="h-14 w-14 rounded-md bg-surface" />
-            )}
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md">
+              {(p.images && p.images.length > 0) || p.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={p.images && p.images.length > 0 ? p.images[0] : p.image}
+                  alt=""
+                  className="h-14 w-14 object-cover"
+                />
+              ) : (
+                <div className="h-14 w-14 bg-surface" />
+              )}
+              {(p.status === "sold" || p.status === "unavailable") && (
+                <div
+                  className={`absolute bottom-0 left-0 right-0 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-white ${
+                    p.status === "sold" ? "bg-red-600" : "bg-[#AD8A4E]"
+                  }`}
+                >
+                  {p.status === "sold" ? "Sold" : "N/A"}
+                </div>
+              )}
+            </div>
             <div className="min-w-0 flex-1">
               <p className="line-clamp-1 text-sm">
                 {p.name}
-                {p.status === "sold" && (
-                  <span className="ml-2 rounded-full bg-surface px-2 py-0.5 text-xs text-muted">
-                    Sold
-                  </span>
-                )}
-                {p.status === "unavailable" && (
-                  <span className="ml-2 rounded-full bg-surface px-2 py-0.5 text-xs text-muted">
-                    Unavailable
-                  </span>
-                )}
               </p>
               <p className="text-xs text-muted">
                 £{(p.price / 100).toFixed(2)} · {p.category}
