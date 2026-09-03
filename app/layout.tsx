@@ -10,6 +10,8 @@ import { Analytics } from "@vercel/analytics/next";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 const serif = Playfair_Display({

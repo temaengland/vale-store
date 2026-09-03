@@ -244,7 +244,7 @@ export default function ProductGallery({
     <div>
       <div
         ref={containerRef}
-        className="group relative aspect-square w-full overflow-hidden rounded-xl bg-surface"
+        className="group relative aspect-square w-full touch-none overflow-hidden rounded-xl bg-surface"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
