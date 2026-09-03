@@ -569,6 +569,7 @@ export default function ImageCropUpload({
                     onComplete={(c) => setPixelCrop(c)}
                     minWidth={40}
                     minHeight={40}
+                    ruleOfThirds
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
