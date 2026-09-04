@@ -13,7 +13,7 @@ export default function ExpandableDescription({ text }: { text: string }) {
   return (
     <div>
       <p
-        className={`text-sm leading-relaxed text-muted ${
+        className={`whitespace-pre-line text-sm leading-relaxed text-muted ${
           !expanded && isLong ? "line-clamp-5" : ""
         }`}
       >
