@@ -140,6 +140,21 @@ returns void as $$
   on conflict (category) do update set count = category_views.count + 1;
 $$ language sql;
 
+-- "Notify me" sign-ups from empty/sold-out states — lets a visitor leave
+-- their email when the exact thing they wanted isn't in stock right now,
+-- instead of the page being a dead end.
+create table notify_requests (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  category text not null,
+  subcategory text,
+  era text,
+  product_slug text, -- set when the request came from a sold item's page
+  created_at timestamptz not null default now()
+);
+alter table notify_requests enable row level security;
+-- Admin-only, same pattern as inquiries — no public read policy.
+
 -- MIGRATION: if you already ran this file before (table already exists),
 -- just run this one line separately in SQL Editor to add the new "era"
 -- field without losing any existing products:
@@ -198,3 +213,13 @@ $$ language sql;
 --   insert into category_views (category, count) values (p_category, 1)
 --   on conflict (category) do update set count = category_views.count + 1;
 -- $$ language sql;
+-- create table if not exists notify_requests (
+--   id uuid primary key default gen_random_uuid(),
+--   email text not null,
+--   category text not null,
+--   subcategory text,
+--   era text,
+--   product_slug text,
+--   created_at timestamptz not null default now()
+-- );
+-- alter table notify_requests enable row level security;

@@ -6,6 +6,7 @@ import InquiriesPanel from "@/components/admin/InquiriesPanel";
 import OrdersPanel from "@/components/admin/OrdersPanel";
 import DraftsPanel from "@/components/admin/DraftsPanel";
 import AnalyticsPanel from "@/components/admin/AnalyticsPanel";
+import NotifyRequestsPanel from "@/components/admin/NotifyRequestsPanel";
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
@@ -13,7 +14,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [tab, setTab] = useState<
-    "products" | "drafts" | "analytics" | "orders" | "inquiries"
+    "products" | "drafts" | "analytics" | "orders" | "inquiries" | "notify"
   >("products");
 
   useEffect(() => {
@@ -81,29 +82,31 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6 flex gap-2 border-b border-border">
-        {(["products", "drafts", "analytics", "orders", "inquiries"] as const).map(
-          (t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2 text-sm border-b-2 -mb-px transition-colors ${
-                tab === t
-                  ? "border-ink text-ink"
-                  : "border-transparent text-muted hover:text-ink"
-              }`}
-            >
-              {t === "products"
-                ? "Items"
-                : t === "drafts"
-                ? "Review drafts"
-                : t === "analytics"
-                ? "Analytics"
-                : t === "orders"
-                ? "Orders"
-                : "Enquiries"}
-            </button>
-          )
-        )}
+        {(
+          ["products", "drafts", "analytics", "orders", "inquiries", "notify"] as const
+        ).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm border-b-2 -mb-px transition-colors ${
+              tab === t
+                ? "border-ink text-ink"
+                : "border-transparent text-muted hover:text-ink"
+            }`}
+          >
+            {t === "products"
+              ? "Items"
+              : t === "drafts"
+              ? "Review drafts"
+              : t === "analytics"
+              ? "Analytics"
+              : t === "orders"
+              ? "Orders"
+              : t === "inquiries"
+              ? "Enquiries"
+              : "Notify sign-ups"}
+          </button>
+        ))}
       </div>
 
       {tab === "products" ? (
@@ -112,6 +115,8 @@ export default function AdminPage() {
         <DraftsPanel />
       ) : tab === "analytics" ? (
         <AnalyticsPanel />
+      ) : tab === "notify" ? (
+        <NotifyRequestsPanel />
       ) : tab === "orders" ? (
         <OrdersPanel />
       ) : (

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { getProduct } from "@/lib/data";
+import { getProduct, getAllProducts } from "@/lib/data";
 import { formatPrice, Product } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
 import ProductInfoPanel from "@/components/ProductInfoPanel";
@@ -69,6 +69,25 @@ export default async function ProductPage({
   // cut off an un-awaited call before it finishes.
   await trackProductView(product.slug);
 
+  // For a sold/unavailable piece, give the visitor somewhere to go next
+  // instead of a dead end — a few other available pieces from the same
+  // subcategory, falling back to the wider category if there aren't
+  // enough of those.
+  let relatedProducts: Product[] = [];
+  if (product.status && product.status !== "available") {
+    const all = await getAllProducts();
+    const available = all.filter(
+      (p) => p.slug !== product.slug && (!p.status || p.status === "available")
+    );
+    const sameSubcategory = available.filter(
+      (p) => p.subcategory === product.subcategory
+    );
+    const sameCategory = available.filter(
+      (p) => p.category === product.category && p.subcategory !== product.subcategory
+    );
+    relatedProducts = [...sameSubcategory, ...sameCategory].slice(0, 4);
+  }
+
   // Structured data (schema.org Product) — lets Google show price and
   // stock status directly in search results, and helps it understand
   // this page is a product listing rather than plain text.
@@ -116,6 +135,7 @@ export default async function ProductPage({
           product={product}
           paid={searchParams.paid}
           canceled={searchParams.canceled}
+          relatedProducts={relatedProducts}
         />
       </div>
     </div>

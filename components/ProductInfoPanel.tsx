@@ -7,16 +7,20 @@ import BuyNowButton from "@/components/BuyNowButton";
 import AddToCartButton from "@/components/AddToCartButton";
 import ProductPaidBanner from "@/components/ProductPaidBanner";
 import ExpandableDescription from "@/components/ExpandableDescription";
+import ProductCard from "@/components/ProductCard";
+import NotifyMeForm from "@/components/NotifyMeForm";
 import { useLanguage } from "@/lib/language-context";
 
 export default function ProductInfoPanel({
   product,
   paid,
   canceled,
+  relatedProducts,
 }: {
   product: Product;
   paid?: string;
   canceled?: string;
+  relatedProducts?: Product[];
 }) {
   const { t, locale } = useLanguage();
 
@@ -95,6 +99,32 @@ export default function ProductInfoPanel({
           <p className="rounded-md bg-surface px-4 py-3 text-sm text-ink">
             {product.status === "sold" ? t("product.sold") : t("product.unavailable")}
           </p>
+
+          {relatedProducts && relatedProducts.length > 0 && (
+            <div className="mt-6">
+              <p className="text-xs tracking-widest text-muted">
+                YOU MIGHT ALSO LIKE
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-4">
+                {relatedProducts.map((p) => (
+                  <ProductCard key={p.slug} product={p} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6">
+            <p className="mb-2 text-xs tracking-widest text-muted">
+              WANT SOMETHING LIKE THIS?
+            </p>
+            <NotifyMeForm
+              category={product.category}
+              subcategory={product.subcategory}
+              era={product.era}
+              productSlug={product.slug}
+            />
+          </div>
+
           <div className="my-6 flex items-center gap-3 text-xs text-muted">
             <span className="h-px flex-1 bg-border" />
             {t("product.askSimilar")}
