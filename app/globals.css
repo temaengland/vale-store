@@ -12,10 +12,10 @@ body {
 .crop-viewport,
 .crop-viewport .ReactCrop,
 .crop-viewport .ReactCrop__child-wrapper {
-  max-height: 58vh !important;
+  max-height: 58dvh !important;
 }
 .crop-viewport .ReactCrop__child-wrapper > img {
-  max-height: 58vh !important;
+  max-height: 58dvh !important;
   max-width: 100% !important;
   width: auto !important;
   height: auto !important;
@@ -47,10 +47,22 @@ body {
 .crop-viewport .ReactCrop__drag-bar {
   background: transparent;
 }
-/* On touch devices the library hides the N/E/S/W edge handles entirely,
-   leaving only diagonal corner-dragging — that's what made side-dragging
-   impossible on mobile. Force them visible and make them chunky enough
-   to grab comfortably with a finger. */
+/* Only corner handles (nw/ne/sw/se) stay visible as dots — the side
+   midpoint handles (n/e/s/w) are hidden, but their underlying drag-bar
+   hit area along the border stays fully active, so the edge itself can
+   still be grabbed and dragged directly, the way most photo editors work,
+   without a dedicated dot cluttering the middle of each side. */
+.crop-viewport .ReactCrop__drag-handle.ord-n,
+.crop-viewport .ReactCrop__drag-handle.ord-e,
+.crop-viewport .ReactCrop__drag-handle.ord-s,
+.crop-viewport .ReactCrop__drag-handle.ord-w {
+  display: none !important;
+}
+/* On touch devices the library hides the N/E/S/W edge drag-bars entirely
+   by default, leaving only diagonal corner-dragging — that's what made
+   side-dragging impossible on mobile. Force the hit area visible/active
+   and make it generously wide enough to grab comfortably with a finger,
+   even though no dot is shown there. */
 @media (pointer: coarse) {
   .crop-viewport .ReactCrop .ord-n,
   .crop-viewport .ReactCrop .ord-e,
@@ -58,15 +70,24 @@ body {
   .crop-viewport .ReactCrop .ord-w {
     display: block !important;
   }
+  .crop-viewport .ReactCrop__drag-handle.ord-n,
+  .crop-viewport .ReactCrop__drag-handle.ord-e,
+  .crop-viewport .ReactCrop__drag-handle.ord-s,
+  .crop-viewport .ReactCrop__drag-handle.ord-w {
+    display: none !important;
+  }
   .crop-viewport .ReactCrop__drag-bar.ord-n,
   .crop-viewport .ReactCrop__drag-bar.ord-s {
-    height: 20px !important;
+    height: 28px !important;
   }
   .crop-viewport .ReactCrop__drag-bar.ord-e,
   .crop-viewport .ReactCrop__drag-bar.ord-w {
-    width: 20px !important;
+    width: 28px !important;
   }
-  .crop-viewport .ReactCrop__drag-handle {
+  .crop-viewport .ReactCrop__drag-handle.ord-nw,
+  .crop-viewport .ReactCrop__drag-handle.ord-ne,
+  .crop-viewport .ReactCrop__drag-handle.ord-sw,
+  .crop-viewport .ReactCrop__drag-handle.ord-se {
     width: 20px !important;
     height: 20px !important;
   }

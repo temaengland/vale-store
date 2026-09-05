@@ -30,8 +30,8 @@ export function rotateImage90(
 export async function cropToBlob(
   image: HTMLImageElement,
   crop: { x: number; y: number; width: number; height: number },
-  maxOutputSize = 4000,
-  quality = 0.95
+  maxOutputSize = 2200,
+  quality = 0.85
 ): Promise<Blob> {
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
@@ -61,11 +61,26 @@ export async function cropToBlob(
     outH
   );
 
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Crop failed"))),
-      "image/jpeg",
-      quality
-    );
-  });
+  function toBlob(q: number): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("Crop failed"))),
+        "image/jpeg",
+        q
+      );
+    });
+  }
+
+  // Safety net — if the result is still too close to Vercel's ~4.5MB
+  // request body limit (an unusually detailed photo, for instance), keep
+  // stepping quality down rather than letting the upload fail outright.
+  const MAX_BYTES = 3.8 * 1024 * 1024;
+  let blob = await toBlob(quality);
+  let q = quality;
+  while (blob.size > MAX_BYTES && q > 0.4) {
+    q -= 0.15;
+    blob = await toBlob(q);
+  }
+
+  return blob;
 }

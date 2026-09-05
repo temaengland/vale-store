@@ -517,7 +517,7 @@ export default function ImageCropUpload({
       {workingUrl && editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
-            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl shadow-xl"
+            className="flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-xl shadow-xl"
             style={{ background: "#1f1c19" }}
           >
             {/* Header */}
@@ -560,7 +560,7 @@ export default function ImageCropUpload({
 
               <div
                 className="crop-viewport flex items-center justify-center"
-                style={{ maxHeight: "58vh" }}
+                style={{ maxHeight: "58dvh" }}
               >
                 {cropMode ? (
                   <ReactCrop
@@ -578,7 +578,7 @@ export default function ImageCropUpload({
                       alt=""
                       crossOrigin="anonymous"
                       style={{
-                        maxHeight: "58vh",
+                        maxHeight: "58dvh",
                         maxWidth: "100%",
                         width: "auto",
                         height: "auto",
@@ -594,7 +594,7 @@ export default function ImageCropUpload({
                     alt=""
                     crossOrigin="anonymous"
                     style={{
-                      maxHeight: "58vh",
+                      maxHeight: "58dvh",
                       maxWidth: "100%",
                       width: "auto",
                       height: "auto",
