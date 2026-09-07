@@ -81,14 +81,14 @@ export default function AdminPage() {
         </button>
       </div>
 
-      <div className="mt-6 flex gap-2 border-b border-border">
+      <div className="mt-6 flex gap-2 overflow-x-auto whitespace-nowrap border-b border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [scroll-snap-type:x_proximity]">
         {(
           ["products", "drafts", "analytics", "orders", "inquiries", "notify"] as const
         ).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm border-b-2 -mb-px transition-colors ${
+            className={`shrink-0 scroll-mx-4 px-4 py-2 text-sm border-b-2 -mb-px transition-colors [scroll-snap-align:start] ${
               tab === t
                 ? "border-ink text-ink"
                 : "border-transparent text-muted hover:text-ink"
