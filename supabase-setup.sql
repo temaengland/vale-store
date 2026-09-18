@@ -119,6 +119,15 @@ alter table category_mapping enable row level security;
 -- page load; shown in the admin "Analytics" tab.
 alter table products add column if not exists view_count integer not null default 0;
 
+-- Weight and packed dimensions — needed for choosing the right postal
+-- service (Royal Mail/Evri) by size/weight band, and useful right now for
+-- deciding by eye whether something should go by post or by courier
+-- (Shiply) for large furniture.
+alter table products add column if not exists weight_grams integer;
+alter table products add column if not exists length_cm numeric;
+alter table products add column if not exists width_cm numeric;
+alter table products add column if not exists height_cm numeric;
+
 create table category_views (
   category text primary key, -- matches a Category.slug in lib/products.ts
   count integer not null default 0
@@ -201,6 +210,10 @@ alter table notify_requests enable row level security;
 -- );
 -- alter table category_mapping enable row level security;
 -- alter table products add column if not exists view_count integer not null default 0;
+-- alter table products add column if not exists weight_grams integer;
+-- alter table products add column if not exists length_cm numeric;
+-- alter table products add column if not exists width_cm numeric;
+-- alter table products add column if not exists height_cm numeric;
 -- create table if not exists category_views (
 --   category text primary key,
 --   count integer not null default 0

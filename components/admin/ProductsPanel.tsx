@@ -19,6 +19,10 @@ type AdminProduct = {
   cost_price?: number;
   shipping_cost?: number;
   international_shipping_cost?: number;
+  weight_grams?: number;
+  length_cm?: number;
+  width_cm?: number;
+  height_cm?: number;
   status?: "available" | "unavailable" | "sold";
 };
 
@@ -36,6 +40,10 @@ const emptyForm = {
   cost_price: "",
   shipping_cost: "",
   international_shipping_cost: "",
+  weight_grams: "",
+  length_cm: "",
+  width_cm: "",
+  height_cm: "",
   status: "available" as "available" | "unavailable" | "sold",
 };
 
@@ -93,6 +101,12 @@ export default function ProductsPanel() {
       international_shipping_cost: form.international_shipping_cost
         ? Math.round(Number(form.international_shipping_cost) * 100)
         : null,
+      weight_grams: form.weight_grams
+        ? Math.round(Number(form.weight_grams) * 1000)
+        : null,
+      length_cm: form.length_cm ? Number(form.length_cm) : null,
+      width_cm: form.width_cm ? Number(form.width_cm) : null,
+      height_cm: form.height_cm ? Number(form.height_cm) : null,
     };
     const res = await fetch(
       editingId ? `/api/admin/products/${editingId}` : "/api/admin/products",
@@ -133,6 +147,11 @@ export default function ProductsPanel() {
         p.international_shipping_cost != null
           ? String(p.international_shipping_cost / 100)
           : "",
+      weight_grams:
+        p.weight_grams != null ? String(p.weight_grams / 1000) : "",
+      length_cm: p.length_cm != null ? String(p.length_cm) : "",
+      width_cm: p.width_cm != null ? String(p.width_cm) : "",
+      height_cm: p.height_cm != null ? String(p.height_cm) : "",
       status: p.status ?? "available",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -424,6 +443,57 @@ export default function ProductsPanel() {
               />
               Free shipping
             </label>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs text-muted">
+            Weight &amp; packed size{" "}
+            <span className="normal-case text-muted">
+              — for choosing post vs. courier, and future label automation
+            </span>
+          </label>
+          <div className="mt-1 grid grid-cols-4 gap-2">
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Weight (kg)"
+              value={form.weight_grams}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, weight_grams: e.target.value }))
+              }
+              className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
+            />
+            <input
+              type="number"
+              step="0.1"
+              placeholder="Length (cm)"
+              value={form.length_cm}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, length_cm: e.target.value }))
+              }
+              className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
+            />
+            <input
+              type="number"
+              step="0.1"
+              placeholder="Width (cm)"
+              value={form.width_cm}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, width_cm: e.target.value }))
+              }
+              className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
+            />
+            <input
+              type="number"
+              step="0.1"
+              placeholder="Height (cm)"
+              value={form.height_cm}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, height_cm: e.target.value }))
+              }
+              className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
+            />
           </div>
         </div>
 
