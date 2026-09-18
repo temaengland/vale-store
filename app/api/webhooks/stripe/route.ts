@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       // doesn't include them.
       const fullSession = await stripe().checkout.sessions.retrieve(
         session.id,
-        { expand: ["line_items"] }
+        { expand: ["line_items", "line_items.data.price.product"] }
       );
 
       const admin = supabaseAdmin();
@@ -68,7 +68,14 @@ export async function POST(req: NextRequest) {
         .select("id, slug, name, cost_price");
 
       const orderItems = lineItems.map((li) => {
-        const match = allProducts?.find((p) => p.name === li.description);
+        const productObj = li.price?.product;
+        const slugFromMetadata =
+          typeof productObj === "object" && productObj && "metadata" in productObj
+            ? (productObj.metadata as Record<string, string> | undefined)?.slug
+            : undefined;
+        const match = slugFromMetadata
+          ? allProducts?.find((p) => p.slug === slugFromMetadata)
+          : allProducts?.find((p) => p.name === li.description);
         return {
           slug: match?.slug ?? null,
           name: li.description,

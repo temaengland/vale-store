@@ -63,6 +63,10 @@ export async function POST(req: NextRequest) {
                   : product.image
                   ? [product.image]
                   : undefined,
+              // Reliable product identity for the webhook to match against
+              // afterwards — matching by name alone breaks silently if a
+              // name ever contains an odd character or gets edited.
+              metadata: { slug: product.slug },
             },
           },
         };
@@ -83,16 +87,16 @@ export async function POST(req: NextRequest) {
     );
 
     const shippingOptions: Stripe.Checkout.SessionCreateParams.ShippingOption[] =
-      [];
-    if (ukShippingTotal > 0) {
-      shippingOptions.push({
-        shipping_rate_data: {
-          type: "fixed_amount",
-          fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
-          display_name: "UK shipping",
+      [
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
+            display_name:
+              ukShippingTotal === 0 ? "UK shipping (Free)" : "UK shipping",
+          },
         },
-      });
-    }
+      ];
     if (intlShippingTotal > 0) {
       shippingOptions.push({
         shipping_rate_data: {

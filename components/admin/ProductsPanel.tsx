@@ -127,10 +127,12 @@ export default function ProductsPanel() {
       images: p.images ?? [],
       icon: p.icon,
       cost_price: p.cost_price ? String(p.cost_price / 100) : "",
-      shipping_cost: p.shipping_cost ? String(p.shipping_cost / 100) : "",
-      international_shipping_cost: p.international_shipping_cost
-        ? String(p.international_shipping_cost / 100)
-        : "",
+      shipping_cost:
+        p.shipping_cost != null ? String(p.shipping_cost / 100) : "",
+      international_shipping_cost:
+        p.international_shipping_cost != null
+          ? String(p.international_shipping_cost / 100)
+          : "",
       status: p.status ?? "available",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -353,15 +355,32 @@ export default function ProductsPanel() {
               — shown to buyers, offered at checkout
             </span>
           </label>
-          <input
-            type="number"
-            step="0.01"
-            value={form.shipping_cost}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, shipping_cost: e.target.value }))
-            }
-            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
-          />
+          <div className="mt-1 flex items-center gap-3">
+            <input
+              type="number"
+              step="0.01"
+              disabled={form.shipping_cost === "0"}
+              value={form.shipping_cost === "0" ? "" : form.shipping_cost}
+              placeholder={form.shipping_cost === "0" ? "Free" : undefined}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, shipping_cost: e.target.value }))
+              }
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm disabled:bg-surface disabled:text-muted"
+            />
+            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={form.shipping_cost === "0"}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    shipping_cost: e.target.checked ? "0" : "",
+                  }))
+                }
+              />
+              Free shipping
+            </label>
+          </div>
         </div>
 
         <div>
@@ -371,18 +390,41 @@ export default function ProductsPanel() {
               — optional, leave blank to only offer UK shipping
             </span>
           </label>
-          <input
-            type="number"
-            step="0.01"
-            value={form.international_shipping_cost}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                international_shipping_cost: e.target.value,
-              }))
-            }
-            className="mt-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
-          />
+          <div className="mt-1 flex items-center gap-3">
+            <input
+              type="number"
+              step="0.01"
+              disabled={form.international_shipping_cost === "0"}
+              value={
+                form.international_shipping_cost === "0"
+                  ? ""
+                  : form.international_shipping_cost
+              }
+              placeholder={
+                form.international_shipping_cost === "0" ? "Free" : undefined
+              }
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  international_shipping_cost: e.target.value,
+                }))
+              }
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm disabled:bg-surface disabled:text-muted"
+            />
+            <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={form.international_shipping_cost === "0"}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    international_shipping_cost: e.target.checked ? "0" : "",
+                  }))
+                }
+              />
+              Free shipping
+            </label>
+          </div>
         </div>
 
         <div>
