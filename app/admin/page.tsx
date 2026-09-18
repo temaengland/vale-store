@@ -7,6 +7,9 @@ import OrdersPanel from "@/components/admin/OrdersPanel";
 import DraftsPanel from "@/components/admin/DraftsPanel";
 import AnalyticsPanel from "@/components/admin/AnalyticsPanel";
 import NotifyRequestsPanel from "@/components/admin/NotifyRequestsPanel";
+import NotificationsPanel, {
+  useUnreadNotificationCount,
+} from "@/components/admin/NotificationsPanel";
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
@@ -14,8 +17,15 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [tab, setTab] = useState<
-    "products" | "drafts" | "analytics" | "orders" | "inquiries" | "notify"
-  >("products");
+    | "notifications"
+    | "products"
+    | "drafts"
+    | "analytics"
+    | "orders"
+    | "inquiries"
+    | "notify"
+  >("notifications");
+  const unreadCount = useUnreadNotificationCount();
 
   useEffect(() => {
     fetch("/api/admin/products").then((res) => {
@@ -75,7 +85,14 @@ export default function AdminPage() {
   return (
     <div className="pb-20">
       <div className="flex items-baseline justify-between">
-        <h1 className="font-serif text-2xl">Admin</h1>
+        <h1 className="font-serif text-2xl">
+          Admin
+          {unreadCount > 0 && (
+            <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 align-middle text-xs font-medium text-white">
+              {unreadCount}
+            </span>
+          )}
+        </h1>
         <button onClick={handleLogout} className="text-sm text-muted">
           Log out
         </button>
@@ -83,7 +100,15 @@ export default function AdminPage() {
 
       <div className="mt-6 flex gap-2 overflow-x-auto whitespace-nowrap border-b border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [scroll-snap-type:x_proximity]">
         {(
-          ["products", "drafts", "analytics", "orders", "inquiries", "notify"] as const
+          [
+            "notifications",
+            "products",
+            "drafts",
+            "analytics",
+            "orders",
+            "inquiries",
+            "notify",
+          ] as const
         ).map((t) => (
           <button
             key={t}
@@ -94,22 +119,35 @@ export default function AdminPage() {
                 : "border-transparent text-muted hover:text-ink"
             }`}
           >
-            {t === "products"
-              ? "Items"
-              : t === "drafts"
-              ? "Review drafts"
-              : t === "analytics"
-              ? "Analytics"
-              : t === "orders"
-              ? "Orders"
-              : t === "inquiries"
-              ? "Enquiries"
-              : "Notify sign-ups"}
+            {t === "notifications" ? (
+              <>
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </>
+            ) : t === "products" ? (
+              "Items"
+            ) : t === "drafts" ? (
+              "Review drafts"
+            ) : t === "analytics" ? (
+              "Analytics"
+            ) : t === "orders" ? (
+              "Orders"
+            ) : t === "inquiries" ? (
+              "Enquiries"
+            ) : (
+              "Notify sign-ups"
+            )}
           </button>
         ))}
       </div>
 
-      {tab === "products" ? (
+      {tab === "notifications" ? (
+        <NotificationsPanel />
+      ) : tab === "products" ? (
         <ProductsPanel />
       ) : tab === "drafts" ? (
         <DraftsPanel />
