@@ -12,6 +12,13 @@ type FeedItem = {
 
 const LAST_SEEN_KEY = "charmchase_admin_notifications_last_seen";
 
+// A tiny in-memory pub/sub so the badge in the header resets the moment
+// the Notifications panel marks items as seen — without a page reload.
+const listeners = new Set<() => void>();
+function notifyListeners() {
+  listeners.forEach((fn) => fn());
+}
+
 function typeIcon(type: FeedItem["type"]) {
   if (type === "order") return "💰";
   if (type === "inquiry") return "💬";
@@ -21,12 +28,10 @@ function typeIcon(type: FeedItem["type"]) {
 export function useUnreadNotificationCount() {
   const [count, setCount] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
+  function recalculate() {
     fetch("/api/admin/notifications")
       .then((res) => (res.ok ? res.json() : { feed: [] }))
       .then((data) => {
-        if (cancelled) return;
         const lastSeen = localStorage.getItem(LAST_SEEN_KEY);
         const lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
         const unread = (data.feed ?? []).filter(
@@ -35,9 +40,16 @@ export function useUnreadNotificationCount() {
         setCount(unread);
       })
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    recalculate();
+    // Re-run whenever the Notifications panel marks items as seen.
+    listeners.add(recalculate);
     return () => {
-      cancelled = true;
+      listeners.delete(recalculate);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return count;
@@ -65,8 +77,9 @@ export default function NotificationsPanel() {
       const data = await res.json();
       setFeed(data.feed ?? []);
 
-      // Mark everything as seen now that the person has opened this tab.
+      // Mark everything as seen and immediately update the header badge.
       localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
+      notifyListeners();
     } catch {
       setLoadError("Couldn't reach the server — check your connection.");
     } finally {

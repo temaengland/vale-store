@@ -67,6 +67,8 @@ export const iconTones: Record<IconName, { bg: string; fg: string }> = {
 // otherwise falls back to the line-art placeholder. Accepts either the
 // newer `images` array (first photo = cover) or the older single `image`
 // field, so older records keep working without a data migration.
+import NextImage from "next/image";
+
 export function ProductImage({
   image,
   images,
@@ -84,12 +86,14 @@ export function ProductImage({
   const cover = images && images.length > 0 ? images[0] : image;
   if (cover) {
     return (
-      <div className={`overflow-hidden bg-surface ${className}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <div className={`relative overflow-hidden bg-surface ${className}`}>
+        <NextImage
           src={cover}
           alt={alt}
-          className="h-full w-full object-contain"
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 300px"
+          className="object-contain"
+          loading="lazy"
         />
       </div>
     );

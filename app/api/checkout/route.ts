@@ -73,10 +73,6 @@ export async function POST(req: NextRequest) {
       });
 
     // Let the buyer pick the shipping tier that matches where they live,
-    // rather than charging one flat rate for everyone — international
-    // delivery is usually a lot more expensive than UK delivery. When
-    // there's more than one item, each tier's cost is the sum of that
-    // item's shipping cost across the whole order.
     const ukShippingTotal = products.reduce(
       (sum, p) => sum + (p.shipping_cost ?? 0),
       0
