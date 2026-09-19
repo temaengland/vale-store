@@ -60,6 +60,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://hbmfkrrjxlpamzgozzmh.supabase.co" />
+        <link
+          rel="preload"
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500&display=swap"
+          as="style"
+        />
+      </head>
       <body className={`${serif.variable} ${sans.variable} font-sans`}>
         <LanguageProvider>
           <CartProvider>
