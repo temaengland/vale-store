@@ -41,6 +41,7 @@ const emptyForm = {
   shipping_cost: "",
   international_shipping_cost: "",
   weight_grams: "",
+  weightUnit: "g" as "g" | "kg",
   length_cm: "",
   width_cm: "",
   height_cm: "",
@@ -102,7 +103,9 @@ export default function ProductsPanel() {
         ? Math.round(Number(form.international_shipping_cost) * 100)
         : null,
       weight_grams: form.weight_grams
-        ? Math.round(Number(form.weight_grams))
+        ? form.weightUnit === "kg"
+          ? Math.round(Number(form.weight_grams) * 1000)
+          : Math.round(Number(form.weight_grams))
         : null,
       length_cm: form.length_cm ? Number(form.length_cm) : null,
       width_cm: form.width_cm ? Number(form.width_cm) : null,
@@ -149,6 +152,7 @@ export default function ProductsPanel() {
           : "",
       weight_grams:
         p.weight_grams != null ? String(p.weight_grams) : "",
+      weightUnit: "g" as "g" | "kg",
       length_cm: p.length_cm != null ? String(p.length_cm) : "",
       width_cm: p.width_cm != null ? String(p.width_cm) : "",
       height_cm: p.height_cm != null ? String(p.height_cm) : "",
@@ -454,20 +458,37 @@ export default function ProductsPanel() {
             </span>
           </label>
 
-          {/* Weight — full width on mobile, clear unit label */}
+          {/* Weight — full width on mobile, g/kg toggle */}
           <div className="mt-2 flex items-center gap-2">
             <input
               type="number"
-              step="1"
+              step={form.weightUnit === "kg" ? "0.001" : "1"}
               min="0"
-              placeholder="e.g. 250"
+              placeholder={form.weightUnit === "kg" ? "e.g. 0.25" : "e.g. 250"}
               value={form.weight_grams}
               onChange={(e) =>
                 setForm((f) => ({ ...f, weight_grams: e.target.value }))
               }
               className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
             />
-            <span className="shrink-0 text-sm text-muted">g</span>
+            <div className="flex shrink-0 overflow-hidden rounded-md border border-border-strong text-sm">
+              {(["g", "kg"] as const).map((unit) => (
+                <button
+                  key={unit}
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({ ...f, weightUnit: unit, weight_grams: "" }))
+                  }
+                  className={`px-2.5 py-2 transition-colors ${
+                    form.weightUnit === unit
+                      ? "bg-ink text-white"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {unit}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Dimensions — 2 columns on mobile, clear labels */}
