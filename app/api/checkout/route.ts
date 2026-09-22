@@ -72,10 +72,20 @@ export async function POST(req: NextRequest) {
         };
       });
 
-    // Let the buyer pick the shipping tier that matches where they live,
+    // Two Royal Mail tiers for UK buyers:
+    //  - Tracked 48: standard 2-day delivery, up to £75 compensation
+    //  - Special Delivery: guaranteed next-day by 1pm, £750 compensation
+    //    — the right choice for rings, necklaces, watches etc.
+    const SPECIAL_DELIVERY_FLOOR_PENCE = 815; // £8.15 minimum (Royal Mail small parcel rate)
+    const SPECIAL_DELIVERY_PREMIUM_PENCE = 450; // £4.50 over Tracked 48
+
     const ukShippingTotal = products.reduce(
       (sum, p) => sum + (p.shipping_cost ?? 0),
       0
+    );
+    const specialDeliveryTotal = Math.max(
+      SPECIAL_DELIVERY_FLOOR_PENCE,
+      ukShippingTotal + SPECIAL_DELIVERY_PREMIUM_PENCE
     );
     const intlShippingTotal = products.reduce(
       (sum, p) => sum + (p.international_shipping_cost ?? 0),
@@ -89,7 +99,25 @@ export async function POST(req: NextRequest) {
             type: "fixed_amount",
             fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
             display_name:
-              ukShippingTotal === 0 ? "UK shipping (Free)" : "UK shipping",
+              ukShippingTotal === 0
+                ? "Royal Mail Tracked 48 (Free)"
+                : "Royal Mail Tracked 48",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 2 },
+              maximum: { unit: "business_day", value: 3 },
+            },
+          },
+        },
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: specialDeliveryTotal, currency: "gbp" },
+            display_name:
+              "Royal Mail Special Delivery — next day by 1pm, £750 insured",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 1 },
+              maximum: { unit: "business_day", value: 1 },
+            },
           },
         },
       ];
