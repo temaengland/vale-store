@@ -90,26 +90,31 @@ export default function ProductsPanel() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    // weightUnit and raw weight_grams string are UI-only — exclude them
+    // from the database payload and replace with the converted numeric value.
+    const { weightUnit, weight_grams, length_cm, width_cm, height_cm,
+            shipping_cost, international_shipping_cost, cost_price,
+            ...restFormData } = form;
     const payload = {
-      ...form,
+      ...restFormData,
       price: Math.round(Number(form.price) * 100),
-      cost_price: form.cost_price
-        ? Math.round(Number(form.cost_price) * 100)
+      cost_price: cost_price
+        ? Math.round(Number(cost_price) * 100)
         : null,
-      shipping_cost: form.shipping_cost
-        ? Math.round(Number(form.shipping_cost) * 100)
+      shipping_cost: shipping_cost
+        ? Math.round(Number(shipping_cost) * 100)
         : null,
-      international_shipping_cost: form.international_shipping_cost
-        ? Math.round(Number(form.international_shipping_cost) * 100)
+      international_shipping_cost: international_shipping_cost
+        ? Math.round(Number(international_shipping_cost) * 100)
         : null,
-      weight_grams: form.weight_grams
-        ? form.weightUnit === "kg"
-          ? Math.round(Number(form.weight_grams) * 1000)
-          : Math.round(Number(form.weight_grams))
+      weight_grams: weight_grams
+        ? weightUnit === "kg"
+          ? Math.round(Number(weight_grams) * 1000)
+          : Math.round(Number(weight_grams))
         : null,
-      length_cm: form.length_cm ? Number(form.length_cm) : null,
-      width_cm: form.width_cm ? Number(form.width_cm) : null,
-      height_cm: form.height_cm ? Number(form.height_cm) : null,
+      length_cm: length_cm ? Number(length_cm) : null,
+      width_cm: width_cm ? Number(width_cm) : null,
+      height_cm: height_cm ? Number(height_cm) : null,
     };
     const res = await fetch(
       editingId ? `/api/admin/products/${editingId}` : "/api/admin/products",
