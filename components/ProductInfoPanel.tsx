@@ -68,28 +68,23 @@ export default function ProductInfoPanel({
       </p>
       <h1 className="mt-2 font-serif text-3xl">{displayName}</h1>
       <p className="mt-3 text-lg text-muted">{formatPrice(product.price)}</p>
-      {((typeof product.shipping_cost === "number" && product.shipping_cost > 0) ||
-        (typeof product.international_shipping_cost === "number" &&
-          product.international_shipping_cost > 0)) && (
-        <div className="mt-1 text-xs text-muted">
-          {typeof product.shipping_cost === "number" &&
-            product.shipping_cost > 0 && (
-              <p>
-                + {formatPrice(product.shipping_cost)}{" "}
-                {t("product.estimatedUkShipping")}
-              </p>
-            )}
-          {typeof product.international_shipping_cost === "number" &&
-            product.international_shipping_cost > 0 && (
-              <p>
-                + {formatPrice(product.international_shipping_cost)}{" "}
-                {t("product.estimatedIntlShipping")}
-              </p>
-            )}
-          <p className="mt-1">{t("product.customsNote")}</p>
-          <p className="mt-1">{t("product.countryTip")}</p>
-        </div>
-      )}
+
+      <div className="mt-3 space-y-1 text-sm text-muted">
+        {typeof product.shipping_cost === "number" ? (
+          product.shipping_cost === 0 ? (
+            <p>🚚 <span className="text-ink font-medium">Free UK delivery</span></p>
+          ) : (
+            <p>🚚 UK delivery: <span className="text-ink font-medium">{formatPrice(product.shipping_cost)}</span></p>
+          )
+        ) : null}
+        {typeof product.international_shipping_cost === "number" &&
+          product.international_shipping_cost > 0 && (
+          <p>✈️ International: <span className="text-ink font-medium">{formatPrice(product.international_shipping_cost)}</span></p>
+        )}
+        {typeof product.shipping_cost === "number" && product.shipping_cost > 0 && (
+          <p className="text-xs">Local collection welcome — <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline">message us on WhatsApp</a></p>
+        )}
+      </div>
       <div className="mt-6">
         <ExpandableDescription text={displayDescription} />
       </div>
