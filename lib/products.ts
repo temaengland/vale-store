@@ -14,6 +14,10 @@ export type Product = {
   status?: "available" | "unavailable" | "sold"; // safe to show publicly (e.g. a "Sold" badge)
   shipping_cost?: number; // in pence — estimated UK shipping, shown to buyers and offered at checkout
   international_shipping_cost?: number; // in pence — estimated international shipping, offered as an alternative at checkout
+  weight_grams?: number;
+  length_cm?: number;
+  width_cm?: number;
+  height_cm?: number;
 };
 
 // Admin-only fields — never fetched on public pages, only via the

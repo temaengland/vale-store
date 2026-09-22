@@ -72,6 +72,27 @@ export async function POST(req: NextRequest) {
         };
       });
 
+    // Royal Mail hard limits (Medium Parcel, 2026):
+    // max 61cm × 46cm × 46cm, max 20kg.
+    // If ANY item in the order exceeds these, skip RM tiers entirely and
+    // fall back to the seller's own flat rate (set per item in admin).
+    const ROYAL_MAIL_MAX_LENGTH_CM = 61;
+    const ROYAL_MAIL_MAX_WIDTH_CM = 46;
+    const ROYAL_MAIL_MAX_HEIGHT_CM = 46;
+    const ROYAL_MAIL_MAX_WEIGHT_G = 20000;
+
+    const tooBigForRoyalMail = products.some((p) => {
+      const dims = [p.length_cm, p.width_cm, p.height_cm].filter(Boolean) as number[];
+      if (dims.length > 0) {
+        const sorted = [...dims].sort((a, b) => b - a);
+        if (sorted[0] > ROYAL_MAIL_MAX_LENGTH_CM) return true;
+        if ((sorted[1] ?? 0) > ROYAL_MAIL_MAX_WIDTH_CM) return true;
+        if ((sorted[2] ?? 0) > ROYAL_MAIL_MAX_HEIGHT_CM) return true;
+      }
+      if (p.weight_grams && p.weight_grams > ROYAL_MAIL_MAX_WEIGHT_G) return true;
+      return false;
+    });
+
     // Two Royal Mail tiers for UK buyers:
     //  - Tracked 48: standard 2-day delivery, up to £75 compensation
     //  - Special Delivery: guaranteed next-day by 1pm, £750 compensation
@@ -93,34 +114,49 @@ export async function POST(req: NextRequest) {
     );
 
     const shippingOptions: Stripe.Checkout.SessionCreateParams.ShippingOption[] =
-      [
-        {
-          shipping_rate_data: {
-            type: "fixed_amount",
-            fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
-            display_name:
-              ukShippingTotal === 0
-                ? "Royal Mail Tracked 48 (Free)"
-                : "Royal Mail Tracked 48",
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 2 },
-              maximum: { unit: "business_day", value: 3 },
+      tooBigForRoyalMail
+        ? [
+            // Item is too large for Royal Mail — show only the seller's
+            // own flat rate (set per item in admin, e.g. courier/Shiply cost).
+            {
+              shipping_rate_data: {
+                type: "fixed_amount",
+                fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
+                display_name: "Delivery (contact us to arrange)",
+              },
             },
-          },
-        },
-        {
-          shipping_rate_data: {
-            type: "fixed_amount",
-            fixed_amount: { amount: specialDeliveryTotal, currency: "gbp" },
-            display_name:
-              "Royal Mail Special Delivery — next day by 1pm, £750 insured",
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 1 },
-              maximum: { unit: "business_day", value: 1 },
+          ]
+        : [
+            {
+              shipping_rate_data: {
+                type: "fixed_amount",
+                fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
+                display_name:
+                  ukShippingTotal === 0
+                    ? "Royal Mail Tracked 48 (Free)"
+                    : "Royal Mail Tracked 48",
+                delivery_estimate: {
+                  minimum: { unit: "business_day", value: 2 },
+                  maximum: { unit: "business_day", value: 3 },
+                },
+              },
             },
-          },
-        },
-      ];
+            {
+              shipping_rate_data: {
+                type: "fixed_amount",
+                fixed_amount: {
+                  amount: specialDeliveryTotal,
+                  currency: "gbp",
+                },
+                display_name:
+                  "Royal Mail Special Delivery — next day by 1pm, £750 insured",
+                delivery_estimate: {
+                  minimum: { unit: "business_day", value: 1 },
+                  maximum: { unit: "business_day", value: 1 },
+                },
+              },
+            },
+          ];
     if (intlShippingTotal > 0) {
       shippingOptions.push({
         shipping_rate_data: {

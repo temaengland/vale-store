@@ -102,7 +102,7 @@ export default function ProductsPanel() {
         ? Math.round(Number(form.international_shipping_cost) * 100)
         : null,
       weight_grams: form.weight_grams
-        ? Math.round(Number(form.weight_grams) * 1000)
+        ? Math.round(Number(form.weight_grams))
         : null,
       length_cm: form.length_cm ? Number(form.length_cm) : null,
       width_cm: form.width_cm ? Number(form.width_cm) : null,
@@ -148,7 +148,7 @@ export default function ProductsPanel() {
           ? String(p.international_shipping_cost / 100)
           : "",
       weight_grams:
-        p.weight_grams != null ? String(p.weight_grams / 1000) : "",
+        p.weight_grams != null ? String(p.weight_grams) : "",
       length_cm: p.length_cm != null ? String(p.length_cm) : "",
       width_cm: p.width_cm != null ? String(p.width_cm) : "",
       height_cm: p.height_cm != null ? String(p.height_cm) : "",
@@ -448,52 +448,72 @@ export default function ProductsPanel() {
 
         <div>
           <label className="text-xs text-muted">
-            Weight &amp; packed size{" "}
-            <span className="normal-case text-muted">
-              — for choosing post vs. courier, and future label automation
+            Weight &amp; packed size
+            <span className="ml-1 normal-case">
+              — for Royal Mail label automation
             </span>
           </label>
-          <div className="mt-1 grid grid-cols-4 gap-2">
+
+          {/* Weight — full width on mobile, clear unit label */}
+          <div className="mt-2 flex items-center gap-2">
             <input
               type="number"
-              step="0.01"
-              placeholder="Weight (kg)"
+              step="1"
+              min="0"
+              placeholder="e.g. 250"
               value={form.weight_grams}
               onChange={(e) =>
                 setForm((f) => ({ ...f, weight_grams: e.target.value }))
               }
-              className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
             />
-            <input
-              type="number"
-              step="0.1"
-              placeholder="Length (cm)"
-              value={form.length_cm}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, length_cm: e.target.value }))
-              }
-              className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
-            />
-            <input
-              type="number"
-              step="0.1"
-              placeholder="Width (cm)"
-              value={form.width_cm}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, width_cm: e.target.value }))
-              }
-              className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
-            />
-            <input
-              type="number"
-              step="0.1"
-              placeholder="Height (cm)"
-              value={form.height_cm}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, height_cm: e.target.value }))
-              }
-              className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
-            />
+            <span className="shrink-0 text-sm text-muted">g</span>
+          </div>
+
+          {/* Dimensions — 2 columns on mobile, clear labels */}
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="Length"
+                value={form.length_cm}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, length_cm: e.target.value }))
+                }
+                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+              />
+              <span className="shrink-0 text-xs text-muted">cm</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="Width"
+                value={form.width_cm}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, width_cm: e.target.value }))
+                }
+                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+              />
+              <span className="shrink-0 text-xs text-muted">cm</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="Height"
+                value={form.height_cm}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, height_cm: e.target.value }))
+                }
+                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+              />
+              <span className="shrink-0 text-xs text-muted">cm</span>
+            </div>
           </div>
         </div>
 
