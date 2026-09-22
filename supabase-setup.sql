@@ -210,7 +210,10 @@ alter table notify_requests enable row level security;
 -- );
 -- alter table category_mapping enable row level security;
 -- alter table products add column if not exists view_count integer not null default 0;
--- alter table products add column if not exists weight_grams integer;
+-- Starting a new integration: Royal Mail Click & Drop API for automated
+-- shipping labels. Add tracking and label columns to orders.
+-- alter table orders add column if not exists tracking_number text;
+-- alter table orders add column if not exists label_url text;
 -- alter table products add column if not exists length_cm numeric;
 -- alter table products add column if not exists width_cm numeric;
 -- alter table products add column if not exists height_cm numeric;

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  createShipment,
+  shippingNameToServiceCode,
+} from "@/lib/royalMail";
 
 export const runtime = "nodejs";
 
@@ -116,6 +120,66 @@ export async function POST(req: NextRequest) {
           .from("products")
           .update({ status: "sold" })
           .in("id", matchedIds);
+      }
+
+      // Generate Royal Mail shipping label automatically — best-effort,
+      // never blocks the order from being recorded if it fails.
+      const shippingAddress =
+        fullSession.collected_information?.shipping_details;
+      if (
+        shippingAddress?.address &&
+        process.env.ROYAL_MAIL_API_KEY
+      ) {
+        try {
+          const shippingDisplayName =
+            fullSession.shipping_cost?.shipping_rate
+              ? (
+                  await stripe().shippingRates.retrieve(
+                    fullSession.shipping_cost.shipping_rate as string
+                  )
+                ).display_name ?? ""
+              : "";
+
+          // Sum up the weight from all purchased products
+          const { data: productDetails } = await admin
+            .from("products")
+            .select("weight_grams")
+            .in("slug", orderItems.map((oi) => oi.slug).filter(Boolean));
+          const totalWeightGrams =
+            productDetails?.reduce(
+              (sum, p) => sum + (p.weight_grams ?? 500),
+              0
+            ) ?? 500; // default 500g if weight not set
+
+          const shipment = await createShipment({
+            recipientName:
+              fullSession.customer_details?.name ?? "Customer",
+            addressLine1: shippingAddress.address.line1 ?? "",
+            addressLine2: shippingAddress.address.line2 ?? undefined,
+            city: shippingAddress.address.city ?? "",
+            postcode: shippingAddress.address.postal_code ?? "",
+            countryCode:
+              shippingAddress.address.country ?? "GB",
+            weightGrams: totalWeightGrams,
+            serviceCode: shippingNameToServiceCode(shippingDisplayName),
+            orderReference: session.id.slice(-12),
+            itemDescription: orderItems.map((oi) => oi.name).join(", "),
+            itemValue: subtotal,
+          });
+
+          // Save tracking number and label URL back to the order
+          await admin
+            .from("orders")
+            .update({
+              tracking_number: shipment.trackingNumber,
+              label_url: shipment.labelUrl,
+            })
+            .eq("stripe_session_id", session.id);
+        } catch (labelError) {
+          // Log the error but don't fail the webhook — the order is already
+          // saved, so the label can be generated manually from Click & Drop.
+          console.error("Royal Mail label generation failed:", labelError);
+        }
       }
     }
 

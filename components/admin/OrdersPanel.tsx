@@ -14,6 +14,8 @@ type Order = {
   stripe_session_id: string;
   customer_email: string | null;
   customer_name: string | null;
+  tracking_number: string | null;
+  label_url: string | null;
   customer_phone: string | null;
   shipping_address: Record<string, string> | null;
   delivery_notes: string | null;
@@ -195,6 +197,32 @@ export default function OrdersPanel() {
             {o.delivery_notes && (
               <p className="mt-1 text-xs text-muted">
                 Note: {o.delivery_notes}
+              </p>
+            )}
+            {o.tracking_number && (
+              <p className="mt-1 text-xs text-ink">
+                📦 Tracked:{" "}
+                <a
+                  href={`https://www.royalmail.com/track-your-item#trackNumber=${o.tracking_number}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  {o.tracking_number}
+                </a>
+                {o.label_url && (
+                  <>
+                    {" · "}
+                    <a
+                      href={o.label_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      Print label
+                    </a>
+                  </>
+                )}
               </p>
             )}
             <div className="mt-2 space-y-1">
