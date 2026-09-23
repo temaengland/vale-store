@@ -96,9 +96,17 @@ export async function POST(req: NextRequest) {
     // Two Royal Mail tiers for UK buyers:
     //  - Tracked 48: standard 2-day delivery, up to £75 compensation
     //  - Special Delivery: guaranteed next-day by 1pm, £750 compensation
-    //    — the right choice for rings, necklaces, watches etc.
+    //    — mandatory for items worth £150+ (Tracked 48's £75 cap would
+    //    leave most of the item's value unprotected if lost)
     const SPECIAL_DELIVERY_FLOOR_PENCE = 815; // £8.15 minimum (Royal Mail small parcel rate)
     const SPECIAL_DELIVERY_PREMIUM_PENCE = 450; // £4.50 over Tracked 48
+    const HIGH_VALUE_THRESHOLD_PENCE = 15000;    // £150 — above this, only Special Delivery
+    const VERY_HIGH_VALUE_THRESHOLD_PENCE = 100000; // £1000 — above this, manual delivery only
+
+    const subtotal = products.reduce((sum, p) => sum + p.price, 0);
+    const requiresManualDelivery = subtotal >= VERY_HIGH_VALUE_THRESHOLD_PENCE;
+    const requiresSpecialDelivery = !requiresManualDelivery &&
+      subtotal >= HIGH_VALUE_THRESHOLD_PENCE;
 
     const ukShippingTotal = products.reduce(
       (sum, p) => sum + (p.shipping_cost ?? 0),
@@ -114,15 +122,34 @@ export async function POST(req: NextRequest) {
     );
 
     const shippingOptions: Stripe.Checkout.SessionCreateParams.ShippingOption[] =
-      tooBigForRoyalMail
+      tooBigForRoyalMail || requiresManualDelivery
         ? [
-            // Item is too large for Royal Mail — show only the seller's
-            // own flat rate (set per item in admin, e.g. courier/Shiply cost).
+            // Too large for Royal Mail, OR high-value item (£1000+) —
+            // delivery arranged personally with the buyer after purchase.
             {
               shipping_rate_data: {
                 type: "fixed_amount",
                 fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
-                display_name: "Delivery (contact us to arrange)",
+                display_name: requiresManualDelivery
+                  ? "Insured delivery — we will contact you to arrange"
+                  : "Delivery (contact us to arrange)",
+              },
+            },
+          ]
+        : requiresSpecialDelivery
+        ? [
+            // High-value item (£150+) — only offer Special Delivery so
+            // the shipment is always covered for up to £750.
+            {
+              shipping_rate_data: {
+                type: "fixed_amount",
+                fixed_amount: { amount: specialDeliveryTotal, currency: "gbp" },
+                display_name:
+                  "Royal Mail Special Delivery — next day by 1pm, £750 insured",
+                delivery_estimate: {
+                  minimum: { unit: "business_day", value: 1 },
+                  maximum: { unit: "business_day", value: 1 },
+                },
               },
             },
           ]

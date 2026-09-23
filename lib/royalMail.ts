@@ -33,11 +33,11 @@ function apiKey() {
 export async function createShipment(
   input: RoyalMailShipmentInput
 ): Promise<RoyalMailShipmentResult> {
-  const res = await fetch(`${CLICKDROP_API}/orders`, {
+  const res = await fetch(`${CLICKDROP_API}/Orders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-IBM-Client-Id": apiKey(),
+      "Authorization": apiKey(),
     },
     body: JSON.stringify({
       orderReference: input.orderReference,
@@ -52,10 +52,15 @@ export async function createShipment(
       packages: [
         {
           weightInGrams: input.weightGrams,
-          packageFormatIdentifier: "parcel",
-          contents: input.itemDescription.slice(0, 100),
-          value: input.itemValue / 100, // Click & Drop expects pounds, not pence
-          currencyCode: "GBP",
+          packageFormatIdentifier: "Parcel",
+          contents: [
+            {
+              name: input.itemDescription.slice(0, 100),
+              quantity: 1,
+              unitValue: input.itemValue / 100,
+              unitWeightInGrams: input.weightGrams,
+            },
+          ],
         },
       ],
       service: {
