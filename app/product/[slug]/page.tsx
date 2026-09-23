@@ -119,7 +119,7 @@ export default async function ProductPage({
 
   return (
     <div>
-      <BackLink />
+      <BackLink fallback={`/category/${product.category}`} />
       <div className="grid min-w-0 gap-10 sm:grid-cols-2 [&>*]:min-w-0">
         <script
           type="application/ld+json"

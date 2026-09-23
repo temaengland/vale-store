@@ -20,21 +20,22 @@ function ArrowLeftIcon() {
   );
 }
 
-export default function BackLink() {
+export default function BackLink({ fallback = "/" }: { fallback?: string }) {
   const router = useRouter();
   const { t } = useLanguage();
 
   function handleBack() {
-    // Only go back if the previous page was on our own site.
-    // If the user came from Stripe (or any external page), send them
-    // to the homepage instead of bouncing them back to the checkout.
+    // If the previous page was on our own site, go back normally.
+    // Otherwise (e.g. returning from Stripe), use the explicit fallback
+    // URL — typically the product's category page — so the buyer lands
+    // somewhere useful rather than on the homepage or back at checkout.
     const prev = document.referrer;
     const isOurSite =
       prev && new URL(prev).hostname === window.location.hostname;
     if (isOurSite) {
       router.back();
     } else {
-      router.push("/");
+      router.push(fallback);
     }
   }
 
