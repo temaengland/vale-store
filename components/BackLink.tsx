@@ -24,10 +24,24 @@ export default function BackLink() {
   const router = useRouter();
   const { t } = useLanguage();
 
+  function handleBack() {
+    // Only go back if the previous page was on our own site.
+    // If the user came from Stripe (or any external page), send them
+    // to the homepage instead of bouncing them back to the checkout.
+    const prev = document.referrer;
+    const isOurSite =
+      prev && new URL(prev).hostname === window.location.hostname;
+    if (isOurSite) {
+      router.back();
+    } else {
+      router.push("/");
+    }
+  }
+
   return (
     <button
       type="button"
-      onClick={() => router.back()}
+      onClick={handleBack}
       className="mb-4 flex items-center gap-1.5 text-sm text-muted hover:text-ink transition-colors"
     >
       <ArrowLeftIcon />
