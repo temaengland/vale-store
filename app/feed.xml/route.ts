@@ -46,8 +46,13 @@ function itemXml(p: Product, isMeta: boolean): string | null {
   const description = (p.description || p.name).replace(/\s+/g, " ").trim().slice(0, 5000);
   const productType = [CATEGORY_NAME[p.category], p.subcategory, p.era].filter(Boolean).join(" > ");
 
+  // Google/Meta limit ids to 50 chars. Use the database UUID (36 chars),
+  // which never changes; fall back to a trimmed slug for seed data.
+  const dbId = (p as Product & { id?: string }).id;
+  const itemId = dbId ? String(dbId) : p.slug.slice(0, 50);
+
   const lines = [
-    `<g:id>${esc(p.slug)}</g:id>`,
+    `<g:id>${esc(itemId)}</g:id>`,
     `<g:title>${esc(title)}</g:title>`,
     `<g:description>${esc(description)}</g:description>`,
     `<g:link>${BASE_URL}/product/${encodeURIComponent(p.slug)}</g:link>`,
