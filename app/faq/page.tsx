@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     q: "What condition are the items in?",
-    a: "Our pieces are antique, vintage or second-hand, and are described and photographed as accurately as possible, including any age-related wear, marks or imperfections. This wear is normal for genuine antiques and isn't grounds for a return unless it wasn't disclosed in the listing.",
+    a: "Our pieces are antique, vintage or second-hand, and are described and photographed as accurately as possible, including any age-related wear, marks or imperfections. This disclosed wear is normal for genuine antiques and is not treated as a fault — though you can still cancel within 14 days under our Returns & Refunds policy.",
   },
   {
     q: "Do you ship internationally?",
@@ -27,7 +27,7 @@ const faqs = [
   },
   {
     q: "What is your returns policy?",
-    a: "Under the Consumer Contracts Regulations 2013, you have 14 days from receiving your item to cancel your order, and a further 14 days to send it back once you've told us. Return postage is on you unless the item arrived faulty, damaged, or not as described — in that case we cover it. See our full Returns & Refunds policy for details.",
+    a: "Under the Consumer Contracts Regulations 2013, you have 14 days from receiving your item to cancel your order, and a further 14 days to send it back once you've told us. We refund the item price and the standard delivery cost you paid. Return postage is on you — please pack the item as carefully as we did and send it tracked and insured for its full value. Items must come back in the condition we sent them; we may deduct for any damage or loss in value. If an item arrived faulty, damaged or not as described, we cover the return postage. See our full Returns & Refunds policy for details.",
   },
   {
     q: "What payment methods do you accept?",

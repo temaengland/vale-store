@@ -3,7 +3,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Returns & Refunds",
   description:
-    "Our returns and refunds policy for antique and vintage purchases, including international orders and customs duties.",
+    "Our returns and refunds policy for antique and vintage purchases, including how to return an item safely, refunds, and international orders.",
   alternates: { canonical: "/returns" },
 };
 
@@ -11,7 +11,7 @@ export default function ReturnsPage() {
   return (
     <div className="max-w-2xl">
       <h1 className="font-serif text-3xl">Returns &amp; Refunds</h1>
-      <p className="mt-2 text-xs text-muted">Last updated: August 2026</p>
+      <p className="mt-2 text-xs text-muted">Last updated: September 2026</p>
 
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted">
         <section>
@@ -35,39 +35,79 @@ export default function ReturnsPage() {
             Our pieces are antique, vintage or second-hand, and are described
             and photographed as accurately as possible, including any
             age-related wear, marks or imperfections. Please read the full
-            description and look closely at the photos before buying — this
-            wear is expected and is not grounds for a return unless it wasn't
-            disclosed. Returned items should come back to us in the same
-            condition they were sent, otherwise a deduction may be made from
-            your refund to reflect any reduction in value.
+            description and look closely at the photos before buying. Wear
+            that is disclosed in the listing is normal for a genuine antique
+            and is not treated as a fault — this does not affect your right
+            to cancel within 14 days.
           </p>
         </section>
 
         <section>
-          <h2 className="font-medium text-ink">Return postage</h2>
+          <h2 className="font-medium text-ink">Looking after the item</h2>
           <p className="mt-2">
-            You're responsible for the cost of returning an item unless it
-            arrived faulty, damaged, or not as described — in that case we'll
-            cover reasonable return postage.
+            You may inspect the item as you would in a shop, but please
+            handle it with care and do not use, alter, clean, polish, repair
+            or resize it before deciding to keep it. Many antiques are
+            fragile and cannot easily be restored once damaged.
+          </p>
+          <p className="mt-2">
+            Items must be returned in the <strong className="text-ink">same condition</strong> in
+            which we sent them, complete with any accessories, boxes or
+            paperwork. If an item comes back damaged, used, or with its value
+            otherwise reduced by more handling than was needed to inspect it,
+            we will deduct the loss in value from your refund — up to the
+            full price of the item.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-medium text-ink">Sending an item back</h2>
+          <p className="mt-2">
+            Unless the item was faulty or not as described, the cost of
+            returning it is yours. The item remains your responsibility until
+            it reaches us, so please:
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>pack it at least as securely as we packed it;</li>
+            <li>
+              send it with a tracked service, insured for its full value;
+            </li>
+            <li>keep your proof of postage.</li>
+          </ul>
+          <p className="mt-2">
+            If an item is lost or damaged on its way back because it was
+            poorly packed or sent uninsured, we may reduce your refund
+            accordingly. We photograph every item before dispatch and when a
+            return is unpacked.
           </p>
         </section>
 
         <section>
           <h2 className="font-medium text-ink">Refunds</h2>
           <p className="mt-2">
-            Once we've received the item back (or you've provided proof of
-            postage), we'll process your refund within 14 days, to the
-            original payment method.
+            If you cancel, we refund the price of the item and the{" "}
+            <strong className="text-ink">standard delivery cost</strong> you paid. If you
+            chose a more expensive delivery option than our cheapest standard
+            one, we only refund the cost of the standard option.
+          </p>
+          <p className="mt-2">
+            We'll process your refund within 14 days of receiving the item
+            back and checking its condition (or of you providing proof of
+            postage, whichever is sooner), to the original payment method.
+            Any deduction for loss in value may be made after we receive and
+            inspect the item.
           </p>
         </section>
 
         <section>
-          <h2 className="font-medium text-ink">Damaged or faulty items</h2>
+          <h2 className="font-medium text-ink">Damaged, faulty or not as described</h2>
           <p className="mt-2">
             If an item arrives damaged or significantly different from its
-            description, contact us as soon as possible with photos, and
-            we'll arrange a replacement, repair or full refund including
-            delivery costs.
+            description, contact us as soon as possible with photos. Your
+            statutory rights under the Consumer Rights Act 2015 are not
+            affected — we'll arrange a repair, replacement or full refund,
+            including delivery costs, and we'll cover reasonable return
+            postage.
           </p>
         </section>
 
@@ -88,7 +128,7 @@ export default function ReturnsPage() {
           <p className="mt-2">
             Message us via WhatsApp or the enquiry form with your order
             details and the reason for the return, and we'll guide you
-            through the next steps.
+            through the next steps before you send anything.
           </p>
         </section>
       </div>
