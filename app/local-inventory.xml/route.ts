@@ -7,9 +7,9 @@ import { getAllProducts } from "@/lib/data";
 
 export const revalidate = 3600;
 
-// Store code of the shop's Google Business Profile.
+// Store code of the verified Google Business Profile "Charm Chase Antiques & Vintage Shop".
 // Set LOCAL_STORE_CODE in Vercel; the fallback is used until then.
-const STORE_CODE = process.env.LOCAL_STORE_CODE || "CHARMCHASE-EVESHAM";
+const STORE_CODE = process.env.LOCAL_STORE_CODE || "07357259786581789218";
 
 function esc(s: string) {
   return s
