@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ImageCropUpload from "@/components/admin/ImageCropUpload";
 import { categories } from "@/lib/products";
+import InstagramPublishModal, { PostedInfo } from "@/components/admin/InstagramPublishModal";
 
 type AdminProduct = {
   id: string;
@@ -56,6 +57,29 @@ export default function ProductsPanel() {
   const [loadError, setLoadError] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [igItem, setIgItem] = useState<AdminProduct | null>(null);
+  const [igStatus, setIgStatus] = useState<{
+    configured: boolean;
+    username?: string;
+    error?: string;
+    posted: Record<string, PostedInfo>;
+  }>({ configured: false, posted: {} });
+
+  async function loadInstagramStatus() {
+    try {
+      const res = await fetch("/api/admin/instagram");
+      if (!res.ok) return;
+      const data = await res.json();
+      setIgStatus({
+        configured: Boolean(data.configured),
+        username: data.username,
+        error: data.error,
+        posted: data.posted ?? {},
+      });
+    } catch {
+      /* Instagram status is optional */
+    }
+  }
 
   async function loadProducts() {
     setLoadError("");
@@ -85,6 +109,7 @@ export default function ProductsPanel() {
 
   useEffect(() => {
     loadProducts();
+    loadInstagramStatus();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -188,6 +213,22 @@ export default function ProductsPanel() {
 
   return (
     <div>
+      {igItem && (
+        <InstagramPublishModal
+          item={igItem}
+          username={igStatus.username}
+          posted={igStatus.posted[igItem.id]}
+          onClose={() => setIgItem(null)}
+          onPublished={(info) =>
+            setIgStatus((s) => ({ ...s, posted: { ...s.posted, [igItem.id]: info } }))
+          }
+        />
+      )}
+      {igStatus.configured && igStatus.error && (
+        <div className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Instagram: {igStatus.error}
+        </div>
+      )}
       {loadError && (
         <div className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           <p>{loadError}</p>
@@ -683,6 +724,23 @@ export default function ProductsPanel() {
                 )}
               </p>
             </div>
+            {igStatus.configured &&
+              ((p.images && p.images.length > 0) || p.image) &&
+              p.status !== "sold" && (
+                <button
+                  onClick={() => setIgItem(p)}
+                  title={
+                    igStatus.posted[p.id]
+                      ? "Already on Instagram — click to post again"
+                      : "Post to Instagram"
+                  }
+                  className={`shrink-0 rounded-md px-2.5 py-2 text-sm ${
+                    igStatus.posted[p.id] ? "text-green-700" : "text-[#AD8A4E] hover:text-ink"
+                  }`}
+                >
+                  {igStatus.posted[p.id] ? "IG ✓" : "Instagram"}
+                </button>
+              )}
             <button
               onClick={() => startEdit(p)}
               className="shrink-0 rounded-md px-2.5 py-2 text-sm text-muted hover:text-ink"

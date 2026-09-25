@@ -239,3 +239,12 @@ alter table notify_requests enable row level security;
 --   created_at timestamptz not null default now()
 -- );
 -- alter table notify_requests enable row level security;
+
+-- vale-store 98: Instagram publishing. Stores the auto-renewed Instagram
+-- token and which items were posted. Run once in Supabase → SQL Editor.
+-- create table if not exists app_settings (
+--   key text primary key,
+--   value text not null,
+--   updated_at timestamptz not null default now()
+-- );
+-- alter table app_settings enable row level security;
