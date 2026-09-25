@@ -25,6 +25,17 @@ const CATEGORY_NAME: Record<Product["category"], string> = {
   art: "Art",
 };
 
+// Same limits as checkout (Royal Mail Medium Parcel): 61×46×46 cm, 20 kg.
+const LARGE_ITEM_UK_DELIVERY_PENCE = 7000; // £70 flat courier estimate for Google/Meta
+function isLargeItem(p: Product) {
+  const dims = [p.length_cm, p.width_cm, p.height_cm].filter(Boolean) as number[];
+  if (dims.length > 0) {
+    const s = [...dims].sort((a, b) => b - a);
+    if (s[0] > 61 || (s[1] ?? 0) > 46 || (s[2] ?? 0) > 46) return true;
+  }
+  return !!(p.weight_grams && p.weight_grams > 20000);
+}
+
 function esc(s: string) {
   return s
     .replace(/&/g, "&amp;")
@@ -68,6 +79,22 @@ function itemXml(p: Product, isMeta: boolean): string | null {
   // Meta requires a brand; Google prefers none for one-off antiques.
   if (isMeta) lines.push(`<g:brand>CharmChase</g:brand>`);
   if (p.weight_grams) lines.push(`<g:shipping_weight>${p.weight_grams} g</g:shipping_weight>`);
+
+  // UK delivery price shown on Google/Meta. Mirrors checkout: the item's own
+  // UK shipping cost if set; large furniture without a set cost = £70 courier.
+  const ukShippingPence =
+    p.shipping_cost && p.shipping_cost > 0
+      ? p.shipping_cost
+      : isLargeItem(p)
+      ? LARGE_ITEM_UK_DELIVERY_PENCE
+      : null;
+  if (ukShippingPence !== null) {
+    lines.push(
+      `<g:shipping><g:country>GB</g:country><g:service>${
+        isLargeItem(p) ? "Furniture courier" : "Royal Mail"
+      }</g:service><g:price>${(ukShippingPence / 100).toFixed(2)} GBP</g:price></g:shipping>`
+    );
+  }
 
   return `<item>\n${lines.map((l) => "  " + l).join("\n")}\n</item>`;
 }
