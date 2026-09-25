@@ -18,7 +18,7 @@ type Draft = {
   ebay_item_id?: string | null;
 };
 
-export default function DraftsPanel() {
+export default function DraftsPanel({ onEdit }: { onEdit?: (id: string) => void } = {}) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -272,6 +272,15 @@ export default function DraftsPanel() {
                 ))}
               </select>
 
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(d.id)}
+                  disabled={busyId === d.id}
+                  className="rounded-md border border-border-strong px-3 py-1.5 text-xs hover:border-ink transition-colors disabled:opacity-50"
+                >
+                  Edit
+                </button>
+              )}
               <button
                 onClick={() => updateDraft(d.id, { publish: true })}
                 disabled={busyId === d.id}

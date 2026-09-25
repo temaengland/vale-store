@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ImageCropUpload from "@/components/admin/ImageCropUpload";
 import { categories } from "@/lib/products";
 import InstagramPublishModal, { PostedInfo } from "@/components/admin/InstagramPublishModal";
@@ -25,6 +25,7 @@ type AdminProduct = {
   width_cm?: number;
   height_cm?: number;
   status?: "available" | "unavailable" | "sold";
+  is_draft?: boolean;
 };
 
 const emptyForm = {
@@ -49,7 +50,15 @@ const emptyForm = {
   status: "available" as "available" | "unavailable" | "sold",
 };
 
-export default function ProductsPanel() {
+export default function ProductsPanel({
+  editId,
+  onEditHandled,
+  onBackToDrafts,
+}: {
+  editId?: string | null;
+  onEditHandled?: () => void;
+  onBackToDrafts?: () => void;
+} = {}) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -57,6 +66,8 @@ export default function ProductsPanel() {
   const [loadError, setLoadError] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingDraft, setEditingDraft] = useState(false);
+  const publishRef = useRef(false);
   const [igItem, setIgItem] = useState<AdminProduct | null>(null);
   const [igStatus, setIgStatus] = useState<{
     configured: boolean;
@@ -112,6 +123,15 @@ export default function ProductsPanel() {
     loadInstagramStatus();
   }, []);
 
+  // Opened from Review drafts → "Edit": jump straight into that item's editor.
+  useEffect(() => {
+    if (!editId || !products.length) return;
+    const p = products.find((x) => x.id === editId);
+    if (p) startEdit(p);
+    onEditHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId, products]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -140,6 +160,8 @@ export default function ProductsPanel() {
       length_cm: length_cm ? Number(length_cm) : null,
       width_cm: width_cm ? Number(width_cm) : null,
       height_cm: height_cm ? Number(height_cm) : null,
+      // "Save & publish" on a draft makes it live; plain save keeps it hidden.
+      ...(editingDraft && publishRef.current ? { is_draft: false } : {}),
     };
     const res = await fetch(
       editingId ? `/api/admin/products/${editingId}` : "/api/admin/products",
@@ -155,13 +177,18 @@ export default function ProductsPanel() {
       alert(data.error ?? "Save failed.");
       return;
     }
+    const wasDraft = editingDraft;
     setForm(emptyForm);
     setEditingId(null);
+    setEditingDraft(false);
+    publishRef.current = false;
     loadProducts();
+    if (wasDraft && onBackToDrafts) onBackToDrafts();
   }
 
   function startEdit(p: AdminProduct) {
     setEditingId(p.id);
+    setEditingDraft(Boolean(p.is_draft));
     setForm({
       slug: p.slug,
       name: p.name,
@@ -198,14 +225,16 @@ export default function ProductsPanel() {
     loadProducts();
   }
 
-  const withCost = products.filter((p) => typeof p.cost_price === "number");
-  const totalListed = products.reduce((sum, p) => sum + p.price, 0);
+  // Drafts (e.g. imported from eBay) live in Review drafts, not in this list or the totals.
+  const live = products.filter((p) => !p.is_draft);
+  const withCost = live.filter((p) => typeof p.cost_price === "number");
+  const totalListed = live.reduce((sum, p) => sum + p.price, 0);
   const totalCost = withCost.reduce((sum, p) => sum + (p.cost_price ?? 0), 0);
   const totalPotentialProfit = withCost.reduce(
     (sum, p) => sum + (p.price - (p.cost_price ?? 0)),
     0
   );
-  const sold = products.filter((p) => p.status === "sold" && typeof p.cost_price === "number");
+  const sold = live.filter((p) => p.status === "sold" && typeof p.cost_price === "number");
   const totalRealizedProfit = sold.reduce(
     (sum, p) => sum + (p.price - (p.cost_price ?? 0)),
     0
@@ -241,7 +270,7 @@ export default function ProductsPanel() {
         </div>
       )}
 
-      {products.length > 0 && (
+      {live.length > 0 && (
         <div className="mt-6 grid grid-cols-2 gap-3 rounded-xl border border-border p-5 sm:grid-cols-4">
           <div>
             <p className="text-xs text-muted">Inventory value</p>
@@ -271,7 +300,11 @@ export default function ProductsPanel() {
         className="mt-6 grid gap-4 rounded-xl border border-border p-6 sm:grid-cols-2"
       >
         <h2 className="col-span-full font-medium">
-          {editingId ? "Edit item" : "Add a new item"}
+          {editingId
+            ? editingDraft
+              ? "Edit draft — not on the site yet"
+              : "Edit item"
+            : "Add a new item"}
         </h2>
 
         <div className="col-span-full">
@@ -619,16 +652,36 @@ export default function ProductsPanel() {
           <button
             type="submit"
             disabled={saving}
+            onClick={() => (publishRef.current = false)}
             className="rounded-md bg-ink px-5 py-2 text-sm text-white disabled:opacity-50"
           >
-            {saving ? "Saving…" : editingId ? "Save changes" : "Add item"}
+            {saving
+              ? "Saving…"
+              : editingId
+              ? editingDraft
+                ? "Save draft"
+                : "Save changes"
+              : "Add item"}
           </button>
+          {editingDraft && (
+            <button
+              type="submit"
+              disabled={saving}
+              onClick={() => (publishRef.current = true)}
+              className="rounded-md border border-ink px-5 py-2 text-sm text-ink hover:bg-ink hover:text-white disabled:opacity-50"
+            >
+              Save &amp; publish
+            </button>
+          )}
           {editingId && (
             <button
               type="button"
               onClick={() => {
+                const wasDraft = editingDraft;
                 setEditingId(null);
+                setEditingDraft(false);
                 setForm(emptyForm);
+                if (wasDraft && onBackToDrafts) onBackToDrafts();
               }}
               className="text-sm text-muted"
             >
@@ -648,10 +701,10 @@ export default function ProductsPanel() {
               : "border-border-strong text-muted hover:text-ink"
           }`}
         >
-          All ({products.length})
+          All ({live.length})
         </button>
         {categories.map((c) => {
-          const count = products.filter((p) => p.category === c.slug).length;
+          const count = live.filter((p) => p.category === c.slug).length;
           return (
             <button
               key={c.slug}
@@ -676,7 +729,7 @@ export default function ProductsPanel() {
       />
 
       <div className="mt-4 space-y-3">
-        {products
+        {live
           .filter(
             (p) => filterCategory === "all" || p.category === filterCategory
           )
@@ -699,7 +752,11 @@ export default function ProductsPanel() {
               ) : (
                 <div className="h-14 w-14 bg-surface" />
               )}
-              {(p.status === "sold" || p.status === "unavailable") && (
+              {p.is_draft ? (
+                <div className="absolute bottom-0 left-0 right-0 bg-slate-500 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-white">
+                  Draft
+                </div>
+              ) : (p.status === "sold" || p.status === "unavailable") && (
                 <div
                   className={`absolute bottom-0 left-0 right-0 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-white ${
                     p.status === "sold" ? "bg-red-600" : "bg-[#AD8A4E]"
@@ -726,7 +783,8 @@ export default function ProductsPanel() {
             </div>
             {igStatus.configured &&
               ((p.images && p.images.length > 0) || p.image) &&
-              p.status !== "sold" && (
+              p.status !== "sold" &&
+              !p.is_draft && (
                 <button
                   onClick={() => setIgItem(p)}
                   title={
@@ -755,13 +813,13 @@ export default function ProductsPanel() {
             </button>
           </div>
         ))}
-        {products.length === 0 && !loadError && (
+        {live.length === 0 && !loadError && (
           <p className="text-sm text-muted">
             No items yet — add your first one above.
           </p>
         )}
-        {products.length > 0 &&
-          products.filter(
+        {live.length > 0 &&
+          live.filter(
             (p) => filterCategory === "all" || p.category === filterCategory
           ).filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
             .length === 0 && (

@@ -26,6 +26,7 @@ export default function AdminPage() {
     | "notify"
   >("notifications");
   const unreadCount = useUnreadNotificationCount();
+  const [editId, setEditId] = useState<string | null>(null);
 
   useEffect(() => {
     // Returning from eBay's consent screen → open the Review drafts tab.
@@ -150,9 +151,18 @@ export default function AdminPage() {
       {tab === "notifications" ? (
         <NotificationsPanel />
       ) : tab === "products" ? (
-        <ProductsPanel />
+        <ProductsPanel
+          editId={editId}
+          onEditHandled={() => setEditId(null)}
+          onBackToDrafts={() => setTab("drafts")}
+        />
       ) : tab === "drafts" ? (
-        <DraftsPanel />
+        <DraftsPanel
+          onEdit={(id) => {
+            setEditId(id);
+            setTab("products");
+          }}
+        />
       ) : tab === "analytics" ? (
         <AnalyticsPanel />
       ) : tab === "notify" ? (
