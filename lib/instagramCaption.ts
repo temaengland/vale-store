@@ -49,8 +49,13 @@ function cleanDescription(text: string) {
   return out;
 }
 
+function formatPrice(pence: number) {
+  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
 export function buildInstagramCaption(p: CaptionItem) {
-  const parts: string[] = [p.name.trim()];
+  // Price goes in the first line — it's the only line visible in the feed.
+  const parts: string[] = [`${p.name.trim()} · ${formatPrice(p.price)}`];
 
   const desc = cleanDescription(p.description || "");
   if (desc && desc.toLowerCase() !== p.name.trim().toLowerCase()) parts.push(desc);
@@ -59,7 +64,7 @@ export function buildInstagramCaption(p: CaptionItem) {
   if (p.era) facts.push(`🕰 Era: ${p.era}`);
   const dims = [p.length_cm, p.width_cm, p.height_cm].filter((d) => d && d > 0);
   if (dims.length) facts.push(`📏 Size: ${dims.join(" × ")} cm`);
-  facts.push(`💷 £${(p.price / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
+  facts.push(`💷 ${formatPrice(p.price)}`);
   parts.push(facts.join("\n"));
 
   parts.push(
