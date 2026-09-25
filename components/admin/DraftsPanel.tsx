@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { categories } from "@/lib/products";
 
+type EbayStatus = { configured: boolean; connected: boolean; connectedAt?: string };
+type ImportRow = { itemId: string; title: string; result: string };
+
 type Draft = {
   id: string;
   slug: string;
@@ -20,6 +23,51 @@ export default function DraftsPanel() {
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [ebay, setEbay] = useState<EbayStatus | null>(null);
+  const [ebayMsg, setEbayMsg] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [log, setLog] = useState<ImportRow[]>([]);
+
+  async function loadEbay() {
+    try {
+      const res = await fetch("/api/admin/ebay/status");
+      if (res.ok) setEbay(await res.json());
+    } catch {
+      /* optional */
+    }
+  }
+
+  async function runImport() {
+    setImporting(true);
+    setLog([]);
+    setEbayMsg("");
+    let page = 1;
+    let totalPages = 1;
+    try {
+      do {
+        setProgress(`Importing page ${page} of ${totalPages}…`);
+        const res = await fetch("/api/admin/ebay/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Import failed.");
+        totalPages = data.totalPages || 0;
+        setLog((l) => [...l, ...(data.results || [])]);
+        page++;
+      } while (page <= totalPages);
+      setProgress("");
+      setEbayMsg("Import finished.");
+      loadDrafts();
+    } catch (e) {
+      setProgress("");
+      setEbayMsg(e instanceof Error ? e.message : "Import failed.");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   async function loadDrafts() {
     setLoadError("");
@@ -42,6 +90,10 @@ export default function DraftsPanel() {
 
   useEffect(() => {
     loadDrafts();
+    loadEbay();
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("ebay") === "connected") setEbayMsg("eBay connected ✓ — now press “Import from eBay”.");
+    if (q.get("ebay") === "error") setEbayMsg(`eBay: ${q.get("msg") || "connection failed"}`);
   }, []);
 
   async function updateDraft(id: string, patch: Record<string, unknown>) {
@@ -88,8 +140,60 @@ export default function DraftsPanel() {
     }
   }
 
+  const imported = log.filter((r) => r.result.startsWith("imported")).length;
+
   return (
     <div className="mt-10">
+      <div className="mb-8 rounded-xl border border-border p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-medium">eBay</p>
+            <p className="text-xs text-muted">
+              {!ebay
+                ? "Checking…"
+                : !ebay.configured
+                ? "Not set up yet (EBAY_RUNAME missing in Vercel)."
+                : ebay.connected
+                ? `Connected${ebay.connectedAt ? ` · ${new Date(ebay.connectedAt).toLocaleDateString("en-GB")}` : ""}`
+                : "Not connected"}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {ebay?.configured && (
+              <a
+                href="/api/admin/ebay/connect"
+                className="rounded-md border border-border-strong px-3 py-1.5 text-xs hover:border-ink"
+              >
+                {ebay.connected ? "Reconnect eBay" : "Connect eBay"}
+              </a>
+            )}
+            {ebay?.connected && (
+              <button
+                onClick={runImport}
+                disabled={importing}
+                className="rounded-md bg-ink px-3 py-1.5 text-xs text-white disabled:opacity-50"
+              >
+                {importing ? "Importing…" : "Import from eBay"}
+              </button>
+            )}
+          </div>
+        </div>
+        {progress && <p className="mt-3 text-xs text-muted">{progress}</p>}
+        {ebayMsg && <p className="mt-3 text-sm">{ebayMsg}</p>}
+        {log.length > 0 && (
+          <div className="mt-3 max-h-56 overflow-y-auto rounded-md bg-surface p-3 text-xs">
+            <p className="mb-2 font-medium">
+              {imported} imported · {log.length - imported} skipped or failed
+            </p>
+            {log.map((r) => (
+              <p key={r.itemId} className="line-clamp-1">
+                {r.result.startsWith("imported") ? "✓" : r.result.startsWith("error") ? "✗" : "–"} {r.title} — {r.result}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+
       <p className="text-sm text-muted">
         Items pulled in from eBay land here first — nothing goes live on the
         site until you publish it. Fix the category if needed, then publish

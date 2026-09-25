@@ -28,6 +28,8 @@ export default function AdminPage() {
   const unreadCount = useUnreadNotificationCount();
 
   useEffect(() => {
+    // Returning from eBay's consent screen → open the Review drafts tab.
+    if (new URLSearchParams(window.location.search).has("ebay")) setTab("drafts");
     fetch("/api/admin/products").then((res) => {
       setAuthed(res.ok);
       setChecking(false);
