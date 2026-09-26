@@ -33,17 +33,33 @@ async function act(action: string, extra: Record<string, unknown>) {
   return j;
 }
 
+export type TrackInfo = { name: string; mood: string; on: boolean };
+
+function trackLabel(name: string) {
+  return name.replace(/^\d+-/, "").replace(/\.(mp3|m4a|aac|wav)$/i, "");
+}
+
+function postMessage(j: { status?: string; error?: string; reason?: string }) {
+  if (j.status === "posted") return "Posted to Instagram ✓";
+  if (j.status === "sent" || j.status === "processing")
+    return "Sent ✓ Instagram is processing it — it will appear within 15 minutes (you'll see it in Notifications).";
+  return `Not posted: ${j.error || j.reason || j.status}`;
+}
+
 export default function ClipModal({
   item,
   clip,
+  tracks = [],
   onClose,
   onChanged,
 }: {
   item: { id: string; name: string };
   clip: ClipInfo | null;
+  tracks?: TrackInfo[];
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const [music, setMusic] = useState("auto");
   const fileRef = useRef<HTMLInputElement>(null);
   const [sound, setSound] = useState<ClipInfo["sound"]>(clip?.sound || "both");
   const [busy, setBusy] = useState("");
@@ -95,7 +111,7 @@ export default function ClipModal({
     setBusy("build");
     setMsg("Making the Reel… (up to a minute)");
     try {
-      const j = await act("clip-preview", { productId: item.id });
+      const j = await act("clip-preview", { productId: item.id, music });
       setPreview(j.videoUrl);
       setScript(j.script || null);
       setMsg("");
@@ -112,12 +128,9 @@ export default function ClipModal({
     setBusy("post");
     setMsg("Posting…");
     try {
-      const j = await act("clip-post", { productId: item.id });
-      if (j.status === "posted") {
-        setPosted(j.permalink || "");
-        setMsg("Posted to Instagram ✓");
-      } else if (j.status === "processing") setMsg("Sent — Instagram is still processing it; it will go live within 15 minutes.");
-      else setMsg(`Not posted: ${j.error || j.reason || j.status}`);
+      const j = await act("clip-post", { productId: item.id, music });
+      if (j.status === "posted") setPosted(j.permalink || "");
+      setMsg(postMessage(j));
       onChanged();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
@@ -131,7 +144,7 @@ export default function ClipModal({
     setBusy("photos");
     setMsg("Making a Reel from the photos… (up to a minute)");
     try {
-      const j = await act("preview", { productId: item.id });
+      const j = await act("preview", { productId: item.id, music });
       setPreview(j.videoUrl);
       setScript(j.script || null);
       setMsg("");
@@ -147,12 +160,9 @@ export default function ClipModal({
     setBusy("post");
     setMsg("Posting…");
     try {
-      const j = await act("post-now", { productId: item.id });
-      if (j.status === "posted") {
-        setPosted(j.permalink || "");
-        setMsg("Posted to Instagram ✓");
-      } else if (j.status === "processing") setMsg("Sent — Instagram is still processing it; it will go live within 15 minutes.");
-      else setMsg(`Not posted: ${j.error || j.reason || j.status}`);
+      const j = await act("post-now", { productId: item.id, music });
+      if (j.status === "posted") setPosted(j.permalink || "");
+      setMsg(postMessage(j));
       onChanged();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
@@ -216,15 +226,40 @@ export default function ClipModal({
           )}
         </div>
 
+        {hasClip && (
         <div className="mt-4">
-          <p className="mb-1 font-medium">Sound</p>
-          {SOUNDS.map((s) => (
-            <label key={s.value} className="flex items-center gap-2 py-0.5">
-              <input type="radio" name="sound" checked={sound === s.value} onChange={() => changeSound(s.value)} disabled={!!busy} />
-              {s.label}
-            </label>
-          ))}
-        </div>
+            <p className="mb-1 font-medium">Sound</p>
+            {SOUNDS.map((s) => (
+              <label key={s.value} className="flex items-center gap-2 py-0.5">
+                <input type="radio" name="sound" checked={sound === s.value} onChange={() => changeSound(s.value)} disabled={!!busy} />
+                {s.label}
+              </label>
+            ))}
+          </div>
+        )}
+
+          <div className="mt-4">
+            <p className="mb-1 font-medium">Music</p>
+            <select
+              value={music}
+              onChange={(e) => setMusic(e.target.value)}
+              disabled={!!busy || sound === "original"}
+              className="w-full rounded-md border border-border px-2 py-1.5"
+            >
+              <option value="auto">Auto (by item type)</option>
+              <option value="calm">Calm</option>
+              <option value="elegant">Elegant</option>
+              <option value="lively">Lively</option>
+              <option value="festive">Festive</option>
+              {tracks.length > 0 && <option disabled>──────────</option>}
+              {tracks.map((t) => (
+                <option key={t.name} value={`track:${t.name}`}>
+                  ♪ {trackLabel(t.name)} ({t.mood}){t.on ? "" : " — off"}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted">Changed the music? Press “Make…” again before posting.</p>
+          </div>
 
         {hasClip && (
           <div className="mt-4 flex flex-wrap gap-2">

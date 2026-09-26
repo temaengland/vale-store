@@ -10,6 +10,7 @@ import {
   publicUrl,
   saveClip,
   setClipSound,
+  setTrack,
   getPending,
   getSettings,
   listMusic,
@@ -82,7 +83,11 @@ export async function POST(req: NextRequest) {
       name?: string;
       path?: string;
       sound?: "both" | "music" | "original";
+      music?: string; // "auto" | mood | "track:<name>"
+      mood?: "calm" | "elegant" | "lively" | "festive";
+      on?: boolean;
     };
+    const choice = body.music && body.music !== "auto" ? body.music : undefined;
     const sound = body.sound === "music" || body.sound === "original" ? body.sound : "both";
     switch (body.action) {
       case "settings":
@@ -94,9 +99,18 @@ export async function POST(req: NextRequest) {
           }),
         });
       case "preview":
-        return NextResponse.json(await previewReel(body.productId || undefined));
+        return NextResponse.json(await previewReel(body.productId || undefined, choice));
       case "post-now":
-        return NextResponse.json(await reelTick({ force: true, productId: body.productId || undefined }));
+        return NextResponse.json(
+          await reelTick({ force: true, productId: body.productId || undefined, choice, noWait: true })
+        );
+      case "music-set":
+        if (!body.name) throw new Error("Missing track.");
+        await setTrack(body.name, {
+          ...(body.mood ? { mood: body.mood } : {}),
+          ...(typeof body.on === "boolean" ? { on: body.on } : {}),
+        });
+        return NextResponse.json({ ok: true });
       case "music-upload-url":
         return NextResponse.json({ url: await musicUploadUrl(String(body.filename || "track.mp3")) });
       case "music-delete":
@@ -114,10 +128,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ clip: await setClipSound(body.productId, sound) });
       case "clip-preview":
         if (!body.productId) throw new Error("Missing item.");
-        return NextResponse.json(await previewClipReel(body.productId));
+        return NextResponse.json(await previewClipReel(body.productId, choice));
       case "clip-post":
         if (!body.productId) throw new Error("Missing item.");
-        return NextResponse.json(await reelTick({ force: true, productId: body.productId }));
+        return NextResponse.json(await reelTick({ force: true, productId: body.productId, choice, noWait: true }));
       case "clip-delete":
         if (!body.productId) throw new Error("Missing item.");
         await deleteClip(body.productId);

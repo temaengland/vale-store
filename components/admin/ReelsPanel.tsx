@@ -5,12 +5,15 @@ import { useEffect, useRef, useState } from "react";
 // Admin → Items → "Daily Reel" (update 109).
 type Data = {
   settings: { enabled: boolean; hour: number; trial: boolean };
-  music: { name: string; url: string }[];
+  music: { name: string; url: string; mood: Mood; on: boolean }[];
   log: { at: string; kind: string; text: string; link?: string }[];
   pending: { name: string; since: string } | null;
   next: { id: string; name: string } | null;
   error?: string;
 };
+
+type Mood = "calm" | "elegant" | "lively" | "festive";
+const MOOD_LABEL: Record<Mood, string> = { calm: "Calm", elegant: "Elegant", lively: "Lively", festive: "Festive" };
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00–22:00
 
@@ -31,6 +34,23 @@ export default function ReelsPanel() {
     script?: { hook: string; facts: string[] };
   } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState<string | null>(null);
+  function togglePlay(url: string) {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (playing === url) {
+      setPlaying(null);
+      return;
+    }
+    const a = new Audio(url);
+    a.onended = () => setPlaying(null);
+    a.play().catch(() => setPlaying(null));
+    audioRef.current = a;
+    setPlaying(url);
+  }
 
   async function load() {
     try {
@@ -112,8 +132,8 @@ export default function ReelsPanel() {
       setMsg(
         j.status === "posted"
           ? "Reel posted ✓"
-          : j.status === "processing"
-          ? "Uploaded — Instagram is still processing it; it will be posted automatically within 15 minutes."
+          : j.status === "sent" || j.status === "processing"
+          ? "Sent ✓ Instagram is processing it — it will appear within 15 minutes (see Notifications)."
           : `Not posted: ${j.error || j.reason || j.status}`
       );
       await load();
@@ -188,10 +208,45 @@ export default function ReelsPanel() {
           </div>
 
           <div>
-            <p className="mb-1 font-medium">Music ({d.music.length})</p>
+            <p className="mb-1 font-medium">
+              Music ({d.music.filter((m) => m.on).length} on / {d.music.length})
+            </p>
+            <p className="mb-2 text-muted">
+              ▶ listen · choose the mood · untick to stop using a track. “Auto” picks by item: jewellery & art →
+              Elegant, watches → Lively, furniture & decor → Calm. Festive stays off until you tick it.
+            </p>
             {d.music.map((m) => (
-              <div key={m.name} className="flex items-center justify-between gap-2 py-0.5">
-                <span className="line-clamp-1">♪ {trackLabel(m.name)}</span>
+              <div key={m.name} className="flex flex-wrap items-center gap-2 border-b border-border py-1.5">
+                <button
+                  onClick={() => togglePlay(m.url)}
+                  className="w-7 shrink-0 rounded border border-border text-center"
+                  aria-label="Play"
+                >
+                  {playing === m.url ? "■" : "▶"}
+                </button>
+                <input
+                  type="checkbox"
+                  checked={m.on}
+                  onChange={async (e) => {
+                    await act("music-set", { name: m.name, on: e.target.checked }).catch(() => {});
+                    load();
+                  }}
+                />
+                <span className={`min-w-0 flex-1 truncate ${m.on ? "" : "text-muted line-through"}`}>{trackLabel(m.name)}</span>
+                <select
+                  value={m.mood}
+                  onChange={async (e) => {
+                    await act("music-set", { name: m.name, mood: e.target.value }).catch(() => {});
+                    load();
+                  }}
+                  className="rounded border border-border px-1 py-0.5"
+                >
+                  {(Object.keys(MOOD_LABEL) as Mood[]).map((k) => (
+                    <option key={k} value={k}>
+                      {MOOD_LABEL[k]}
+                    </option>
+                  ))}
+                </select>
                 <button
                   className="text-muted hover:text-ink"
                   onClick={async () => {
@@ -200,7 +255,7 @@ export default function ReelsPanel() {
                     load();
                   }}
                 >
-                  remove
+                  ✕
                 </button>
               </div>
             ))}

@@ -5,7 +5,7 @@ import ImageCropUpload from "@/components/admin/ImageCropUpload";
 import { categories } from "@/lib/products";
 import InstagramPublishModal, { PostedInfo } from "@/components/admin/InstagramPublishModal";
 import ReelsPanel from "@/components/admin/ReelsPanel";
-import ClipModal, { ClipInfo } from "@/components/admin/ClipModal";
+import ClipModal, { ClipInfo, TrackInfo } from "@/components/admin/ClipModal";
 
 type AdminProduct = {
   id: string;
@@ -82,6 +82,7 @@ export default function ProductsPanel({
   const [clips, setClips] = useState<Record<string, ClipInfo>>({});
   const [clipItem, setClipItem] = useState<AdminProduct | null>(null);
   const [reeled, setReeled] = useState<string[]>([]);
+  const [tracks, setTracks] = useState<TrackInfo[]>([]);
   async function loadClips() {
     try {
       const res = await fetch("/api/admin/reels");
@@ -89,6 +90,7 @@ export default function ProductsPanel({
         const d = await res.json();
         setClips(d.clips ?? {});
         setReeled(d.reeled ?? []);
+        setTracks(d.music ?? []);
       }
     } catch {
       /* optional */
@@ -293,6 +295,7 @@ export default function ProductsPanel({
         <ClipModal
           item={{ id: clipItem.id, name: clipItem.name }}
           clip={clips[clipItem.id] ?? null}
+          tracks={tracks}
           onClose={() => setClipItem(null)}
           onChanged={loadClips}
         />
@@ -785,8 +788,10 @@ export default function ProductsPanel({
           .map((p) => (
           <div
             key={p.id}
-            className="flex items-center gap-4 rounded-lg border border-border p-3"
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border p-3"
           >
+            {/* Photo + name/price: full width on phones, buttons go on their own row below. */}
+            <div className="flex min-w-0 basis-full items-center gap-3 sm:basis-0 sm:flex-1">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md">
               {(p.images && p.images.length > 0) || p.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -813,7 +818,7 @@ export default function ProductsPanel({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="line-clamp-1 text-sm">
+              <p className="line-clamp-2 text-sm sm:line-clamp-1">
                 {p.name}
               </p>
               <p className="text-xs text-muted">
@@ -827,6 +832,8 @@ export default function ProductsPanel({
                 )}
               </p>
             </div>
+            </div>
+            <div className="flex w-full flex-wrap items-center justify-end gap-1 border-t border-border pt-2 sm:w-auto sm:border-0 sm:pt-0">
             {igStatus.configured &&
               ((p.images && p.images.length > 0) || p.image) &&
               p.status !== "sold" &&
@@ -876,6 +883,7 @@ export default function ProductsPanel({
             >
               Delete
             </button>
+            </div>
           </div>
         ))}
         {live.length === 0 && !loadError && (

@@ -119,12 +119,66 @@ async function ensureBucket() {
 
 // ---------- music ----------
 
-export async function listMusic() {
+// Moods (update 112). Taken from the file name ("calm-piano-01.mp3",
+// "elegant-…", "lively-…", "festive-…"); can be changed in admin.
+export const MOODS = ["calm", "elegant", "lively", "festive"] as const;
+export type Mood = (typeof MOODS)[number];
+const MUSIC_META_KEY = "reels_music_meta";
+type MusicMeta = Record<string, { mood?: Mood; on?: boolean }>;
+
+function moodFromName(name: string): Mood {
+  const n = name.toLowerCase().replace(/^\d+-/, "");
+  for (const m of MOODS) if (n.startsWith(m)) return m;
+  if (/christmas|xmas|festive|jingle|holiday|carol/.test(n)) return "festive";
+  if (/beat|hip-?hop|upbeat|driving|energetic|funk|pop/.test(n)) return "lively";
+  if (/classic|elegant|piano|romantic|waltz|string/.test(n)) return "elegant";
+  return "calm";
+}
+
+export type Track = { name: string; url: string; mood: Mood; on: boolean };
+
+export async function listMusic(): Promise<Track[]> {
   await ensureBucket();
-  const { data } = await db().storage.from(BUCKET).list(MUSIC_DIR, { limit: 100 });
+  const { data } = await db().storage.from(BUCKET).list(MUSIC_DIR, { limit: 200 });
+  const meta = await read<MusicMeta>(MUSIC_META_KEY, {});
   return (data || [])
     .filter((f) => /\.(mp3|m4a|aac|wav)$/i.test(f.name))
-    .map((f) => ({ name: f.name, url: db().storage.from(BUCKET).getPublicUrl(`${MUSIC_DIR}/${f.name}`).data.publicUrl }));
+    .map((f) => {
+      const mood = meta[f.name]?.mood || moodFromName(f.name);
+      // Festive music is off until switched on (December).
+      const on = meta[f.name]?.on ?? mood !== "festive";
+      return { name: f.name, url: db().storage.from(BUCKET).getPublicUrl(`${MUSIC_DIR}/${f.name}`).data.publicUrl, mood, on };
+    })
+    .sort((a, b) => MOODS.indexOf(a.mood) - MOODS.indexOf(b.mood) || a.name.localeCompare(b.name));
+}
+
+export async function setTrack(name: string, patch: { mood?: Mood; on?: boolean }) {
+  const meta = await read<MusicMeta>(MUSIC_META_KEY, {});
+  meta[name] = { ...meta[name], ...patch };
+  await write(MUSIC_META_KEY, meta);
+}
+
+/** "auto" | a mood | "track:<file name>" */
+export type MusicChoice = string | undefined;
+
+function autoMood(p: { category: string; subcategory?: string | null }): Mood {
+  if (/watch/i.test(p.subcategory || "")) return "lively";
+  if (p.category === "jewelry" || p.category === "art") return "elegant";
+  return "calm";
+}
+
+/** Picks a music track for an item: a chosen track, a chosen mood, or by category. */
+async function pickTrack(p: { category: string; subcategory?: string | null }, choice: MusicChoice) {
+  const all = await listMusic();
+  if (choice && choice.startsWith("track:")) {
+    const t = all.find((x) => x.name === choice.slice(6));
+    if (t) return t;
+  }
+  const on = all.filter((t) => t.on);
+  const mood = choice && (MOODS as readonly string[]).includes(choice) ? (choice as Mood) : autoMood(p);
+  const pool = on.filter((t) => t.mood === mood);
+  const list = pool.length ? pool : on.length ? on : all;
+  return list.length ? list[Math.floor(Math.random() * list.length)] : null;
 }
 
 export async function musicUploadUrl(filename: string) {
@@ -137,6 +191,11 @@ export async function musicUploadUrl(filename: string) {
 
 export async function deleteMusic(name: string) {
   await db().storage.from(BUCKET).remove([`${MUSIC_DIR}/${name.replace(/\//g, "")}`]);
+  const meta = await read<MusicMeta>(MUSIC_META_KEY, {});
+  if (meta[name]) {
+    delete meta[name];
+    await write(MUSIC_META_KEY, meta);
+  }
 }
 
 // ---------- choosing an item ----------
@@ -350,7 +409,7 @@ async function candidateById(productId: string) {
 }
 
 /** Builds (or reuses) the finished Reel from the item's own video. */
-async function makeClipVideo(p: Candidate, rec: ClipRecord, rebuild = false) {
+async function makeClipVideo(p: Candidate, rec: ClipRecord, rebuild = false, choice?: MusicChoice) {
   if (rec.built && !rebuild) {
     return {
       videoPath: rec.built.videoPath,
@@ -364,8 +423,7 @@ async function makeClipVideo(p: Candidate, rec: ClipRecord, rebuild = false) {
   const clip = await fetchBytes(publicUrl(rec.path));
   const firstPhoto = photosOf(p)[0];
   const photo = firstPhoto ? await fetchBytes(firstPhoto).catch(() => null) : null;
-  const tracks = rec.sound === "original" ? [] : await listMusic();
-  const track = tracks.length ? tracks[Math.floor(Math.random() * tracks.length)] : null;
+  const track = rec.sound === "original" ? null : await pickTrack(p, choice);
   const music = track ? await fetchBytes(track.url).catch(() => null) : null;
   const script = await scriptFor(p);
   const reel = await buildClipReel({ name: p.name, pricePence: p.price, era: p.era }, clip, photo, {
@@ -394,18 +452,40 @@ async function makeClipVideo(p: Candidate, rec: ClipRecord, rebuild = false) {
 }
 
 /** Admin "Preview" for an item's own video — builds it fresh. */
-export async function previewClipReel(productId: string) {
+export async function previewClipReel(productId: string, choice?: MusicChoice) {
   const p = await candidateById(productId);
   if (!p) throw new Error("Item not found.");
   const rec = await getClip(productId);
   if (!rec) throw new Error("Upload a video for this item first.");
-  const v = await makeClipVideo(p, rec, true);
+  const v = await makeClipVideo(p, rec, true, choice);
   return { productId: p.id, name: p.name, ...v };
 }
 
-async function makeVideo(p: Candidate) {
+// The last photo-Reel preview per item, reused by "Post" (update 112).
+const PREVIEW_PREFIX = "reel_preview:";
+type PhotoPreview = { videoPath: string; coverPath: string; seconds: number; track: string | null; script: ReelScript; at: string };
+
+/**
+ * The Reel video for an item. `reuse`: take the ready preview / built clip if
+ * there is one (Post); otherwise build fresh (Preview).
+ */
+async function makeVideo(p: Candidate, opts: { choice?: MusicChoice; reuse?: boolean } = {}) {
   const rec = await getClip(p.id);
-  if (rec && !rec.posted) return { ...(await makeClipVideo(p, rec)), fromClip: true };
+  if (rec && !rec.posted) return { ...(await makeClipVideo(p, rec, !opts.reuse, opts.choice)), fromClip: true };
+  if (opts.reuse) {
+    const pv = await read<PhotoPreview | null>(`${PREVIEW_PREFIX}${p.id}`, null);
+    if (pv && Date.now() - new Date(pv.at).getTime() < 3 * 24 * 3600 * 1000) {
+      return {
+        videoPath: pv.videoPath,
+        videoUrl: publicUrl(pv.videoPath),
+        coverUrl: publicUrl(pv.coverPath),
+        seconds: pv.seconds,
+        track: pv.track,
+        script: pv.script,
+        fromClip: false,
+      };
+    }
+  }
   const photos: Buffer[] = [];
   for (const u of photosOf(p).slice(0, 5)) {
     try {
@@ -415,8 +495,7 @@ async function makeVideo(p: Candidate) {
     }
   }
   if (!photos.length) throw new Error("Couldn't download the photos.");
-  const tracks = await listMusic();
-  const track = tracks.length ? tracks[Math.floor(Math.random() * tracks.length)] : null;
+  const track = await pickTrack(p, opts.choice);
   const music = track ? await fetchBytes(track.url).catch(() => null) : null;
 
   const script = await scriptFor(p);
@@ -430,6 +509,17 @@ async function makeVideo(p: Candidate) {
   const up1 = await store.upload(videoPath, reel.video, { contentType: "video/mp4", upsert: true });
   if (up1.error) throw new Error(`upload: ${up1.error.message}`);
   await store.upload(coverPath, reel.cover, { contentType: "image/jpeg", upsert: true });
+  // Remember it so "Post" can use exactly this video (old preview file is removed).
+  const old = await read<PhotoPreview | null>(`${PREVIEW_PREFIX}${p.id}`, null);
+  if (old) await removeFiles([old.videoPath, old.coverPath]);
+  await write(`${PREVIEW_PREFIX}${p.id}`, {
+    videoPath,
+    coverPath,
+    seconds: reel.seconds,
+    track: track?.name || null,
+    script,
+    at: new Date().toISOString(),
+  } satisfies PhotoPreview);
   return {
     videoPath,
     videoUrl: store.getPublicUrl(videoPath).data.publicUrl,
@@ -442,10 +532,10 @@ async function makeVideo(p: Candidate) {
 }
 
 /** Builds a Reel for the next (or given) item without publishing it. */
-export async function previewReel(productId?: string) {
+export async function previewReel(productId?: string, choice?: MusicChoice) {
   const p = await nextCandidate(productId);
   if (!p) throw new Error("No item available for a Reel.");
-  const v = await makeVideo(p);
+  const v = await makeVideo(p, { choice });
   return { productId: p.id, name: p.name, ...v };
 }
 
@@ -476,6 +566,8 @@ async function finishPending(pending: Pending, token: string, waitMs: number) {
       if (pending.fromClip) {
         const rec = await getClip(pending.productId);
         if (rec) await write(`${CLIP_PREFIX}${pending.productId}`, { ...rec, posted: { at: new Date().toISOString(), permalink: pub.permalink } });
+      } else {
+        await remove(`${PREVIEW_PREFIX}${pending.productId}`); // used — next Reel for this item is made fresh
       }
       await log({
         kind: "posted",
@@ -486,8 +578,9 @@ async function finishPending(pending: Pending, token: string, waitMs: number) {
     }
     if (st.code === "ERROR" || st.code === "EXPIRED") {
       await remove(PENDING_KEY);
-      await log({ kind: "error", text: `Instagram couldn't process the Reel for “${pending.name}”: ${st.detail || st.code}` });
-      return { status: "failed" as const };
+      const why = `Instagram couldn't process the Reel for “${pending.name}”: ${st.detail || st.code}`;
+      await log({ kind: "error", text: why });
+      return { status: "failed" as const, error: why };
     }
     if (Date.now() - new Date(pending.createdAt).getTime() > 60 * 60 * 1000) {
       await remove(PENDING_KEY);
@@ -503,13 +596,25 @@ async function finishPending(pending: Pending, token: string, waitMs: number) {
  * One scheduler step. `force` posts now regardless of the time/day
  * ("Post a Reel now" button); `productId` picks the item.
  */
-export async function reelTick(opts: { force?: boolean; productId?: string } = {}) {
+export async function reelTick(
+  opts: { force?: boolean; productId?: string; choice?: MusicChoice; noWait?: boolean } = {}
+): Promise<{ status: string; reason?: string; error?: string; permalink?: string }> {
   const started = Date.now();
   if (!isConfigured()) return { status: "skipped", reason: "Instagram not connected" };
   const t = await getToken();
 
   const pending = await getPending();
-  if (pending) return finishPending(pending, t.token, 40_000);
+  if (pending) {
+    // Button press (noWait): just one quick look, never a long wait.
+    const r = await finishPending(pending, t.token, opts.noWait ? 0 : 40_000);
+    if (!opts.noWait) return r;
+    if (r.status === "processing") {
+      return pending.productId === opts.productId
+        ? { status: "processing" }
+        : { status: "busy", reason: `Another Reel (“${pending.name}”) is still being processed by Instagram — try again in a few minutes.` };
+    }
+    if (pending.productId === opts.productId) return r;
+  }
 
   const settings = await getSettings();
   const now = londonNow();
@@ -531,7 +636,8 @@ export async function reelTick(opts: { force?: boolean; productId?: string } = {
   // Mark the day first so a failure never causes repeated posts.
   if (!opts.force) await write(LAST_DAY_KEY, now.day);
   try {
-    const v = await makeVideo(p);
+    // Button "Post": reuse the video you just previewed; daily run: fresh.
+    const v = await makeVideo(p, { choice: opts.choice, reuse: Boolean(opts.force) });
     const caption = buildInstagramCaption({
       name: p.name,
       description: p.description || undefined,
@@ -554,6 +660,11 @@ export async function reelTick(opts: { force?: boolean; productId?: string } = {
       fromClip: v.fromClip,
     };
     await write(PENDING_KEY, next);
+    // Button press: answer straight away ("sent"); the 15-minute check publishes it.
+    if (opts.noWait) {
+      const r = await finishPending(next, t.token, 0);
+      return r.status === "processing" ? { status: "sent" } : r;
+    }
     const left = 55_000 - (Date.now() - started);
     return finishPending(next, t.token, Math.max(0, left));
   } catch (e) {
