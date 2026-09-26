@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import ImageCropUpload from "@/components/admin/ImageCropUpload";
 import { categories } from "@/lib/products";
 import InstagramPublishModal, { PostedInfo } from "@/components/admin/InstagramPublishModal";
+import ReelsPanel from "@/components/admin/ReelsPanel";
+import ClipModal, { ClipInfo } from "@/components/admin/ClipModal";
 
 type AdminProduct = {
   id: string;
@@ -75,6 +77,26 @@ export default function ProductsPanel({
     error?: string;
     posted: Record<string, PostedInfo>;
   }>({ configured: false, posted: {} });
+
+  // Own videos per item (update 111).
+  const [clips, setClips] = useState<Record<string, ClipInfo>>({});
+  const [clipItem, setClipItem] = useState<AdminProduct | null>(null);
+  const [reeled, setReeled] = useState<string[]>([]);
+  async function loadClips() {
+    try {
+      const res = await fetch("/api/admin/reels");
+      if (res.ok) {
+        const d = await res.json();
+        setClips(d.clips ?? {});
+        setReeled(d.reeled ?? []);
+      }
+    } catch {
+      /* optional */
+    }
+  }
+  useEffect(() => {
+    loadClips();
+  }, []);
 
   async function loadInstagramStatus() {
     try {
@@ -267,6 +289,15 @@ export default function ProductsPanel({
           }
         />
       )}
+      {clipItem && (
+        <ClipModal
+          item={{ id: clipItem.id, name: clipItem.name }}
+          clip={clips[clipItem.id] ?? null}
+          onClose={() => setClipItem(null)}
+          onChanged={loadClips}
+        />
+      )}
+      {igStatus.configured && <ReelsPanel />}
       {igStatus.configured && igStatus.error && (
         <div className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Instagram: {igStatus.error}
@@ -814,6 +845,25 @@ export default function ProductsPanel({
                   {igStatus.posted[p.id] ? "IG ✓" : "Instagram"}
                 </button>
               )}
+            {igStatus.configured && p.status !== "sold" && !p.is_draft && (
+              <button
+                onClick={() => setClipItem(p)}
+                title="Make an Instagram Reel for this item — from your video or its photos"
+                className={`shrink-0 rounded-md px-2.5 py-2 text-sm ${
+                  clips[p.id]?.status === "posted" || reeled.includes(p.id)
+                    ? "text-green-700"
+                    : clips[p.id]
+                    ? "text-[#AD8A4E]"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {clips[p.id] && clips[p.id].status !== "posted"
+                  ? "Reel · video"
+                  : clips[p.id]?.status === "posted" || reeled.includes(p.id)
+                  ? "Reel ✓"
+                  : "Reel"}
+              </button>
+            )}
             <button
               onClick={() => startEdit(p)}
               className="shrink-0 rounded-md px-2.5 py-2 text-sm text-muted hover:text-ink"

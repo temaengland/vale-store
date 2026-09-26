@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { readSyncLog } from "@/lib/ebaySync";
+import { readLog as readReelLog } from "@/lib/reels";
 
 type FeedItem = {
   id: string;
-  type: "order" | "inquiry" | "notify" | "ebay";
+  type: "order" | "inquiry" | "notify" | "ebay" | "reel";
   created_at: string;
   headline: string;
   detail: string;
@@ -39,7 +40,17 @@ export async function GET() {
     // eBay two-way sync events (sold on eBay, listing ended, problems).
     const ebayLog = (await readSyncLog()).filter((e) => e.kind !== "linked");
 
+    // Daily Reel results (update 109).
+    const reelLog = (await readReelLog().catch(() => [])).filter((e) => e.kind !== "info");
+
     const feed: FeedItem[] = [
+      ...reelLog.map((e, i) => ({
+        id: `reel-${e.at}-${i}`,
+        type: "reel" as const,
+        created_at: e.at,
+        headline: e.kind === "posted" ? "Instagram Reel posted" : "Instagram Reel — problem",
+        detail: e.text,
+      })),
       ...ebayLog.map((e, i) => ({
         id: `ebay-${e.at}-${i}`,
         type: "ebay" as const,

@@ -204,6 +204,61 @@ export async function publishPhotos(imageUrls: string[], caption: string, token:
   return { mediaId, permalink };
 }
 
+// ---- Reels (update 109) ----
+
+/**
+ * Creates a Reel container. `trial` = Instagram "trial reel": shown to
+ * non-followers first and shared to followers automatically if it does well.
+ */
+export async function createReelContainer(
+  videoUrl: string,
+  caption: string,
+  token: string,
+  opts: { coverUrl?: string; trial?: boolean } = {}
+) {
+  const base: Record<string, string> = {
+    media_type: "REELS",
+    video_url: videoUrl,
+    caption,
+    share_to_feed: "true",
+  };
+  if (opts.coverUrl) base.cover_url = opts.coverUrl;
+  if (opts.trial) {
+    try {
+      const c = await graph(
+        `${igUserId()}/media`,
+        token,
+        { ...base, trial_params: JSON.stringify({ graduation_strategy: "SS_PERFORMANCE" }) },
+        "POST"
+      );
+      return { id: String(c.id), trial: true };
+    } catch (e) {
+      // Trial reels not available for this account/API version → normal Reel.
+      if (!/trial/i.test(e instanceof Error ? e.message : "")) throw e;
+    }
+  }
+  const c = await graph(`${igUserId()}/media`, token, base, "POST");
+  return { id: String(c.id), trial: false };
+}
+
+export async function containerStatus(containerId: string, token: string) {
+  const d = await graph(containerId, token, { fields: "status_code,status" });
+  return { code: String(d.status_code || ""), detail: String(d.status || "") };
+}
+
+export async function publishContainer(containerId: string, token: string) {
+  const pub = await graph(`${igUserId()}/media_publish`, token, { creation_id: containerId }, "POST");
+  const mediaId = String(pub.id);
+  let permalink: string | undefined;
+  try {
+    const m = await graph(mediaId, token, { fields: "permalink" });
+    permalink = m.permalink;
+  } catch {
+    /* not critical */
+  }
+  return { mediaId, permalink };
+}
+
 // ---- which products have been posted ----
 
 export async function savePosted(productId: string, info: PostedInfo) {

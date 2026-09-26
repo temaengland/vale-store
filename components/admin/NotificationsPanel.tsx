@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type FeedItem = {
   id: string;
-  type: "order" | "inquiry" | "notify" | "ebay";
+  type: "order" | "inquiry" | "notify" | "ebay" | "reel";
   created_at: string;
   headline: string;
   detail: string;
@@ -23,6 +23,7 @@ function typeIcon(type: FeedItem["type"]) {
   if (type === "order") return "💰";
   if (type === "inquiry") return "💬";
   if (type === "ebay") return "🏷️";
+  if (type === "reel") return "🎬";
   return "🔔";
 }
 
