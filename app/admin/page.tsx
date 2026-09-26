@@ -27,6 +27,21 @@ export default function AdminPage() {
   >("notifications");
   const unreadCount = useUnreadNotificationCount();
   const [editId, setEditId] = useState<string | null>(null);
+  const [focusDraftId, setFocusDraftId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Quietly check eBay for sold items when admin opens (at most every 10 min).
+    try {
+      const k = "charmchase_ebay_sync_at";
+      const last = Number(localStorage.getItem(k) || 0);
+      if (Date.now() - last > 10 * 60 * 1000) {
+        localStorage.setItem(k, String(Date.now()));
+        fetch("/api/ebay/sync", { method: "POST" }).catch(() => {});
+      }
+    } catch {
+      /* optional */
+    }
+  }, []);
 
   useEffect(() => {
     // Returning from eBay's consent screen → open the Review drafts tab.
@@ -154,10 +169,14 @@ export default function AdminPage() {
         <ProductsPanel
           editId={editId}
           onEditHandled={() => setEditId(null)}
-          onBackToDrafts={() => setTab("drafts")}
+          onBackToDrafts={(id) => {
+            setFocusDraftId(id ?? null);
+            setTab("drafts");
+          }}
         />
       ) : tab === "drafts" ? (
         <DraftsPanel
+          focusId={focusDraftId}
           onEdit={(id) => {
             setEditId(id);
             setTab("products");

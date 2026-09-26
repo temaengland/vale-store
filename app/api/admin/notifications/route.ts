@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { readSyncLog } from "@/lib/ebaySync";
 
 type FeedItem = {
   id: string;
-  type: "order" | "inquiry" | "notify";
+  type: "order" | "inquiry" | "notify" | "ebay";
   created_at: string;
   headline: string;
   detail: string;
@@ -35,7 +36,17 @@ export async function GET() {
         .limit(20),
     ]);
 
+    // eBay two-way sync events (sold on eBay, listing ended, problems).
+    const ebayLog = (await readSyncLog()).filter((e) => e.kind !== "linked");
+
     const feed: FeedItem[] = [
+      ...ebayLog.map((e, i) => ({
+        id: `ebay-${e.at}-${i}`,
+        type: "ebay" as const,
+        created_at: e.at,
+        headline: e.kind === "error" ? "eBay — action needed" : e.kind === "sold_on_ebay" ? "Sold on eBay" : "eBay listing ended",
+        detail: e.text,
+      })),
       ...(ordersRes.data ?? []).map((o) => ({
         id: `order-${o.id}`,
         type: "order" as const,

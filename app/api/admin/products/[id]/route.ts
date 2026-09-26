@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notifyIndexNow } from "@/lib/indexnow";
+import { endEbayListingsFor } from "@/lib/ebaySync";
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Unknown server error.";
@@ -16,6 +17,11 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
+    const { data: before } = await supabaseAdmin()
+      .from("products")
+      .select("status")
+      .eq("id", params.id)
+      .maybeSingle();
     const { data, error } = await supabaseAdmin()
       .from("products")
       .update(body)
@@ -30,7 +36,13 @@ export async function PUT(
       notifyIndexNow([`https://www.charmchase.co.uk/product/${data.slug}`]);
     }
 
-    return NextResponse.json({ product: data });
+    // Marked Sold here (e.g. sold in the shop) → end the eBay listing too.
+    let ebay: { ok: boolean; error?: string }[] = [];
+    if (data?.status === "sold" && before?.status !== "sold" && data.ebay_item_id) {
+      ebay = await endEbayListingsFor([data.id]);
+    }
+
+    return NextResponse.json({ product: data, ebay });
   } catch (e) {
     return NextResponse.json(
       { error: `Server error: ${errMsg(e)}` },

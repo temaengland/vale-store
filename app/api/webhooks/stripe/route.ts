@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { endEbayListingsFor } from "@/lib/ebaySync";
 import {
   createShipment,
   shippingNameToServiceCode,
@@ -120,6 +121,8 @@ export async function POST(req: NextRequest) {
           .from("products")
           .update({ status: "sold" })
           .in("id", matchedIds);
+        // Same item listed on eBay → end that listing so it can't sell twice.
+        await endEbayListingsFor(matchedIds);
       }
 
       // Generate Royal Mail shipping label automatically — best-effort,

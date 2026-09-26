@@ -57,7 +57,7 @@ export default function ProductsPanel({
 }: {
   editId?: string | null;
   onEditHandled?: () => void;
-  onBackToDrafts?: () => void;
+  onBackToDrafts?: (id?: string) => void;
 } = {}) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -177,13 +177,27 @@ export default function ProductsPanel({
       alert(data.error ?? "Save failed.");
       return;
     }
+    // Marked Sold → the site also ends the eBay listing (update 107).
+    const saved = await res.json().catch(() => ({}));
+    const ebayResults = (saved.ebay || []) as { ok: boolean; error?: string }[];
+    if (ebayResults.length) {
+      alert(
+        ebayResults.every((r) => r.ok)
+          ? "Marked Sold — the eBay listing was ended too ✓"
+          : `Marked Sold on the site, but the eBay listing could NOT be ended automatically — please end it on eBay.\n\n${ebayResults
+              .map((r) => r.error)
+              .filter(Boolean)
+              .join("\n")}`
+      );
+    }
     const wasDraft = editingDraft;
+    const savedId = editingId;
     setForm(emptyForm);
     setEditingId(null);
     setEditingDraft(false);
     publishRef.current = false;
     loadProducts();
-    if (wasDraft && onBackToDrafts) onBackToDrafts();
+    if (wasDraft && onBackToDrafts) onBackToDrafts(savedId ?? undefined);
   }
 
   function startEdit(p: AdminProduct) {
@@ -678,10 +692,11 @@ export default function ProductsPanel({
               type="button"
               onClick={() => {
                 const wasDraft = editingDraft;
+                const backId = editingId;
                 setEditingId(null);
                 setEditingDraft(false);
                 setForm(emptyForm);
-                if (wasDraft && onBackToDrafts) onBackToDrafts();
+                if (wasDraft && onBackToDrafts) onBackToDrafts(backId ?? undefined);
               }}
               className="text-sm text-muted"
             >

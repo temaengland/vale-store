@@ -65,11 +65,15 @@ export async function POST(req: NextRequest) {
       }
       const { data: sameName } = await db
         .from("products")
-        .select("id")
+        .select("id, ebay_item_id, status")
         .ilike("name", it.title.replace(/[%_]/g, (m) => `\\${m}`))
         .limit(1);
       if (sameName && sameName.length) {
-        results.push({ itemId: it.itemId, title: it.title, result: "skipped — already on the site" });
+        // Remember which eBay listing this site item is, for the sold sync.
+        if (!sameName[0].ebay_item_id && sameName[0].status !== "sold") {
+          await db.from("products").update({ ebay_item_id: it.itemId }).eq("id", sameName[0].id);
+        }
+        results.push({ itemId: it.itemId, title: it.title, result: "skipped — already on the site (linked)" });
         continue;
       }
 

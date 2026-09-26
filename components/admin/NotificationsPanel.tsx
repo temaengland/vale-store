@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type FeedItem = {
   id: string;
-  type: "order" | "inquiry" | "notify";
+  type: "order" | "inquiry" | "notify" | "ebay";
   created_at: string;
   headline: string;
   detail: string;
@@ -22,6 +22,7 @@ function notifyListeners() {
 function typeIcon(type: FeedItem["type"]) {
   if (type === "order") return "💰";
   if (type === "inquiry") return "💬";
+  if (type === "ebay") return "🏷️";
   return "🔔";
 }
 
@@ -95,8 +96,8 @@ export default function NotificationsPanel() {
   return (
     <div className="mt-10">
       <p className="text-sm text-muted">
-        Everything that's happened lately — new orders, enquiries, and
-        notify sign-ups, all in one place.
+        Everything that's happened lately — new orders, enquiries,
+        eBay sales and notify sign-ups, all in one place.
       </p>
 
       {loadError && (

@@ -9,10 +9,20 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 const API = process.env.EBAY_API_BASE || "https://api.ebay.com";
 const AUTH = process.env.EBAY_AUTH_BASE || "https://auth.ebay.com";
 const REFRESH_KEY = "ebay_refresh_token";
+// Scopes asked for on "Connect eBay". Full seller access so the site can also
+// END a listing when the item sells on the site (read-only can't do that).
 export const EBAY_SCOPES = [
+  "https://api.ebay.com/oauth/api_scope",
+  "https://api.ebay.com/oauth/api_scope/sell.inventory",
+  "https://api.ebay.com/oauth/api_scope/sell.account",
+  "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+];
+// What connections made before update 107 were granted (read-only).
+const LEGACY_SCOPES = [
   "https://api.ebay.com/oauth/api_scope",
   "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly",
 ];
+const WRITE_SCOPE = "https://api.ebay.com/oauth/api_scope/sell.inventory";
 
 function env(name: string) {
   return (process.env[name] || "").trim();
@@ -64,7 +74,7 @@ export async function connectWithCode(code: string) {
     .from("app_settings")
     .upsert({
       key: REFRESH_KEY,
-      value: JSON.stringify({ token: t.refresh_token, expiresAt }),
+      value: JSON.stringify({ token: t.refresh_token, expiresAt, scopes: EBAY_SCOPES }),
       updated_at: new Date().toISOString(),
     });
   if (error) throw new Error(`Could not save eBay connection: ${error.message}`);
@@ -79,8 +89,15 @@ export async function getConnection() {
     .maybeSingle();
   if (!data) return null;
   try {
-    const v = JSON.parse(data.value) as { token: string; expiresAt?: string };
-    return { token: v.token, expiresAt: v.expiresAt, connectedAt: data.updated_at as string };
+    const v = JSON.parse(data.value) as { token: string; expiresAt?: string; scopes?: string[] };
+    const scopes = v.scopes && v.scopes.length ? v.scopes : LEGACY_SCOPES;
+    return {
+      token: v.token,
+      expiresAt: v.expiresAt,
+      connectedAt: data.updated_at as string,
+      scopes,
+      canEndListings: scopes.includes(WRITE_SCOPE),
+    };
   } catch {
     return null;
   }
@@ -92,7 +109,7 @@ export async function userAccessToken() {
   const t = await tokenRequest({
     grant_type: "refresh_token",
     refresh_token: c.token,
-    scope: EBAY_SCOPES.join(" "),
+    scope: c.scopes.join(" "), // only what this connection was granted
   });
   return t.access_token;
 }
@@ -102,7 +119,8 @@ export async function userAccessToken() {
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
-  isArray: (name) => ["Item", "PictureURL", "NameValueList", "Errors"].includes(name),
+  isArray: (name) =>
+    ["Item", "PictureURL", "NameValueList", "Errors", "OrderTransaction", "Transaction", "Order"].includes(name),
 });
 
 export async function trading(callName: string, innerXml: string, token: string) {
@@ -224,4 +242,63 @@ export function guessCategory(categoryName: string, title: string): "furniture" 
   if (/(painting|print|drawing|etching|lithograph|watercolou?r|oil on|sculpture|photograph|\bart\b)/.test(t)) return "art";
   if (/(furniture|chair|table|desk|cabinet|chest|drawers|wardrobe|sideboard|bookcase|dresser|stool|bench|sofa|armchair|bed\b|trunk|commode|bureau)/.test(t)) return "furniture";
   return "decor";
+}
+
+// ---------- two-way sync helpers (update 107) ----------
+
+/** Every ItemID found anywhere inside an XML-parsed object. */
+function collectItemIds(node: unknown, out: Set<string>) {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    node.forEach((n) => collectItemIds(n, out));
+    return;
+  }
+  for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+    if (k === "ItemID" && (typeof v === "string" || typeof v === "number")) out.add(String(v));
+    else collectItemIds(v, out);
+  }
+}
+
+/** Item IDs of listings that SOLD on eBay in the last `days` days (max 60). */
+export async function soldItemIds(token: string, days = 30) {
+  const ids = new Set<string>();
+  for (let page = 1; page <= 10; page++) {
+    const r = await trading(
+      "GetMyeBaySelling",
+      `<SoldList><Include>true</Include><DurationInDays>${days}</DurationInDays><Pagination><EntriesPerPage>200</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination></SoldList>`,
+      token
+    );
+    const list = r.SoldList || {};
+    collectItemIds(list.OrderTransactionArray, ids);
+    const pages = Number(list.PaginationResult?.TotalNumberOfPages || 1);
+    if (page >= pages) break;
+  }
+  return ids;
+}
+
+/** All ACTIVE listings (id + title), 200 per request. */
+export async function allActiveListings(token: string) {
+  const out: ListingSummary[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const { items, totalPages } = await activeListingsPage(token, page, 200);
+    out.push(...items);
+    if (page >= totalPages) break;
+  }
+  return out;
+}
+
+/** Ends an eBay listing because the item sold elsewhere. Already-ended counts as done. */
+export async function endListing(token: string, itemId: string) {
+  try {
+    await trading(
+      "EndItem",
+      `<ItemID>${itemId}</ItemID><EndingReason>NotAvailable</EndingReason>`,
+      token
+    );
+    return { ok: true as const };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/already been closed|already ended|has ended|is closed/i.test(msg)) return { ok: true as const };
+    return { ok: false as const, error: msg };
+  }
 }

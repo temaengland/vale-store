@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { categories } from "@/lib/products";
 
-type EbayStatus = { configured: boolean; connected: boolean; connectedAt?: string };
+type EbayStatus = {
+  configured: boolean;
+  connected: boolean;
+  connectedAt?: string;
+  canEndListings?: boolean;
+  lastSync?: { at: string; summary: string } | null;
+};
 type ImportRow = { itemId: string; title: string; result: string };
 
 type Draft = {
@@ -18,7 +24,10 @@ type Draft = {
   ebay_item_id?: string | null;
 };
 
-export default function DraftsPanel({ onEdit }: { onEdit?: (id: string) => void } = {}) {
+export default function DraftsPanel({
+  onEdit,
+  focusId,
+}: { onEdit?: (id: string) => void; focusId?: string | null } = {}) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -35,6 +44,24 @@ export default function DraftsPanel({ onEdit }: { onEdit?: (id: string) => void 
       if (res.ok) setEbay(await res.json());
     } catch {
       /* optional */
+    }
+  }
+
+  const [syncing, setSyncing] = useState(false);
+  async function runSync() {
+    setSyncing(true);
+    setEbayMsg("");
+    try {
+      const res = await fetch("/api/ebay/sync", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Sync failed.");
+      setEbayMsg(`Synced ✓ ${data.summary}`);
+      loadEbay();
+      loadDrafts();
+    } catch (e) {
+      setEbayMsg(`eBay sync: ${e instanceof Error ? e.message : "failed"}`);
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -140,6 +167,20 @@ export default function DraftsPanel({ onEdit }: { onEdit?: (id: string) => void 
     }
   }
 
+  // Back from "Edit": scroll to the item that was just saved and highlight it,
+  // so it can be published straight away.
+  const [highlight, setHighlight] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusId || loading) return;
+    const el = document.getElementById(`draft-${focusId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlight(focusId);
+      const t = setTimeout(() => setHighlight(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [focusId, loading, drafts]);
+
   const imported = log.filter((r) => r.result.startsWith("imported")).length;
 
   return (
@@ -176,8 +217,31 @@ export default function DraftsPanel({ onEdit }: { onEdit?: (id: string) => void 
                 {importing ? "Importing…" : "Import from eBay"}
               </button>
             )}
+            {ebay?.connected && (
+              <button
+                onClick={runSync}
+                disabled={syncing}
+                className="rounded-md border border-border-strong px-3 py-1.5 text-xs hover:border-ink disabled:opacity-50"
+              >
+                {syncing ? "Syncing…" : "Sync sold items"}
+              </button>
+            )}
           </div>
         </div>
+        {ebay?.connected && (
+          <p className="mt-2 text-xs text-muted">
+            Sold-item sync:{" "}
+            {ebay.lastSync
+              ? `last run ${new Date(ebay.lastSync.at).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })} — ${ebay.lastSync.summary}`
+              : "not run yet"}
+          </p>
+        )}
+        {ebay?.connected && !ebay.canEndListings && (
+          <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs text-ink">
+            Press <b>Reconnect eBay</b> once so the site can also end eBay listings when an item sells on the
+            site. (Sold on eBay → Sold on the site already works.)
+          </p>
+        )}
         {progress && <p className="mt-3 text-xs text-muted">{progress}</p>}
         {ebayMsg && <p className="mt-3 text-sm">{ebayMsg}</p>}
         {log.length > 0 && (
@@ -225,7 +289,10 @@ export default function DraftsPanel({ onEdit }: { onEdit?: (id: string) => void 
           return (
             <div
               key={d.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3"
+              id={`draft-${d.id}`}
+              className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 transition-colors ${
+                highlight === d.id ? "border-[#AD8A4E] bg-amber-50" : "border-border"
+              }`}
             >
               {cover ? (
                 // eslint-disable-next-line @next/next/no-img-element

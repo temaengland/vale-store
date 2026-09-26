@@ -13,24 +13,14 @@ type CaptionItem = {
   height_cm?: number;
 };
 
-const BASE_TAGS = [
-  "charmchase",
-  "antiques",
-  "vintage",
-  "antiqueshop",
-  "vintageshop",
-  "antiquesforsale",
-  "evesham",
-  "worcestershire",
-  "cotswolds",
-];
-
-const CATEGORY_TAGS: Record<CaptionItem["category"], string[]> = {
-  furniture: ["antiquefurniture", "vintagefurniture", "furnitureforsale", "interiordesign", "homedecor"],
-  jewelry: ["vintagejewellery", "antiquejewellery", "vintagejewelry", "jewellery", "estatejewellery"],
-  decor: ["vintagedecor", "antiquedecor", "homedecor", "interiors", "vintagehome"],
-  art: ["vintageart", "antiqueart", "artforsale", "artcollector", "interiors"],
+// Instagram now treats 20–30 hashtags as spam — keep 5 precise ones.
+const CATEGORY_TAGS: Record<CaptionItem["category"], [string, string]> = {
+  furniture: ["antiquefurniture", "vintagefurniture"],
+  jewelry: ["antiquejewellery", "vintagejewellery"],
+  decor: ["antiquedecor", "vintagedecor"],
+  art: ["antiqueart", "vintageart"],
 };
+const MAX_TAGS = 5;
 
 // Phrases left over from eBay listings that make no sense on Instagram.
 const EBAY_LINE = /(bidding|before you bid|before buying|please message|message me|ask any questions|feel free to ask|ebay)/i;
@@ -75,10 +65,14 @@ export function buildInstagramCaption(p: CaptionItem) {
     ].join("\n")
   );
 
-  const tags = [...BASE_TAGS, ...CATEGORY_TAGS[p.category]];
-  if (p.era) tags.push(tag(p.era));
-  if (p.subcategory) tags.push(tag(p.subcategory));
-  const unique = Array.from(new Set(tags.filter(Boolean))).slice(0, 25);
+  // charmchase · 2 category tags · era (or #antiques) · evesham
+  const tags = [
+    "charmchase",
+    ...CATEGORY_TAGS[p.category],
+    p.era ? tag(p.era) : "antiques",
+    "evesham",
+  ];
+  const unique = Array.from(new Set(tags.filter(Boolean))).slice(0, MAX_TAGS);
   parts.push(unique.map((t) => `#${t}`).join(" "));
 
   return parts.join("\n\n");
