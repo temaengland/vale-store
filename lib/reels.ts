@@ -576,6 +576,20 @@ async function finishPending(pending: Pending, token: string, waitMs: number) {
       });
       return { status: "posted" as const, permalink: pub.permalink };
     }
+    if (st.code === "PUBLISHED") {
+      // Already live (e.g. an earlier request published it but was cut off
+      // before it could record it) — count it as posted, never post twice.
+      await write(`${REEL_PREFIX}${pending.productId}`, { at: new Date().toISOString(), trial: pending.trial });
+      await remove(PENDING_KEY);
+      if (pending.fromClip) {
+        const rec = await getClip(pending.productId);
+        if (rec) await write(`${CLIP_PREFIX}${pending.productId}`, { ...rec, posted: { at: new Date().toISOString() } });
+      } else {
+        await remove(`${PREVIEW_PREFIX}${pending.productId}`);
+      }
+      await log({ kind: "posted", text: `${pending.fromClip ? "Your video" : "Reel"} posted: “${pending.name}”` });
+      return { status: "posted" as const };
+    }
     if (st.code === "ERROR" || st.code === "EXPIRED") {
       await remove(PENDING_KEY);
       const why = `Instagram couldn't process the Reel for “${pending.name}”: ${st.detail || st.code}`;
