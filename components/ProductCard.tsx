@@ -5,7 +5,7 @@ import { Product, formatPrice } from "@/lib/products";
 import { ProductImage } from "@/components/ItemIllustration";
 import { useLanguage } from "@/lib/language-context";
 
-export default function ProductCard({ product }: { product: Product }) {
+export default function ProductCard({ product, hideFromImageSearch = false }: { product: Product; hideFromImageSearch?: boolean }) {
   const { t } = useLanguage();
   return (
     <Link href={`/product/${product.slug}`} className="group block">
@@ -16,6 +16,7 @@ export default function ProductCard({ product }: { product: Product }) {
           icon={product.icon}
           alt={product.name}
           className="aspect-square w-full rounded-xl"
+          hideFromImageSearch={hideFromImageSearch}
         />
         {product.status && product.status !== "available" && (
           <span className="absolute right-2 top-2 rounded-full bg-ink px-2.5 py-1 text-xs text-white">

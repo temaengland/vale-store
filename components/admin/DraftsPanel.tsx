@@ -290,10 +290,11 @@ export default function DraftsPanel({
             <div
               key={d.id}
               id={`draft-${d.id}`}
-              className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 transition-colors ${
+              className={`flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center transition-colors ${
                 highlight === d.id ? "border-[#AD8A4E] bg-amber-50" : "border-border"
               }`}
             >
+              <div className="flex min-w-0 flex-1 items-center gap-3">
               {cover ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -311,12 +312,16 @@ export default function DraftsPanel({
                   £{(d.price / 100).toFixed(2)}
                 </p>
               </div>
+              </div>
+
+              {/* Update 115: same layout on every card — selects in one row, buttons in one row. */}
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
 
               <select
                 value={d.category}
                 onChange={(e) => updateDraft(d.id, { category: e.target.value, subcategory: null })}
                 disabled={busyId === d.id}
-                className="rounded-md border border-border-strong px-2 py-1.5 text-xs"
+                className="w-full min-w-0 rounded-md border border-border-strong px-2 py-1.5 text-xs sm:w-40"
               >
                 {categories.map((c) => (
                   <option key={c.slug} value={c.slug}>
@@ -329,7 +334,7 @@ export default function DraftsPanel({
                 value={d.subcategory ?? ""}
                 onChange={(e) => updateDraft(d.id, { subcategory: e.target.value || null })}
                 disabled={busyId === d.id}
-                className="rounded-md border border-border-strong px-2 py-1.5 text-xs"
+                className="w-full min-w-0 rounded-md border border-border-strong px-2 py-1.5 text-xs sm:w-40"
               >
                 <option value="">No subcategory</option>
                 {cat?.subcategories.map((s) => (
@@ -338,7 +343,9 @@ export default function DraftsPanel({
                   </option>
                 ))}
               </select>
+              </div>
 
+              <div className={`grid gap-2 sm:flex sm:shrink-0 ${onEdit ? "grid-cols-3" : "grid-cols-2"}`}>
               {onEdit && (
                 <button
                   onClick={() => onEdit(d.id)}
@@ -366,6 +373,7 @@ export default function DraftsPanel({
               >
                 Delete
               </button>
+              </div>
             </div>
           );
         })}

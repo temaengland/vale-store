@@ -102,7 +102,7 @@ export default function ProductInfoPanel({
               </p>
               <div className="mt-3 grid grid-cols-2 gap-4">
                 {relatedProducts.map((p) => (
-                  <ProductCard key={p.slug} product={p} />
+                  <ProductCard key={p.slug} product={p} hideFromImageSearch />
                 ))}
               </div>
             </div>

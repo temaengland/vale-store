@@ -235,13 +235,47 @@ export function slugify(s: string) {
     .replace(/-$/, "");
 }
 
-/** Best guess of the site category from eBay's category name and the title. */
+/**
+ * Best guess of the site category from eBay's category name and the title.
+ * Whole words only (update 115): "Collectables"/"Tableware" are not tables and
+ * "Manchester" is not a chest, so plates no longer land in Furniture.
+ */
 export function guessCategory(categoryName: string, title: string): "furniture" | "jewelry" | "decor" | "art" {
+  return guessPlacement(categoryName, title).category;
+}
+
+type SiteCategory = "furniture" | "jewelry" | "decor" | "art";
+
+export function guessPlacement(categoryName: string, title: string): { category: SiteCategory; subcategory: string | null } {
   const t = `${categoryName} ${title}`.toLowerCase();
-  if (/(jewel|ring\b|rings\b|necklace|pendant|bracelet|earring|brooch|cufflink|watch|medal|bangle)/.test(t)) return "jewelry";
-  if (/(painting|print|drawing|etching|lithograph|watercolou?r|oil on|sculpture|photograph|\bart\b)/.test(t)) return "art";
-  if (/(furniture|chair|table|desk|cabinet|chest|drawers|wardrobe|sideboard|bookcase|dresser|stool|bench|sofa|armchair|bed\b|trunk|commode|bureau)/.test(t)) return "furniture";
-  return "decor";
+  const has = (re: RegExp) => re.test(t);
+  const W = (words: string) => new RegExp(`\\b(${words})\\b`);
+
+  // Coins first: "sovereign", "crown" etc. would otherwise read as jewellery.
+  if (has(W("coins?|sovereigns?|half sovereign|shillings?|florins?|guineas?|farthings?|half crowns?|krugerrands?|bullion|numismatics?|proof set"))) {
+    return { category: "jewelry", subcategory: "Coins" };
+  }
+  // eBay's own category says furniture → trust it (a "china cabinet" is still a cabinet).
+  if (/\bfurniture\b/i.test(categoryName)) return { category: "furniture", subcategory: null };
+  if (has(W("watch|watches|wristwatch|pocket watch|chronograph"))) return { category: "jewelry", subcategory: "Watches" };
+  if (has(W("jewellery|jewelry|jewel|rings?|necklaces?|pendants?|bracelets?|earrings?|brooch|brooches|cufflinks?|medals?|bangles?|lockets?|charms?"))) {
+    return { category: "jewelry", subcategory: null };
+  }
+  if (has(W("paintings?|prints?|drawings?|etchings?|lithographs?|watercolou?rs?|oil on (canvas|board|panel)|sculptures?|photographs?|art"))) {
+    return { category: "art", subcategory: null };
+  }
+  // China and glass before furniture: plates, cups and vases are decor.
+  if (has(W("plates?|dish|dishes|bowls?|cups?|saucers?|teapots?|tea set|tea service|dinner service|jugs?|tureens?|tableware|dinnerware|glassware|decanters?"))) {
+    return { category: "decor", subcategory: "Tableware" };
+  }
+  if (has(W("vases?"))) return { category: "decor", subcategory: "Vases" };
+  if (has(W("figurines?|figures?|ornaments?|statues?|statuettes?"))) return { category: "decor", subcategory: "Ornaments & Figurines" };
+  if (has(W("porcelain|china|pottery|ceramics?|stoneware|earthenware"))) return { category: "decor", subcategory: null };
+  if (has(W("vases?"))) return { category: "decor", subcategory: "Vases" };
+  if (has(W("furniture|chairs?|tables?|desks?|cabinets?|chests?|drawers|wardrobes?|sideboards?|bookcases?|dressers?|stools?|benches|bench|sofas?|armchairs?|beds?|trunks?|commodes?|bureaus?|bureau"))) {
+    return { category: "furniture", subcategory: null };
+  }
+  return { category: "decor", subcategory: null };
 }
 
 // ---------- two-way sync helpers (update 107) ----------

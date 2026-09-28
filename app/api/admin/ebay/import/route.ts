@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   activeListingsPage,
   getItem,
-  guessCategory,
+  guessPlacement,
   htmlToText,
   slugify,
   userAccessToken,
@@ -81,8 +81,9 @@ export async function POST(req: NextRequest) {
         const d = await getItem(token, it.itemId);
 
         // Category: saved mapping first, otherwise a best guess (editable in Review drafts).
-        let category: string = guessCategory(d.categoryName, d.title);
-        let subcategory: string | null = null;
+        const guess = guessPlacement(d.categoryName, d.title);
+        let category: string = guess.category;
+        let subcategory: string | null = guess.subcategory;
         if (d.categoryId) {
           const { data: map } = await db
             .from("category_mapping")

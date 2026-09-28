@@ -75,15 +75,34 @@ export function ProductImage({
   icon,
   alt,
   className = "",
+  hideFromImageSearch = false,
 }: {
   image?: string | null;
   images?: string[] | null;
   icon: IconName;
   alt: string;
   className?: string;
+  /**
+   * Update 115: drawn as a CSS background instead of an <img>, so Google Images /
+   * Lens doesn't link this photo to the page it's shown on (e.g. a Citizen watch
+   * shown under "You might also like" on the Omega page). The photo is still
+   * indexed on its own product page.
+   */
+  hideFromImageSearch?: boolean;
 }) {
   const tone = iconTones[icon];
   const cover = images && images.length > 0 ? images[0] : image;
+  if (cover && hideFromImageSearch) {
+    const src = `/_next/image?url=${encodeURIComponent(cover)}&w=384&q=75`;
+    return (
+      <div
+        role="img"
+        aria-label={alt}
+        className={`bg-surface bg-contain bg-center bg-no-repeat ${className}`}
+        style={{ backgroundImage: `url("${src}")` }}
+      />
+    );
+  }
   if (cover) {
     return (
       <div className={`relative overflow-hidden bg-surface ${className}`}>
