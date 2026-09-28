@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import BackupPanel from "@/components/admin/BackupPanel";
 
 type FeedItem = {
   id: string;
-  type: "order" | "inquiry" | "notify" | "ebay" | "reel";
+  type: "order" | "inquiry" | "notify" | "ebay" | "reel" | "backup";
   created_at: string;
   headline: string;
   detail: string;
@@ -24,6 +25,7 @@ function typeIcon(type: FeedItem["type"]) {
   if (type === "inquiry") return "💬";
   if (type === "ebay") return "🏷️";
   if (type === "reel") return "🎬";
+  if (type === "backup") return "💾";
   return "🔔";
 }
 
@@ -100,6 +102,8 @@ export default function NotificationsPanel() {
         Everything that's happened lately — new orders, enquiries,
         eBay sales and notify sign-ups, all in one place.
       </p>
+
+      <BackupPanel />
 
       {loadError && (
         <div className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

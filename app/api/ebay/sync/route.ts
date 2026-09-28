@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { runEbaySync } from "@/lib/ebaySync";
+import { maybeWeeklyBackup } from "@/lib/backup";
 
 // Two-way sold sync with eBay (update 107).
 // Called every 15 min by Supabase (pg_cron), once a day by Vercel Cron,
@@ -20,7 +21,10 @@ function allowed(req: NextRequest) {
 async function handle(req: NextRequest) {
   if (!allowed(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    return NextResponse.json(await runEbaySync());
+    const sync = await runEbaySync().catch((e) => ({ ok: false, error: e instanceof Error ? e.message : "sync failed" }));
+    // Same 15-minute job also makes the weekly Google Drive backup (update 113).
+    const backup = await maybeWeeklyBackup().catch((e) => ({ status: "failed", error: String(e) }));
+    return NextResponse.json({ ...sync, backup: backup.status });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Sync failed" }, { status: 500 });
   }

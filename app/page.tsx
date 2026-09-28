@@ -5,10 +5,18 @@ import CategoryTile from "@/components/CategoryTile";
 import ProductCard from "@/components/ProductCard";
 import PaidBanner from "@/components/PaidBanner";
 import T from "@/components/T";
+import type { Metadata } from "next";
 
 // Always fetch fresh data — without this, deletes/edits made in the admin
 // panel can take a while to show up on the live site because Next.js may
 // cache this page's data.
+// Google Lens / Images: photos shown here are small previews — the real home
+// of each photo is its product page, so Google must not index them from here
+// (otherwise a picture search leads to this page instead of the item). Update 114.
+export const metadata: Metadata = {
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, noimageindex: true } },
+};
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";

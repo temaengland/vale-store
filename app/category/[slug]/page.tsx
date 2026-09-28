@@ -25,6 +25,9 @@ export async function generateMetadata({
     title: category.name,
     description: `Curated antique and vintage ${category.name.toLowerCase()}, sourced from estate sales across Worcestershire, Oxfordshire and Warwickshire.`,
     alternates: { canonical: `/category/${category.slug}` },
+    // Photos here are previews; Google Lens/Images should send people to the
+    // item's own page, so images are not indexed from category pages (114).
+    robots: { index: true, follow: true, googleBot: { index: true, follow: true, noimageindex: true } },
   };
 }
 

@@ -3,10 +3,11 @@ import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { readSyncLog } from "@/lib/ebaySync";
 import { readLog as readReelLog } from "@/lib/reels";
+import { readBackupLog } from "@/lib/backup";
 
 type FeedItem = {
   id: string;
-  type: "order" | "inquiry" | "notify" | "ebay" | "reel";
+  type: "order" | "inquiry" | "notify" | "ebay" | "reel" | "backup";
   created_at: string;
   headline: string;
   detail: string;
@@ -43,7 +44,16 @@ export async function GET() {
     // Daily Reel results (update 109).
     const reelLog = (await readReelLog().catch(() => [])).filter((e) => e.kind !== "info");
 
+    const backupLog = await readBackupLog().catch(() => []);
+
     const feed: FeedItem[] = [
+      ...backupLog.map((e, i) => ({
+        id: `backup-${e.at}-${i}`,
+        type: "backup" as const,
+        created_at: e.at,
+        headline: e.kind === "ok" ? "Backup saved to Google Drive" : "Backup — problem",
+        detail: e.text,
+      })),
       ...reelLog.map((e, i) => ({
         id: `reel-${e.at}-${i}`,
         type: "reel" as const,
