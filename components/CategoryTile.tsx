@@ -8,6 +8,12 @@ import { useLanguage } from "@/lib/language-context";
 
 // Update 121 (variant "A2"): square photo of one of our real pieces, the
 // category name underneath in the logo's serif typeface, larger size.
+function splitName(name: string): string[] {
+  const i = name.indexOf("&");
+  if (i < 0) return [name];
+  return [name.slice(0, i + 1).trim(), name.slice(i + 1).trim()];
+}
+
 export default function CategoryTile({
   category,
   photo,
@@ -20,7 +26,7 @@ export default function CategoryTile({
   const bg = categoryTileBg[category.slug] ?? "#EDE6D8";
   return (
     <Link href={`/category/${category.slug}`} className="group block">
-      <div className="relative aspect-square overflow-hidden rounded-xl bg-surface">
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-surface lg:aspect-[4/3]">
         {photo ? (
           <Image
             src={photo}
@@ -35,8 +41,20 @@ export default function CategoryTile({
           </div>
         )}
       </div>
-      <p className="mt-2.5 font-serif text-lg leading-tight text-ink sm:text-[19px]">
-        {t(`category.name.${category.slug}`)}
+      {/* Update 123: on computers the name is centred and two-part names
+          break after "&" ("Watches &" / "Clocks") so neighbours don't run
+          together. Phones and tablets are unchanged. */}
+      <p className="mt-2.5 font-serif text-lg leading-tight text-ink sm:text-[19px] lg:text-center">
+        {splitName(t(`category.name.${category.slug}`)).map((part, i) =>
+          i === 0 ? (
+            <span key={i}>{part}</span>
+          ) : (
+            <span key={i} className="lg:block">
+              {" "}
+              {part}
+            </span>
+          )
+        )}
       </p>
     </Link>
   );

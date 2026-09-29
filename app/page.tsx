@@ -71,7 +71,7 @@ export default async function HomePage({
 
       {/* Update 116: lower hero with the headline and a button on the photo,
           so the pieces for sale are visible straight away. */}
-      <div className="relative h-[260px] w-full overflow-hidden rounded-xl bg-[#CFC6B7] sm:h-[320px]">
+      <div className="relative h-[260px] w-full overflow-hidden rounded-xl bg-[#CFC6B7] sm:h-[320px] lg:-mt-4 lg:h-[190px]">
         <Image
           src={heroPhoto}
           alt="A warm, light-filled living room styled with vintage and contemporary furniture"
@@ -86,12 +86,12 @@ export default async function HomePage({
           <p className="text-[11px] uppercase tracking-[0.2em] text-white/85">
             <T k="home.location" />
           </p>
-          <h1 className="mt-2 font-serif text-[26px] leading-tight sm:text-4xl">
+          <h1 className="mt-2 font-serif text-[26px] leading-tight sm:text-4xl lg:text-[30px]">
             <T k="home.headline1" />
             <br />
             <T k="home.headline2" />
           </h1>
-          <div className="mt-5">
+          <div className="mt-5 lg:mt-4">
             <Link
               href="/new"
               className="inline-block rounded-md bg-white px-5 py-2.5 text-sm text-ink transition-colors hover:bg-surface"
@@ -102,10 +102,10 @@ export default async function HomePage({
         </div>
       </div>
 
-      <p className="mt-10 text-xs tracking-widest text-muted">
+      <p className="mt-10 text-xs tracking-widest text-muted lg:mt-6">
         <T k="home.shopByCategory" />
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-5">
         {categories.map((c) => (
           <CategoryTile key={c.slug} category={c} photo={categoryPhotos[c.slug]} />
         ))}
