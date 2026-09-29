@@ -87,8 +87,6 @@ export const categories: Category[] = [
       "Earrings",
       "Brooches",
       "Cufflinks",
-      "Medals",
-      "Coins",
     ],
   },
   {
@@ -111,6 +109,8 @@ export const categories: Category[] = [
       "Cups & Trophies",
       "Dressing Table",
       "Novelties & Collectables",
+      "Asian Silver",
+      "Coins & Medals",
       "Silver Plate",
     ],
   },
@@ -118,7 +118,7 @@ export const categories: Category[] = [
     // Update 121: porcelain, pottery and glass (UK's No.2 antiques category).
     slug: "ceramics",
     name: "Ceramics & Glass",
-    subcategories: ["Porcelain", "Pottery", "Figurines", "Tableware", "Vases", "Art Glass", "Glassware"],
+    subcategories: ["Porcelain", "Pottery", "Asian Ceramics", "Figurines", "Tableware", "Vases", "Art Glass", "Glassware"],
   },
   {
     // Update 121: "Art" + the former "Decor" category.

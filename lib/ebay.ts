@@ -246,14 +246,30 @@ export function guessCategory(categoryName: string, title: string): SiteCategory
 
 type SiteCategory = import("@/lib/products").CategorySlug;
 
+// Update 127: words that mark Chinese / Japanese / other Asian pieces.
+const ASIAN_WORDS =
+  "chinese|china export|japanese|japan|oriental|asian|qianlong|kangxi|yongzheng|jiaqing|daoguang|guangxu|tongzhi|xianfeng|ming|qing|canton|famille rose|famille verte|nanking|tek sing|satsuma|imari|arita|kutani|noritake|meiji|korean|celadon";
+
 export function guessPlacement(categoryName: string, title: string): { category: SiteCategory; subcategory: string | null } {
   const t = `${categoryName} ${title}`.toLowerCase();
   const has = (re: RegExp) => re.test(t);
   const W = (words: string) => new RegExp(`\\b(${words})\\b`);
 
-  // Coins first: "sovereign", "crown" etc. would otherwise read as jewellery.
-  if (has(W("coins?|sovereigns?|half sovereign|shillings?|florins?|guineas?|farthings?|half crowns?|krugerrands?|bullion|numismatics?|proof set"))) {
-    return { category: "jewelry", subcategory: "Coins" };
+  // Update 127: coins and medals → Silver › Coins & Medals — unless the
+  // piece is worn as jewellery (a coin brooch, a St Christopher medal pendant).
+  const wornAs: [string, string][] = [
+    ["brooch|brooches|pins?", "Brooches"],
+    ["pendants?|necklaces?|chains?|lockets?", "Pendants"],
+    ["rings?", "Rings"],
+    ["bracelets?|bangles?|charms?", "Bracelets"],
+    ["cufflinks?", "Cufflinks"],
+    ["earrings?", "Earrings"],
+  ];
+  const coinOrMedal = has(W("coins?|sovereigns?|half sovereign|shillings?|florins?|guineas?|farthings?|half crowns?|krugerrands?|bullion|numismatics?|proof set|sixpences?|groats?|medals?|medallions?|memorial cross"));
+  if (coinOrMedal) {
+    const worn = wornAs.find(([re]) => has(W(re)));
+    if (worn) return { category: "jewelry", subcategory: worn[1] };
+    return { category: "silver", subcategory: "Coins & Medals" };
   }
   // eBay's own category says furniture → trust it (a "china cabinet" is still a cabinet).
   if (/\bfurniture\b/i.test(categoryName)) return { category: "furniture", subcategory: null };
@@ -264,11 +280,10 @@ export function guessPlacement(categoryName: string, title: string): { category:
   if (has(W("clock|clocks|timepiece|longcase|carriage clock|mantel clock|bracket clock|wall clock"))) return { category: "watches", subcategory: "Clocks" };
   // Update 117: silverware (not silver jewellery) → Silver.
   const isSilver = has(W("silver|sterling|hallmarked|epns|silver ?plated?"));
-  if (has(W("medals?|medallions?"))) return { category: "jewelry", subcategory: "Medals" };
   if (isSilver) {
     const sub: [string, string][] = [
       ["salvers?|trays?|waiter|card tray", "Salvers & Trays"],
-      ["teapots?|coffee ?pots?|tea set|tea service|cream jug|milk jug|sugar bowl|tea caddy|caddy spoon|hot water jug", "Tea & Coffee"],
+      ["creamers?|pitchers?|teapots?|coffee ?pots?|tea set|tea service|cream jug|milk jug|sugar bowl|tea caddy|caddy spoon|hot water jug", "Tea & Coffee"],
       ["spoons?|forks?|ladles?|cutlery|flatware|sugar tongs|butter knife|fish knives|canteen", "Cutlery & Flatware"],
       ["candlesticks?|candelabra|chambersticks?", "Candlesticks"],
       ["vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|cases?|compact", "Boxes & Cases"],
@@ -276,9 +291,11 @@ export function guessPlacement(categoryName: string, title: string): { category:
       ["trophy|trophies|challenge cup|goblets?|tankards?|cups?", "Cups & Trophies"],
       ["hand mirror|brush|dressing table|vanity|scent bottle|perfume bottle|pin cushion|hair tidy|button hook", "Dressing Table"],
     ];
-    const isObject = has(W("salvers?|trays?|teapots?|coffee ?pots?|jugs?|spoons?|forks?|ladles?|cutlery|flatware|candlesticks?|candelabra|vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|rattles?|christening|napkin rings?|trophy|challenge cup|goblets?|tankards?|mug|cups?|hand mirror|dressing table|scent bottle|perfume bottle|pin cushion|pepper|salt|cruet|mustard|toast rack|bowls?|dish|purse|thimble|photo frame|frame|vase|sauce boat|tureen|basket|coasters?|ornament|figure|model|mill"));
+    const isObject = has(W("creamers?|pitchers?|salvers?|trays?|teapots?|coffee ?pots?|jugs?|spoons?|forks?|ladles?|cutlery|flatware|candlesticks?|candelabra|vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|rattles?|christening|napkin rings?|trophy|challenge cup|goblets?|tankards?|mug|cups?|hand mirror|dressing table|scent bottle|perfume bottle|pin cushion|pepper|salt|cruet|mustard|toast rack|bowls?|dish|purse|thimble|photo frame|frame|vase|sauce boat|tureen|basket|coasters?|ornament|figure|model|mill"));
     if (isObject) {
       if (has(W("epns|silver ?plated?|plated"))) return { category: "silver", subcategory: "Silver Plate" };
+      // Update 127: Chinese export, Japanese, Malay, Indian … silver → Asian Silver.
+      if (has(W(ASIAN_WORDS + "|export silver|wang hing|straits|malay|malayan|siam|siamese|thai|burmese|indian|kutch|cutch|persian"))) return { category: "silver", subcategory: "Asian Silver" };
       for (const [words, name] of sub) if (has(W(words))) return { category: "silver", subcategory: name };
       return { category: "silver", subcategory: "Novelties & Collectables" };
     }
@@ -293,6 +310,10 @@ export function guessPlacement(categoryName: string, title: string): { category:
   // Update 121: porcelain, pottery and glass → Ceramics & Glass.
   const ceramic = has(W("porcelain|china|pottery|ceramics?|stoneware|earthenware|faience|majolica|delft|meissen|sitzendorf|dresden|royal copenhagen|doulton|wedgwood|moorcroft|worcester|minton|spode|staffordshire|limoges|herend|lladro|capodimonte|carlton ware|clarice cliff|poole"));
   const glass = has(W("glass|glassware|crystal|murano|lalique|whitefriars|venetian|decanters?|vaseline"));
+  // Update 127: Chinese / Japanese porcelain → Ceramics & Glass › Asian Ceramics.
+  if (has(W(ASIAN_WORDS)) && !glass && (ceramic || has(W("blue (and|&) white|bowls?|vases?|platters?|plates?|chargers?|ginger jars?|jars?|teapots?|dish|dishes|cups?|saucers?|tea bowls?")))) {
+    return { category: "ceramics", subcategory: "Asian Ceramics" };
+  }
   if (ceramic || glass) {
     let sub: string | null = null;
     if (has(W("figurines?|figures?|statues?|statuettes?|groups?"))) sub = "Figurines";

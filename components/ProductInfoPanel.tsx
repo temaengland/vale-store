@@ -10,7 +10,7 @@ import ExpandableDescription from "@/components/ExpandableDescription";
 import ProductCard from "@/components/ProductCard";
 import NotifyMeForm from "@/components/NotifyMeForm";
 import { useLanguage } from "@/lib/language-context";
-import { extractDimensions } from "@/lib/shop";
+import { extractDimensions, ukDeliveryLines } from "@/lib/shop";
 
 export default function ProductInfoPanel({
   product,
@@ -77,13 +77,19 @@ export default function ProductInfoPanel({
       <p className="mt-3 text-lg text-muted lg:order-3 lg:text-2xl lg:text-ink">{formatPrice(product.price)}</p>
 
       <div className="mt-3 space-y-1 text-sm text-muted lg:hidden">
-        {typeof product.shipping_cost === "number" ? (
-          product.shipping_cost === 0 ? (
-            <p>🚚 <span className="text-ink font-medium">Free UK delivery</span></p>
-          ) : (
-            <p>🚚 UK delivery: <span className="text-ink font-medium">{formatPrice(product.shipping_cost)}</span></p>
-          )
-        ) : null}
+        {/* Update 126: the same Royal Mail options the buyer gets at checkout. */}
+        {ukDeliveryLines(product).lines.map((l, i) => (
+          <p key={i}>
+            {i === 0 ? "🚚 " : <span className="inline-block w-[1.35em]" />}
+            {l.label}
+            {l.price !== null && (
+              <>
+                {" — "}
+                <span className="text-ink font-medium">{l.price === 0 ? "Free" : formatPrice(l.price)}</span>
+              </>
+            )}
+          </p>
+        ))}
         {typeof product.international_shipping_cost === "number" &&
         product.international_shipping_cost > 0 ? (
           <p>✈️ {t("product.international")}: <span className="text-ink font-medium">{formatPrice(product.international_shipping_cost)}</span></p>
@@ -221,18 +227,23 @@ function DesktopFacts({ product, isForSale }: { product: Product; isForSale: boo
     typeof product.international_shipping_cost === "number" && product.international_shipping_cost > 0;
   return (
     <div className="hidden lg:order-5 lg:mt-4 lg:grid lg:grid-cols-2 lg:gap-x-5 lg:gap-y-2.5 lg:border-b lg:border-border lg:pb-4 lg:text-[13.5px] lg:text-ink">
-      {typeof product.shipping_cost === "number" && (
-        <div className="flex items-center gap-2.5">
-          <FactIcon d={ICONS.van} />
-          {product.shipping_cost === 0 ? (
-            <span className="font-medium">Free UK delivery</span>
-          ) : (
-            <span>
-              UK delivery <span className="font-medium">{formatPrice(product.shipping_cost)}</span>
-            </span>
-          )}
+      {/* Update 126: exactly the Royal Mail options offered at checkout. */}
+      <div className="col-span-2 flex items-start gap-2.5">
+        <FactIcon d={ICONS.van} />
+        <div className="space-y-0.5">
+          {ukDeliveryLines(product).lines.map((l, i) => (
+            <p key={i} className={i > 0 ? "text-muted" : ""}>
+              {l.label}
+              {l.price !== null && (
+                <>
+                  {" "}
+                  <span className="font-medium text-ink">{l.price === 0 ? "Free" : formatPrice(l.price)}</span>
+                </>
+              )}
+            </p>
+          ))}
         </div>
-      )}
+      </div>
       {hasIntl ? (
         <div className="flex items-center gap-2.5">
           <FactIcon d={ICONS.globe} />
@@ -257,10 +268,6 @@ function DesktopFacts({ product, isForSale }: { product: Product; isForSale: boo
           <div className="flex items-center gap-2.5">
             <FactIcon d={ICONS.returns} />
             <a href="/returns" className="underline-offset-2 hover:underline">{t("trust.returns")}</a>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <FactIcon d={ICONS.shield} />
-            <span>{t("trust.delivery")}</span>
           </div>
           <div className="flex items-center gap-2.5">
             <FactIcon d={ICONS.pin} />

@@ -70,6 +70,29 @@ export default function ProductsPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [editingDraft, setEditingDraft] = useState(false);
   const publishRef = useRef(false);
+  // Update 126: after Save / Save & publish / Cancel, come back to the same
+  // item in the list (scrolled to it and briefly highlighted).
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!returnTo) return;
+    const id = returnTo;
+    let tries = 0;
+    const timer = setInterval(() => {
+      const el = document.getElementById(`item-${id}`);
+      tries++;
+      if (el) {
+        el.scrollIntoView({ block: "center" });
+        setFlashId(id);
+        setTimeout(() => setFlashId((f) => (f === id ? null : f)), 2000);
+      }
+      if (el || tries > 30) {
+        clearInterval(timer);
+        setReturnTo(null);
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [returnTo, products]);
   const [igItem, setIgItem] = useState<AdminProduct | null>(null);
   const [igStatus, setIgStatus] = useState<{
     configured: boolean;
@@ -242,6 +265,7 @@ export default function ProductsPanel({
     publishRef.current = false;
     loadProducts();
     if (wasDraft && onBackToDrafts) onBackToDrafts(savedId ?? undefined);
+    else if (savedId) setReturnTo(savedId);
   }
 
   function startEdit(p: AdminProduct) {
@@ -751,6 +775,7 @@ export default function ProductsPanel({
                 setEditingDraft(false);
                 setForm(emptyForm);
                 if (wasDraft && onBackToDrafts) onBackToDrafts(backId ?? undefined);
+                else if (backId) setReturnTo(backId);
               }}
               className="text-sm text-muted"
             >
@@ -808,7 +833,10 @@ export default function ProductsPanel({
           .map((p) => (
           <div
             key={p.id}
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border p-3"
+            id={`item-${p.id}`}
+            className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border p-3 transition-colors duration-700 ${
+              flashId === p.id ? "border-[#AD8A4E] bg-[#FFF6DF]" : "border-border"
+            }`}
           >
             {/* Photo + name/price: full width on phones, buttons go on their own row below. */}
             <div className="flex min-w-0 basis-full items-center gap-3 sm:basis-0 sm:flex-1">

@@ -144,3 +144,35 @@ export function matchesTag<T extends Product>(p: T, t: PopularTag) {
   if (t.key === "wristwatches" && p.subcategory === "Clocks") return false;
   return t.re.test(p.name);
 }
+
+/**
+ * Update 126: what UK delivery the buyer will actually be offered at checkout
+ * for this one item — mirrors the rules in app/api/checkout/route.ts (which
+ * are NOT changed): under £150 → Tracked 48 or Special Delivery; £150–£999 →
+ * Special Delivery only (£750 insured); £1000+ → insured delivery arranged
+ * with the buyer; too big for Royal Mail → delivery by arrangement.
+ */
+export type DeliveryLine = { label: string; price: number | null };
+
+export function ukDeliveryLines(p: Pick<Product, "price" | "shipping_cost" | "length_cm" | "width_cm" | "height_cm" | "weight_grams">): {
+  kind: "standard" | "special" | "insured" | "large";
+  lines: DeliveryLine[];
+} {
+  const t48 = p.shipping_cost ?? 0;
+  const sd = Math.max(815, t48 + 450);
+  const dims = [p.length_cm, p.width_cm, p.height_cm].filter(Boolean) as number[];
+  const sorted = [...dims].sort((a, b) => b - a);
+  const tooBig =
+    (sorted[0] ?? 0) > 61 || (sorted[1] ?? 0) > 46 || (sorted[2] ?? 0) > 46 || (p.weight_grams ?? 0) > 20000;
+  if (tooBig) return { kind: "large", lines: [{ label: "Delivery by arrangement — we'll contact you", price: t48 > 0 ? t48 : null }] };
+  if (p.price >= 100000) return { kind: "insured", lines: [{ label: "Fully insured delivery — arranged with you", price: t48 > 0 ? t48 : null }] };
+  if (p.price >= 15000)
+    return { kind: "special", lines: [{ label: "Royal Mail Special Delivery · next day, £750 insured", price: sd }] };
+  return {
+    kind: "standard",
+    lines: [
+      { label: "Royal Mail Tracked 48", price: t48 },
+      { label: "or Special Delivery · next day, £750 insured", price: sd },
+    ],
+  };
+}

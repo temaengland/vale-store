@@ -370,7 +370,7 @@ export default function ProductGallery({
       </div>
 
       {(photos.length > 1 || video) && (
-        <div className="mt-3 flex gap-2 overflow-x-auto lg:mt-0 lg:max-h-[calc(100vh-150px)] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden">
+        <div className="mt-3 flex gap-2 overflow-x-auto lg:mt-0 lg:max-h-[calc(100vh-150px)] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
           {videoThumb}
           {photos.map((src, i) => (
             <button
