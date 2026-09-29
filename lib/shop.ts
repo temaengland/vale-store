@@ -176,3 +176,31 @@ export function ukDeliveryLines(p: Pick<Product, "price" | "shipping_cost" | "le
     ],
   };
 }
+
+/**
+ * Update 128: eBay descriptions often start with the title repeated and a lone
+ * "Description" heading. Drop those leading lines when showing the text on the
+ * site (the stored description and eBay are not changed).
+ */
+export function cleanDescription(text: string, title: string): string {
+  if (!text) return text;
+  const words = (s: string) =>
+    s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2);
+  const titleWords = new Set(words(title));
+  const lines = text.split(/\r?\n/);
+  let i = 0;
+  let removed = 0;
+  while (i < lines.length && removed < 4) {
+    const l = lines[i].trim();
+    if (!l) { i++; continue; }
+    if (/^(item\s+)?(description|details|about this item)\s*:?$/i.test(l)) { i++; removed++; continue; }
+    const w = words(l);
+    // A title line: short, no sentence-ending punctuation, mostly the title's words.
+    if (w.length >= 3 && l.length <= 140 && !/[.!?:;]$/.test(l)) {
+      const shared = w.filter((x) => titleWords.has(x)).length;
+      if (shared / w.length >= 0.6) { i++; removed++; continue; }
+    }
+    break;
+  }
+  return removed ? lines.slice(i).join("\n").trim() : text;
+}

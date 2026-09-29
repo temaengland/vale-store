@@ -282,6 +282,13 @@ export function guessPlacement(categoryName: string, title: string): { category:
   const isSilver = has(W("silver|sterling|hallmarked|epns|silver ?plated?"));
   if (isSilver) {
     const sub: [string, string][] = [
+      // Update 128: more specific silver types first.
+      ["pepper|peppers|pepper mill|salts?|salt cellars?|mustards?|cruets?|condiments?|casters?|muffineers?", "Condiments & Cruets"],
+      ["wine coasters?|bottle coasters?|coasters?|wine labels?|decanter labels?|hip flasks?|flasks?|corkscrews?|wine funnels?|wine tasters?|tastevin|bottle stoppers?|cocktail|jiggers?|bar", "Wine & Bar"],
+      ["pipes?|vestas?|vesta case|cigarette cases?|cigar cases?|cheroot|snuff|tobacco|ashtrays?|lighters?|match ?box|match ?case", "Smoking & Vestas"],
+      ["purses?|card cases?|card holders?|coin purse|chatelaine purse|mesh purse|aide memoire|stamp case", "Purses & Card Cases"],
+      ["photo frames?|picture frames?|frames?", "Photo Frames"],
+      ["posy bowls?|bowls?|dishes|dish|bon ?bon|sweetmeat|bonbonniere|vases?|comports?|tazza|baskets?", "Bowls & Dishes"],
       ["salvers?|trays?|waiter|card tray", "Salvers & Trays"],
       ["creamers?|pitchers?|teapots?|coffee ?pots?|tea set|tea service|cream jug|milk jug|sugar bowl|tea caddy|caddy spoon|hot water jug", "Tea & Coffee"],
       ["spoons?|forks?|ladles?|cutlery|flatware|sugar tongs|butter knife|fish knives|canteen", "Cutlery & Flatware"],
@@ -291,7 +298,7 @@ export function guessPlacement(categoryName: string, title: string): { category:
       ["trophy|trophies|challenge cup|goblets?|tankards?|cups?", "Cups & Trophies"],
       ["hand mirror|brush|dressing table|vanity|scent bottle|perfume bottle|pin cushion|hair tidy|button hook", "Dressing Table"],
     ];
-    const isObject = has(W("creamers?|pitchers?|salvers?|trays?|teapots?|coffee ?pots?|jugs?|spoons?|forks?|ladles?|cutlery|flatware|candlesticks?|candelabra|vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|rattles?|christening|napkin rings?|trophy|challenge cup|goblets?|tankards?|mug|cups?|hand mirror|dressing table|scent bottle|perfume bottle|pin cushion|pepper|salt|cruet|mustard|toast rack|bowls?|dish|purse|thimble|photo frame|frame|vase|sauce boat|tureen|basket|coasters?|ornament|figure|model|mill"));
+    const isObject = has(W("hip flasks?|flasks?|corkscrews?|wine labels?|pipes?|cigarette cases?|cigar cases?|ashtrays?|lighters?|card cases?|card holders?|photo frames?|comports?|bon ?bon|sweetmeat|mustards?|cruets?|casters?|creamers?|pitchers?|salvers?|trays?|teapots?|coffee ?pots?|jugs?|spoons?|forks?|ladles?|cutlery|flatware|candlesticks?|candelabra|vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|rattles?|christening|napkin rings?|trophy|challenge cup|goblets?|tankards?|mug|cups?|hand mirror|dressing table|scent bottle|perfume bottle|pin cushion|pepper|salt|cruet|mustard|toast rack|bowls?|dish|purse|thimble|photo frame|frame|vase|sauce boat|tureen|basket|coasters?|ornament|figure|model|mill"));
     if (isObject) {
       if (has(W("epns|silver ?plated?|plated"))) return { category: "silver", subcategory: "Silver Plate" };
       // Update 127: Chinese export, Japanese, Malay, Indian … silver → Asian Silver.

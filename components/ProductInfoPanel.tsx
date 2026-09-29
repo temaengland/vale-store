@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Product, formatPrice } from "@/lib/products";
 import InquiryForm from "@/components/InquiryForm";
 import BuyNowButton from "@/components/BuyNowButton";
@@ -10,7 +10,7 @@ import ExpandableDescription from "@/components/ExpandableDescription";
 import ProductCard from "@/components/ProductCard";
 import NotifyMeForm from "@/components/NotifyMeForm";
 import { useLanguage } from "@/lib/language-context";
-import { extractDimensions, ukDeliveryLines } from "@/lib/shop";
+import { extractDimensions, ukDeliveryLines, cleanDescription } from "@/lib/shop";
 
 export default function ProductInfoPanel({
   product,
@@ -59,7 +59,9 @@ export default function ProductInfoPanel({
   }, [locale, product.slug]);
 
   const displayName = translated?.name ?? product.name;
-  const displayDescription = translated?.description ?? product.description;
+  // Update 128: hide an eBay-style repeat of the title / a lone "Description"
+  // heading at the very start (display only — the saved text is unchanged).
+  const displayDescription = cleanDescription(translated?.description ?? product.description, translated?.name ?? product.name);
   const isForSale = !product.status || product.status === "available";
   // Update 116: dimensions shown on their own, not hidden under "Show more".
   const dims = extractDimensions(product.description);
@@ -74,35 +76,13 @@ export default function ProductInfoPanel({
         {product.era ? ` · ${product.era}` : ""}
       </p>
       <h1 className="mt-2 font-serif text-3xl lg:order-2 lg:text-[25px] lg:leading-snug">{displayName}</h1>
-      <p className="mt-3 text-lg text-muted lg:order-3 lg:text-2xl lg:text-ink">{formatPrice(product.price)}</p>
+      <p className="mt-3 text-lg text-muted lg:order-3 lg:mt-[18px] lg:text-[21px] lg:font-semibold lg:tracking-[0.01em] lg:text-ink">{formatPrice(product.price)}</p>
 
-      <div className="mt-3 space-y-1 text-sm text-muted lg:hidden">
-        {/* Update 126: the same Royal Mail options the buyer gets at checkout. */}
-        {ukDeliveryLines(product).lines.map((l, i) => (
-          <p key={i}>
-            {i === 0 ? "🚚 " : <span className="inline-block w-[1.35em]" />}
-            {l.label}
-            {l.price !== null && (
-              <>
-                {" — "}
-                <span className="text-ink font-medium">{l.price === 0 ? "Free" : formatPrice(l.price)}</span>
-              </>
-            )}
-          </p>
-        ))}
-        {typeof product.international_shipping_cost === "number" &&
-        product.international_shipping_cost > 0 ? (
-          <p>✈️ {t("product.international")}: <span className="text-ink font-medium">{formatPrice(product.international_shipping_cost)}</span></p>
-        ) : isForSale ? (
-          <p>
-            🌍 {t("product.outsideUk")} —{" "}
-            <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline">
-              {t("product.askUs")}
-            </a>
-          </p>
-        ) : null}
+      {/* Update 128: Royal Mail delivery card (phones: same place as before). */}
+      <div className="mt-4 lg:hidden">
+        <DeliveryCard product={product} isForSale={isForSale} />
         {typeof product.shipping_cost === "number" && product.shipping_cost > 0 && (
-          <p className="text-xs">Local collection welcome — <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline">message us on WhatsApp</a></p>
+          <p className="mt-2 text-xs text-muted">Local collection welcome — <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline">message us on WhatsApp</a></p>
         )}
       </div>
       <DesktopFacts product={product} isForSale={isForSale} />
@@ -202,80 +182,98 @@ export default function ProductInfoPanel({
   );
 }
 
-// Update 125: delivery + reassurance as one tidy block with thin gold line
-// icons (computers only; phones keep the original lines).
-function FactIcon({ d }: { d: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0 text-[#AD8A4E]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={d} />
-    </svg>
-  );
-}
-
-const ICONS = {
-  van: "M3 7h11v9H3zM14 10h4l3 3v3h-7M5.2 17.5a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0M15.2 17.5a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0",
-  globe: "M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17",
-  lock: "M7 10.5h10a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-5.5a2 2 0 0 1 2-2ZM8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5",
-  returns: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4",
-  shield: "M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6zM8.5 12l2.5 2.5 4.5-5",
-  pin: "M12 21s-7-5.6-7-11a7 7 0 0 1 14 0c0 5.4-7 11-7 11ZM12 7.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5",
-};
-
-function DesktopFacts({ product, isForSale }: { product: Product; isForSale: boolean }) {
+// Update 128 (variant A): Royal Mail delivery card — the same options, prices
+// and insurance the buyer is offered at checkout (rules in /api/checkout).
+function DeliveryCard({ product, isForSale }: { product: Product; isForSale: boolean }) {
   const { t } = useLanguage();
-  const hasIntl =
-    typeof product.international_shipping_cost === "number" && product.international_shipping_cost > 0;
+  const d = ukDeliveryLines(product);
+  const intl = product.international_shipping_cost;
+  const money = (v: number | null) => (v === null ? null : v === 0 ? "Free" : formatPrice(v));
+  type Row = { title: ReactNode; note: string; price: string | null };
+  const rows: Row[] =
+    d.kind === "standard"
+      ? [
+          { title: "Tracked 48", note: "2–3 working days · tracked", price: money(d.lines[0].price) },
+          {
+            title: (
+              <>
+                Special Delivery
+                <span className="ml-1.5 inline-block rounded bg-[#FFF1DA] px-1.5 py-px align-[1px] text-[10px] tracking-[0.06em] text-[#8A6420]">INSURED £750</span>
+              </>
+            ),
+            note: "Next working day by 1pm · signed for",
+            price: money(d.lines[1].price),
+          },
+        ]
+      : d.kind === "special"
+      ? [
+          {
+            title: (
+              <>
+                Special Delivery
+                <span className="ml-1.5 inline-block rounded bg-[#FFF1DA] px-1.5 py-px align-[1px] text-[10px] tracking-[0.06em] text-[#8A6420]">INSURED £750</span>
+              </>
+            ),
+            note: "Next working day by 1pm · signed for — used for all items over £150",
+            price: money(d.lines[0].price),
+          },
+        ]
+      : d.kind === "insured"
+      ? [{ title: "Fully insured delivery", note: "Arranged with you personally after purchase", price: money(d.lines[0].price) }]
+      : [{ title: "Delivery by arrangement", note: "Large item — we'll contact you after purchase", price: money(d.lines[0].price) }];
+  const royalMail = d.kind === "standard" || d.kind === "special";
   return (
-    <div className="hidden lg:order-5 lg:mt-4 lg:grid lg:grid-cols-2 lg:gap-x-5 lg:gap-y-2.5 lg:border-b lg:border-border lg:pb-4 lg:text-[13.5px] lg:text-ink">
-      {/* Update 126: exactly the Royal Mail options offered at checkout. */}
-      <div className="col-span-2 flex items-start gap-2.5">
-        <FactIcon d={ICONS.van} />
-        <div className="space-y-0.5">
-          {ukDeliveryLines(product).lines.map((l, i) => (
-            <p key={i} className={i > 0 ? "text-muted" : ""}>
-              {l.label}
-              {l.price !== null && (
-                <>
-                  {" "}
-                  <span className="font-medium text-ink">{l.price === 0 ? "Free" : formatPrice(l.price)}</span>
-                </>
-              )}
-            </p>
-          ))}
-        </div>
-      </div>
-      {hasIntl ? (
-        <div className="flex items-center gap-2.5">
-          <FactIcon d={ICONS.globe} />
-          <span>
-            {t("product.international")} <span className="font-medium">{formatPrice(product.international_shipping_cost as number)}</span>
+    <div className="overflow-hidden rounded-xl border border-border text-sm text-ink">
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-[#FBF9F5] px-3.5 py-2 text-[12.5px]">
+        {royalMail ? (
+          <span className="inline-flex items-center gap-1.5 font-semibold text-[#DA202A]">
+            <span className="inline-block h-2 w-2 rounded-full bg-[#DA202A]" />
+            Royal Mail
           </span>
+        ) : (
+          <span className="font-semibold">UK delivery</span>
+        )}
+        <span className="text-muted">{d.kind === "standard" ? "UK delivery — choose at checkout" : "UK delivery"}</span>
+      </div>
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-start justify-between gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
+          <div>
+            {r.title}
+            <span className="mt-0.5 block text-[12.5px] text-muted">{r.note}</span>
+          </div>
+          {r.price && <span className="whitespace-nowrap font-semibold">{r.price}</span>}
+        </div>
+      ))}
+      {typeof intl === "number" && intl > 0 ? (
+        <div className="flex items-center justify-between gap-3 bg-[#FBF9F5] px-3.5 py-2.5">
+          <span>✈️ {t("product.international")}</span>
+          <span className="whitespace-nowrap font-semibold">{formatPrice(intl)}</span>
         </div>
       ) : isForSale ? (
-        <div className="flex items-center gap-2.5">
-          <FactIcon d={ICONS.globe} />
-          <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
-            {t("product.outsideUk")}
+        <div className="bg-[#FBF9F5] px-3.5 py-2.5">
+          ✈️ {t("product.outsideUk")} —{" "}
+          <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline">
+            {t("product.askUs")}
           </a>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+// Computers: the card under the buy buttons + reassurance with the emoji icons.
+function DesktopFacts({ product, isForSale }: { product: Product; isForSale: boolean }) {
+  const { t } = useLanguage();
+  return (
+    <div className="hidden lg:order-5 lg:mt-3.5 lg:block lg:border-b lg:border-border lg:pb-4">
+      <DeliveryCard product={product} isForSale={isForSale} />
       {isForSale && (
-        <>
-          <div className="flex items-center gap-2.5">
-            <FactIcon d={ICONS.lock} />
-            <span>{t("trust.secure")}</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <FactIcon d={ICONS.returns} />
-            <a href="/returns" className="underline-offset-2 hover:underline">{t("trust.returns")}</a>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <FactIcon d={ICONS.pin} />
-            <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
-              Collection in Evesham
-            </a>
-          </div>
-        </>
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13.5px] text-ink">
+          <span>🔒 {t("trust.secure")}</span>
+          <a href="/returns" className="underline-offset-2 hover:underline">↩ {t("trust.returns")}</a>
+          <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">📍 Collection in Evesham</a>
+          <span>✓ {t("trust.inspected")}</span>
+        </div>
       )}
     </div>
   );
