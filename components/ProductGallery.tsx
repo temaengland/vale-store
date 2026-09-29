@@ -295,11 +295,13 @@ export default function ProductGallery({
     );
   }
 
+  // Update 125 (computers): thumbnails in a column on the left, the main photo
+  // fits the screen height, and the gallery stays in view while scrolling.
   return (
-    <div>
+    <div className="lg:sticky lg:top-4 lg:flex lg:flex-row-reverse lg:items-start lg:gap-3 lg:self-start">
       <div
         ref={containerRef}
-        className="group relative aspect-square w-full touch-none overflow-hidden rounded-xl bg-surface"
+        className="group relative aspect-square w-full touch-none overflow-hidden rounded-xl bg-surface lg:aspect-auto lg:h-[calc(100vh-150px)] lg:max-h-[640px] lg:min-h-[360px] lg:min-w-0 lg:flex-1"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -324,10 +326,15 @@ export default function ProductGallery({
           type="button"
           onClick={openLightbox}
           aria-label="Enlarge photo"
-          className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-ink shadow opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-ink shadow opacity-0 transition-opacity group-hover:opacity-100 lg:bottom-3 lg:right-3 lg:opacity-100"
         >
           <ZoomIcon />
         </button>
+        {photos.length > 1 && (
+          <span className="pointer-events-none absolute bottom-3 left-3 hidden rounded-full bg-white/90 px-2.5 py-1 text-xs text-muted shadow-sm lg:block">
+            {active + 1} / {photos.length}
+          </span>
+        )}
         {photos.length > 1 && (
           <>
             <button
@@ -363,7 +370,7 @@ export default function ProductGallery({
       </div>
 
       {(photos.length > 1 || video) && (
-        <div className="mt-3 flex gap-2 overflow-x-auto">
+        <div className="mt-3 flex gap-2 overflow-x-auto lg:mt-0 lg:max-h-[calc(100vh-150px)] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden">
           {videoThumb}
           {photos.map((src, i) => (
             <button

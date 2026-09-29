@@ -41,8 +41,8 @@ export default function CategoryFilterRow({
   }
 
   return (
-    <div className="mt-4 first:mt-0">
-      <p className="mb-2 text-xs tracking-widest text-muted">{t(labelKey)}</p>
+    <div className="mt-4 first:mt-0 lg:mt-2.5">
+      <p className="mb-2 text-xs tracking-widest text-muted lg:hidden">{t(labelKey)}</p>
       <div className="flex flex-wrap gap-2">
         <Link
           href={hrefFor(undefined)}

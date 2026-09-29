@@ -853,7 +853,9 @@ export default function ProductsPanel({
               </p>
             </div>
             </div>
-            <div className="flex w-full flex-wrap items-center justify-end gap-1 border-t border-border pt-2 sm:w-auto sm:border-0 sm:pt-0">
+            {/* Update 125: buttons always in ONE line (no wrapping), whatever state
+                the Instagram / Reel / Cat. photo labels are in. */}
+            <div className="flex w-full flex-nowrap items-center justify-end gap-0.5 overflow-x-auto border-t border-border pt-2 [scrollbar-width:none] sm:w-auto sm:shrink-0 sm:border-0 sm:pt-0">
             {igStatus.configured &&
               ((p.images && p.images.length > 0) || p.image) &&
               p.status !== "sold" &&
@@ -865,18 +867,18 @@ export default function ProductsPanel({
                       ? "Already on Instagram — click to post again"
                       : "Post to Instagram"
                   }
-                  className={`shrink-0 rounded-md px-2.5 py-2 text-sm ${
+                  className={`shrink-0 whitespace-nowrap rounded-md px-2 py-2 text-[13px] ${
                     igStatus.posted[p.id] ? "text-green-700" : "text-[#AD8A4E] hover:text-ink"
                   }`}
                 >
-                  {igStatus.posted[p.id] ? "IG ✓" : "Instagram"}
+                  {igStatus.posted[p.id] ? "IG ✓" : "IG"}
                 </button>
               )}
             {igStatus.configured && p.status !== "sold" && !p.is_draft && (
               <button
                 onClick={() => setClipItem(p)}
                 title="Make an Instagram Reel for this item — from your video or its photos"
-                className={`shrink-0 rounded-md px-2.5 py-2 text-sm ${
+                className={`shrink-0 whitespace-nowrap rounded-md px-2 py-2 text-[13px] ${
                   clips[p.id]?.status === "posted" || reeled.includes(p.id)
                     ? "text-green-700"
                     : clips[p.id]
@@ -885,7 +887,7 @@ export default function ProductsPanel({
                 }`}
               >
                 {clips[p.id] && clips[p.id].status !== "posted"
-                  ? "Reel · video"
+                  ? "Reel ▶"
                   : clips[p.id]?.status === "posted" || reeled.includes(p.id)
                   ? "Reel ✓"
                   : "Reel"}
@@ -899,7 +901,7 @@ export default function ProductsPanel({
                     ? "This photo is shown on the homepage for its category — click to stop using it"
                     : "Show this item's photo on the homepage tile for its category"
                 }
-                className={`shrink-0 rounded-md px-2.5 py-2 text-sm ${
+                className={`shrink-0 whitespace-nowrap rounded-md px-2 py-2 text-[13px] ${
                   catPhotos[p.category] === p.id ? "text-green-700" : "text-muted hover:text-ink"
                 }`}
               >
@@ -908,13 +910,13 @@ export default function ProductsPanel({
             )}
             <button
               onClick={() => startEdit(p)}
-              className="shrink-0 rounded-md px-2.5 py-2 text-sm text-muted hover:text-ink"
+              className="shrink-0 whitespace-nowrap rounded-md px-2 py-2 text-[13px] text-muted hover:text-ink"
             >
               Edit
             </button>
             <button
               onClick={() => handleDelete(p.id)}
-              className="shrink-0 rounded-md px-2.5 py-2 text-sm text-red-600"
+              className="shrink-0 whitespace-nowrap rounded-md px-2 py-2 text-[13px] text-red-600"
             >
               Delete
             </button>

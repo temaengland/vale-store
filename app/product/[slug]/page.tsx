@@ -88,7 +88,7 @@ export default async function ProductPage({
   const others = available.filter((p) => p.category !== product.category);
   // Only what the cards need (update 121): keeps other items' photo lists and
   // descriptions out of this page, so Google ties each photo to its own page.
-  const relatedProducts: Product[] = [...sameSubcategory, ...sameCategory, ...others].slice(0, 4).map((p) => {
+  const relatedProducts: Product[] = [...sameSubcategory, ...sameCategory, ...others].slice(0, 5).map((p) => {
     const cover = p.images?.[0] || p.image || undefined;
     return { ...p, description: "", images: cover ? [cover] : [], image: undefined };
   });
@@ -158,17 +158,21 @@ export default async function ProductPage({
   ];
 
   return (
-    <div>
+    <div className="lg:-mt-6">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(crumbs.map((c) => ({ name: c.name, url: c.url })))) }}
       />
       {/* Update 121: "Back" returns to where you came from (same list, same place). */}
-      <BackLink fallback={`/category/${product.category}`} />
-      <div className="-mt-2 hidden sm:block">
-        <Breadcrumbs items={crumbs.map((c) => ({ href: c.href, labelKey: c.labelKey, label: c.label }))} />
+      {/* Update 125 (computers): Back and the path share one line. */}
+      <div className="lg:mb-3.5 lg:flex lg:items-center lg:gap-3 lg:[&_button]:mb-0 lg:[&_nav]:mb-0">
+        <BackLink fallback={`/category/${product.category}`} />
+        <span aria-hidden className="hidden text-border-strong lg:inline">|</span>
+        <div className="-mt-2 hidden sm:block lg:mt-0">
+          <Breadcrumbs items={crumbs.map((c) => ({ href: c.href, labelKey: c.labelKey, label: c.label }))} />
+        </div>
       </div>
-      <div className="grid min-w-0 gap-10 sm:grid-cols-2 [&>*]:min-w-0">
+      <div className="grid min-w-0 gap-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-12 [&>*]:min-w-0">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -184,7 +188,7 @@ export default async function ProductPage({
           product={product}
           paid={searchParams.paid}
           canceled={searchParams.canceled}
-          relatedProducts={forSale ? [] : relatedProducts}
+          relatedProducts={forSale ? [] : relatedProducts.slice(0, 4)}
         />
       </div>
 
@@ -193,9 +197,12 @@ export default async function ProductPage({
           <p className="text-xs tracking-widest text-muted">
             <T k="product.alsoLike" />
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-4">
-            {relatedProducts.map((p) => (
-              <ProductCard key={p.slug} product={p} hideFromImageSearch />
+          <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-4 lg:grid-cols-5 lg:gap-5">
+            {relatedProducts.map((p, i) => (
+              // Update 125: 5 in a row on computers; phones keep 4.
+              <div key={p.slug} className={i >= 4 ? "hidden lg:block" : ""}>
+                <ProductCard product={p} hideFromImageSearch />
+              </div>
             ))}
           </div>
         </div>

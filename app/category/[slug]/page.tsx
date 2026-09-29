@@ -89,8 +89,27 @@ export default async function CategoryPage({
       )
     : [];
 
+  // Update 124 (computers only): the count + sort sit in the same row as the
+  // type buttons, so the pieces start higher on the screen.
+  const countAndSort = (
+    <>
+      <p className="whitespace-nowrap text-sm text-muted">
+        {shownInStock} <T k="list.available" />
+        {shownSold > 0 && (
+          <>
+            {" · "}
+            {shownSold} <T k="list.sold" />
+          </>
+        )}
+      </p>
+      <Suspense>
+        <SortSelect value={sort} />
+      </Suspense>
+    </>
+  );
+
   return (
-    <div>
+    <div className="lg:-mt-4">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -100,9 +119,16 @@ export default async function CategoryPage({
         }}
       />
       <Breadcrumbs items={[{ href: "/", labelKey: "crumb.home" }, { labelKey: `category.name.${category.slug}` }]} />
-      <h1 className="font-serif text-3xl">
-        <T k={`category.name.${category.slug}`} />
-      </h1>
+      {/* Update 124: on computers a short description fills the space to the
+          right of the title (phones unchanged). */}
+      <div className="lg:-mt-1 lg:flex lg:items-end lg:justify-between lg:gap-12 lg:border-b lg:border-border lg:pb-4">
+        <h1 className="font-serif text-3xl lg:whitespace-nowrap lg:text-[34px]">
+          <T k={`category.name.${category.slug}`} />
+        </h1>
+        <p className="mb-1 hidden max-w-[520px] text-[14.5px] leading-relaxed text-muted lg:block">
+          <T k={`category.intro.${category.slug}`} />
+        </p>
+      </div>
 
       {tag && (
         <p className="mt-3 text-sm text-muted">
@@ -113,7 +139,8 @@ export default async function CategoryPage({
         </p>
       )}
 
-      <div className="mt-5">
+      <div className="mt-5 lg:mt-4 lg:flex lg:items-start lg:justify-between lg:gap-6">
+      <div className="min-w-0">
         {subOptions.length > 0 && (
         <CategoryFilterRow
           labelKey="category.type"
@@ -136,6 +163,8 @@ export default async function CategoryPage({
             counts={eraCounts}
           />
         )}
+      </div>
+      {!isEmpty && <div className="hidden shrink-0 items-center gap-4 lg:flex">{countAndSort}</div>}
       </div>
 
       {isEmpty ? (
@@ -183,21 +212,10 @@ export default async function CategoryPage({
         </div>
       ) : (
         <>
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted">
-            {shownInStock} <T k="list.available" />
-            {shownSold > 0 && (
-              <>
-                {" · "}
-                {shownSold} <T k="list.sold" />
-              </>
-            )}
-          </p>
-          <Suspense>
-            <SortSelect value={sort} />
-          </Suspense>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 lg:hidden">
+          {countAndSort}
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4 lg:mt-5">
           {items.map((p) => (
             <ProductCard key={p.slug} product={p} />
           ))}

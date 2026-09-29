@@ -11,11 +11,17 @@ const WHATSAPP_NUMBER = "447918527790";
 export default function InquiryForm({
   product,
   displayName,
+  compactOnDesktop = false,
 }: {
   product: Product;
   displayName?: string;
+  /** Update 125: on computers show a light WhatsApp button + "or ask by email"
+   *  link; the form opens on click. Phones are unchanged. */
+  compactOnDesktop?: boolean;
 }) {
   const { t } = useLanguage();
+  const [formOpen, setFormOpen] = useState(false);
+  const hideOnDesktop = compactOnDesktop && !formOpen ? "lg:hidden" : "";
   const name0 = displayName ?? product.name;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -74,20 +80,40 @@ export default function InquiryForm({
   }
 
   return (
-    <div className="mt-8">
+    <div className={compactOnDesktop ? "mt-8 lg:mt-5" : "mt-8"}>
+      <div className={compactOnDesktop ? "lg:flex lg:items-center lg:gap-4" : ""}>
       <a
         href={whatsappHref}
         target="_blank"
         rel="noreferrer"
-        className="inline-block rounded-md bg-ink px-6 py-3 text-sm text-white hover:opacity-90 transition-opacity"
+        className={`inline-block rounded-md bg-ink px-6 py-3 text-sm text-white hover:opacity-90 transition-opacity ${
+          compactOnDesktop
+            ? "lg:inline-flex lg:items-center lg:gap-2 lg:border lg:border-border-strong lg:bg-white lg:px-4 lg:py-2.5 lg:text-ink lg:hover:border-ink lg:hover:opacity-100"
+            : ""
+        }`}
       >
+        {compactOnDesktop && (
+          <svg viewBox="0 0 24 24" className="hidden h-[17px] w-[17px] fill-[#25D366] lg:block" aria-hidden="true">
+            <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3Z" />
+          </svg>
+        )}
         {t("product.askWhatsapp")}
       </a>
+      {compactOnDesktop && !formOpen && (
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="hidden text-sm text-muted underline underline-offset-2 hover:text-ink lg:inline"
+        >
+          {t("product.askByEmail")}
+        </button>
+      )}
+      </div>
 
-      <p className="mt-6 mb-2 text-xs tracking-widest text-muted">
+      <p className={`mt-6 mb-2 text-xs tracking-widest text-muted ${hideOnDesktop}`}>
         {t("product.orLeaveDetails")}
       </p>
-      <form onSubmit={handleSubmit} className="space-y-2.5">
+      <form onSubmit={handleSubmit} className={`space-y-2.5 ${hideOnDesktop}`}>
         <input
           required
           placeholder={t("product.yourName")}
