@@ -10,6 +10,7 @@ import ExpandableDescription from "@/components/ExpandableDescription";
 import ProductCard from "@/components/ProductCard";
 import NotifyMeForm from "@/components/NotifyMeForm";
 import { useLanguage } from "@/lib/language-context";
+import { extractDimensions } from "@/lib/shop";
 
 export default function ProductInfoPanel({
   product,
@@ -59,6 +60,9 @@ export default function ProductInfoPanel({
 
   const displayName = translated?.name ?? product.name;
   const displayDescription = translated?.description ?? product.description;
+  const isForSale = !product.status || product.status === "available";
+  // Update 116: dimensions shown on their own, not hidden under "Show more".
+  const dims = extractDimensions(product.description);
 
   return (
     <div>
@@ -78,13 +82,30 @@ export default function ProductInfoPanel({
           )
         ) : null}
         {typeof product.international_shipping_cost === "number" &&
-          product.international_shipping_cost > 0 && (
-          <p>✈️ International: <span className="text-ink font-medium">{formatPrice(product.international_shipping_cost)}</span></p>
-        )}
+        product.international_shipping_cost > 0 ? (
+          <p>✈️ {t("product.international")}: <span className="text-ink font-medium">{formatPrice(product.international_shipping_cost)}</span></p>
+        ) : isForSale ? (
+          <p>
+            🌍 {t("product.outsideUk")} —{" "}
+            <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline">
+              {t("product.askUs")}
+            </a>
+          </p>
+        ) : null}
         {typeof product.shipping_cost === "number" && product.shipping_cost > 0 && (
           <p className="text-xs">Local collection welcome — <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline">message us on WhatsApp</a></p>
         )}
       </div>
+      {dims && (
+        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-surface px-4 py-3 text-sm sm:grid-cols-3">
+          {dims.map((d) => (
+            <div key={d.label + d.value}>
+              <dt className="text-[10.5px] uppercase tracking-widest text-muted">{d.label}</dt>
+              <dd className="text-ink">{d.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       <div className="mt-6">
         <ExpandableDescription text={displayDescription} />
       </div>
@@ -98,7 +119,7 @@ export default function ProductInfoPanel({
           {relatedProducts && relatedProducts.length > 0 && (
             <div className="mt-6">
               <p className="text-xs tracking-widest text-muted">
-                YOU MIGHT ALSO LIKE
+                {t("product.alsoLike")}
               </p>
               <div className="mt-3 grid grid-cols-2 gap-4">
                 {relatedProducts.map((p) => (
@@ -110,7 +131,7 @@ export default function ProductInfoPanel({
 
           <div className="mt-6">
             <p className="mb-2 text-xs tracking-widest text-muted">
-              WANT SOMETHING LIKE THIS?
+              {t("product.wantSimilar")}
             </p>
             <NotifyMeForm
               category={product.category}
@@ -138,6 +159,19 @@ export default function ProductInfoPanel({
           {canceled && (
             <p className="mt-2 text-sm text-muted">{t("product.cancelled")}</p>
           )}
+
+          {/* Update 116: reassurance right under the buy buttons. */}
+          <ul className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 rounded-lg border border-border px-4 py-3 text-[13px] text-ink sm:grid-cols-2">
+            <li>🔒 {t("trust.secure")}</li>
+            <li>
+              ↩{" "}
+              <a href="/returns" className="underline-offset-2 hover:underline">
+                {t("trust.returns")}
+              </a>
+            </li>
+            <li>📦 {t("trust.delivery")}</li>
+            <li>✓ {t("trust.inspected")}</li>
+          </ul>
 
           <div className="my-6 flex items-center gap-3 text-xs text-muted">
             <span className="h-px flex-1 bg-border" />

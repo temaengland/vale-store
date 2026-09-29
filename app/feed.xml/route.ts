@@ -1,5 +1,6 @@
 import { getAllProducts } from "@/lib/data";
 import { Product } from "@/lib/products";
+import { isFeedRestricted } from "@/lib/shop";
 
 // Product feed for Google Merchant Center (free Shopping listings)
 // and Meta Commerce Manager (Instagram / Facebook Shop).
@@ -14,6 +15,7 @@ const BASE_URL = "https://www.charmchase.co.uk";
 const GOOGLE_CATEGORY: Record<Product["category"], string> = {
   furniture: "Furniture",
   jewelry: "Apparel & Accessories > Jewelry",
+  silver: "Home & Garden > Decor",
   decor: "Home & Garden > Decor",
   art: "Home & Garden > Decor > Artwork",
 };
@@ -21,6 +23,7 @@ const GOOGLE_CATEGORY: Record<Product["category"], string> = {
 const CATEGORY_NAME: Record<Product["category"], string> = {
   furniture: "Furniture",
   jewelry: "Jewellery & Watches",
+  silver: "Silver",
   decor: "Decor",
   art: "Art",
 };
@@ -105,6 +108,10 @@ export async function GET(request: Request) {
 
   const items = all
     .filter((p) => !p.status || p.status === "available") // only things that can be bought
+    // Update 116: Google Shopping / Meta don't accept tortoiseshell, ivory,
+    // weapons (powder flasks, swords…) etc. — kept on the site, left out here
+    // so one listing can't get the Merchant Center account suspended.
+    .filter((p) => !isFeedRestricted(p))
     .map((p) => itemXml(p, isMeta))
     .filter(Boolean)
     .join("\n");

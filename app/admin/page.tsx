@@ -116,7 +116,8 @@ export default function AdminPage() {
         </button>
       </div>
 
-      <div className="mt-6 flex gap-2 overflow-x-auto whitespace-nowrap border-b border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [scroll-snap-type:x_proximity]">
+      {/* Update 118: the tab bar stays at the top of the screen while scrolling. */}
+      <div className="sticky top-0 z-40 -mx-6 mt-6 flex gap-2 overflow-x-auto whitespace-nowrap border-b border-border bg-white/95 px-6 shadow-[0_6px_12px_-10px_rgba(0,0,0,0.25)] backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [scroll-snap-type:x_proximity]">
         {(
           [
             "notifications",
@@ -130,7 +131,10 @@ export default function AdminPage() {
         ).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              window.scrollTo({ top: 0 });
+            }}
             className={`shrink-0 scroll-mx-4 px-4 py-2 text-sm border-b-2 -mb-px transition-colors [scroll-snap-align:start] ${
               tab === t
                 ? "border-ink text-ink"

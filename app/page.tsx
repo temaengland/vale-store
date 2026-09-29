@@ -1,10 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
+import heroPhoto from "@/public/images/hero.jpg";
+import { isAvailable } from "@/lib/shop";
 import { getAllCategories, getAllProducts } from "@/lib/data";
 import CategoryTile from "@/components/CategoryTile";
 import ProductCard from "@/components/ProductCard";
 import PaidBanner from "@/components/PaidBanner";
 import T from "@/components/T";
+import NewsletterSignup from "@/components/NewsletterSignup";
+import { resolveCategoryPhotos } from "@/lib/categoryPhotos";
 import type { Metadata } from "next";
 
 // Always fetch fresh data — without this, deletes/edits made in the admin
@@ -30,6 +34,14 @@ export default async function HomePage({
   const products = await getAllProducts();
   const furnitureSubcats = categories.find((c) => c.slug === "furniture")!
     .subcategories;
+  const available = products.filter(isAvailable);
+  const categoryPhotos = await resolveCategoryPhotos(products, categories.map((c) => c.slug));
+  // Update 116: 12 newest pieces in stock; sold ones get their own row.
+  const newest = available.slice(0, 12);
+  const recentlySold = products.filter((p) => p.status === "sold").slice(0, 6);
+  const furnitureChips = furnitureSubcats
+    .map((s) => [s, available.filter((p) => p.category === "furniture" && p.subcategory === s).length] as const)
+    .filter(([, n]) => n > 0);
 
   // LocalBusiness structured data — tells Google this is a real local
   // antiques business, matching the Google Business Profile (same name,
@@ -59,68 +71,113 @@ export default async function HomePage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       {searchParams.paid && <PaidBanner />}
-      <div className="relative aspect-[16/7] w-full overflow-hidden rounded-xl">
+
+      {/* Update 116: lower hero with the headline and a button on the photo,
+          so the pieces for sale are visible straight away. */}
+      <div className="relative h-[260px] w-full overflow-hidden rounded-xl bg-[#CFC6B7] sm:h-[320px]">
         <Image
-          src="/images/hero.jpg"
+          src={heroPhoto}
           alt="A warm, light-filled living room styled with vintage and contemporary furniture"
           fill
           priority
+          placeholder="blur"
           sizes="(max-width: 768px) 100vw, 1152px"
           className="object-cover"
         />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/30 to-transparent" />
+        <div className="absolute inset-y-0 left-0 flex max-w-xl flex-col justify-center px-6 text-white sm:px-10">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/85">
+            <T k="home.location" />
+          </p>
+          <h1 className="mt-2 font-serif text-[26px] leading-tight sm:text-4xl">
+            <T k="home.headline1" />
+            <br />
+            <T k="home.headline2" />
+          </h1>
+          <div className="mt-5">
+            <Link
+              href="/new"
+              className="inline-block rounded-md bg-white px-5 py-2.5 text-sm text-ink transition-colors hover:bg-surface"
+            >
+              <T k="home.shopNew" /> →
+            </Link>
+          </div>
+        </div>
       </div>
-
-      <p className="mt-2 text-right text-[11px] text-muted">
-        Photo: Spacejoy / Unsplash
-      </p>
-
-      <p className="mt-6 text-xs tracking-widest text-muted">
-        <T k="home.location" />
-      </p>
-      <h1 className="mt-3 font-serif text-3xl leading-tight sm:text-4xl">
-        <T k="home.headline1" />
-        <br />
-        <T k="home.headline2" />
-      </h1>
 
       <p className="mt-10 text-xs tracking-widest text-muted">
         <T k="home.shopByCategory" />
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {categories.map((c) => (
+      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
+        {categories.map((c, i) => (
           <CategoryTile
             key={c.slug}
             category={c}
-            count={products.filter((p) => p.category === c.slug).length}
+            // Update 120: on phones (2 per row) an odd last card spans the full
+            // row and is centred, so the grid has no gap.
+            className={
+              categories.length % 2 === 1 && i === categories.length - 1
+                ? "col-span-2 justify-center lg:col-span-1 lg:justify-start"
+                : ""
+            }
+            photo={categoryPhotos[c.slug]}
           />
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        {furnitureSubcats.map((s) => (
-          <Link
-            key={s}
-            href={`/category/furniture?sub=${encodeURIComponent(s)}`}
-            className="rounded-full border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink transition-colors"
-          >
-            {s}
-          </Link>
-        ))}
-      </div>
+      {/* Only furniture types that have something in stock (update 116). */}
+      {furnitureChips.length > 0 && (
+        <div className="mt-6 flex flex-wrap gap-2">
+          {furnitureChips.map(([s, n]) => (
+            <Link
+              key={s}
+              href={`/category/furniture?sub=${encodeURIComponent(s)}`}
+              className="rounded-full border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink transition-colors"
+            >
+              {s} <span className="opacity-60">{n}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="mt-16 flex items-baseline justify-between">
         <p className="text-xs tracking-widest text-muted">
-          <T k="home.newThisWeek" />
+          <T k="home.newArrivals" />
         </p>
-        <Link href="/category/furniture" className="text-sm text-muted">
-          <T k="home.viewAll" />
+        <Link href="/new" className="text-sm text-muted hover:text-ink">
+          <T k="home.viewAll" /> →
         </Link>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-4">
-        {products.map((p) => (
+        {newest.map((p) => (
           <ProductCard key={p.slug} product={p} />
         ))}
       </div>
+
+      {recentlySold.length > 0 && (
+        <>
+          <div className="mt-16 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-xs tracking-widest text-muted">
+              <T k="home.recentlySold" />
+            </p>
+            <a
+              href="https://wa.me/447918527790"
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-muted hover:text-ink"
+            >
+              <T k="home.lookingSimilar" /> →
+            </a>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-4 sm:grid-cols-6">
+            {recentlySold.map((p) => (
+              <ProductCard key={p.slug} product={p} />
+            ))}
+          </div>
+        </>
+      )}
+
+      <NewsletterSignup />
     </div>
   );
 }

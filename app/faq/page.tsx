@@ -23,7 +23,7 @@ const faqs = [
   },
   {
     q: "How much does shipping cost?",
-    a: "Estimated shipping is shown on each product page, with separate UK and international rates where applicable. You'll see the final shipping cost at checkout before you pay.",
+    a: "UK delivery is shown on each product page (Royal Mail Tracked 48 or Special Delivery; large furniture by arrangement). Where an international rate is set it's shown too — otherwise just message us for a shipping quote to your country. You'll see the final shipping cost at checkout before you pay.",
   },
   {
     q: "What is your returns policy?",

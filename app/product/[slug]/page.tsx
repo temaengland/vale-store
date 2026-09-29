@@ -4,8 +4,13 @@ import { getProduct, getAllProducts } from "@/lib/data";
 import { formatPrice, Product } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
 import ProductInfoPanel from "@/components/ProductInfoPanel";
-import BackLink from "@/components/BackLink";
+import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
+import ProductCard from "@/components/ProductCard";
+import T from "@/components/T";
+import { getCategory } from "@/lib/data";
+import { isAvailable } from "@/lib/shop";
 import { trackProductView } from "@/lib/trackView";
+import { productVideo } from "@/lib/productVideo";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -69,24 +74,21 @@ export default async function ProductPage({
   // cut off an un-awaited call before it finishes.
   await trackProductView(product.slug);
 
-  // For a sold/unavailable piece, give the visitor somewhere to go next
-  // instead of a dead end — a few other available pieces from the same
-  // subcategory, falling back to the wider category if there aren't
-  // enough of those.
-  let relatedProducts: Product[] = [];
-  if (product.status && product.status !== "available") {
-    const all = await getAllProducts();
-    const available = all.filter(
-      (p) => p.slug !== product.slug && (!p.status || p.status === "available")
-    );
-    const sameSubcategory = available.filter(
-      (p) => p.subcategory === product.subcategory
-    );
-    const sameCategory = available.filter(
-      (p) => p.category === product.category && p.subcategory !== product.subcategory
-    );
-    relatedProducts = [...sameSubcategory, ...sameCategory].slice(0, 4);
-  }
+  // "You might also like" (update 116: for every piece, not only sold ones) —
+  // other pieces in stock from the same type, then the same category, then anything.
+  const all = await getAllProducts();
+  const available = all.filter((p) => p.slug !== product.slug && isAvailable(p));
+  const sameSubcategory = product.subcategory
+    ? available.filter((p) => p.category === product.category && p.subcategory === product.subcategory)
+    : [];
+  const sameCategory = available.filter(
+    (p) => p.category === product.category && !sameSubcategory.includes(p)
+  );
+  const others = available.filter((p) => p.category !== product.category);
+  const relatedProducts: Product[] = [...sameSubcategory, ...sameCategory, ...others].slice(0, 4);
+  const forSale = isAvailable(product);
+  const video = await productVideo(product.id);
+  const category = getCategory(product.category);
 
   // Structured data (schema.org Product) — lets Google show price and
   // stock status directly in search results, and helps it understand
@@ -114,12 +116,48 @@ export default async function ProductPage({
           : product.status === "unavailable"
           ? "https://schema.org/OutOfStock"
           : "https://schema.org/InStock",
+      itemCondition: "https://schema.org/UsedCondition",
+      seller: { "@type": "Organization", name: "CharmChase" },
+      // Update 116: delivery and returns, so Google can show them in results.
+      ...(typeof product.shipping_cost === "number"
+        ? {
+            shippingDetails: {
+              "@type": "OfferShippingDetails",
+              shippingRate: {
+                "@type": "MonetaryAmount",
+                value: (product.shipping_cost / 100).toFixed(2),
+                currency: "GBP",
+              },
+              shippingDestination: { "@type": "DefinedRegion", addressCountry: "GB" },
+            },
+          }
+        : {}),
+      hasMerchantReturnPolicy: {
+        "@type": "MerchantReturnPolicy",
+        applicableCountry: "GB",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: 14,
+        returnMethod: "https://schema.org/ReturnByMail",
+        returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
+      },
     },
   };
 
+  const crumbs: { href: string; labelKey?: string; label?: string; name: string; url: string }[] = [
+    { href: "/", labelKey: "crumb.home", name: "Home", url: "/" },
+    { href: `/category/${product.category}`, labelKey: `category.name.${product.category}`, name: category?.name || product.category, url: `/category/${product.category}` },
+    ...(product.subcategory
+      ? [{ href: `/category/${product.category}?sub=${encodeURIComponent(product.subcategory)}`, label: product.subcategory, name: product.subcategory, url: `/category/${product.category}?sub=${encodeURIComponent(product.subcategory)}` }]
+      : []),
+  ];
+
   return (
     <div>
-      <BackLink fallback={`/category/${product.category}`} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(crumbs.map((c) => ({ name: c.name, url: c.url })))) }}
+      />
+      <Breadcrumbs items={crumbs.map((c) => ({ href: c.href, labelKey: c.labelKey, label: c.label }))} />
       <div className="grid min-w-0 gap-10 sm:grid-cols-2 [&>*]:min-w-0">
         <script
           type="application/ld+json"
@@ -130,14 +168,28 @@ export default async function ProductPage({
           legacyImage={product.image}
           icon={product.icon}
           alt={product.name}
+          video={video}
         />
         <ProductInfoPanel
           product={product}
           paid={searchParams.paid}
           canceled={searchParams.canceled}
-          relatedProducts={relatedProducts}
+          relatedProducts={forSale ? [] : relatedProducts}
         />
       </div>
+
+      {forSale && relatedProducts.length > 0 && (
+        <div className="mt-16">
+          <p className="text-xs tracking-widest text-muted">
+            <T k="product.alsoLike" />
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-4">
+            {relatedProducts.map((p) => (
+              <ProductCard key={p.slug} product={p} hideFromImageSearch />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

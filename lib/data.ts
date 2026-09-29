@@ -5,6 +5,7 @@ import {
   Product,
   getCategory as getSeedCategory,
 } from "@/lib/products";
+import { cleanTitle } from "@/lib/shop";
 
 // Every function here checks Supabase first and falls back to the seed
 // data in lib/products.ts if Supabase isn't set up yet. This means the
@@ -25,7 +26,8 @@ export async function getAllProducts(): Promise<Product[]> {
       .select(PUBLIC_PRODUCT_COLUMNS)
       .eq("is_draft", false)
       .order("created_at", { ascending: false });
-    if (!error && data) return data as unknown as Product[];
+    // ALL-CAPS eBay titles are shown in normal case (update 116).
+    if (!error && data) return (data as unknown as Product[]).map((p) => ({ ...p, name: cleanTitle(p.name) }));
   }
   return seedProducts;
 }

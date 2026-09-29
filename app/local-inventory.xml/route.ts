@@ -1,4 +1,5 @@
 import { getAllProducts } from "@/lib/data";
+import { isFeedRestricted } from "@/lib/shop";
 
 // Local inventory feed for Google Merchant Center (free local listings):
 // tells Google which items are physically in the shop at 51 High Street, Evesham.
@@ -26,6 +27,7 @@ export async function GET() {
   const items = all
     .filter((p) => !p.status || p.status === "available")
     .filter((p) => (p.images && p.images.length) || p.image) // same set as /feed.xml
+    .filter((p) => !isFeedRestricted(p))
     .map((p) => {
       const dbId = (p as typeof p & { id?: string }).id;
       const id = dbId ? String(dbId) : p.slug.slice(0, 50);

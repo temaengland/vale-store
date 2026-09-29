@@ -4,10 +4,13 @@ import { Metadata } from "next";
 import { getCategory, getProductsByCategory } from "@/lib/data";
 import ProductCard from "@/components/ProductCard";
 import CategoryFilterRow from "@/components/CategoryFilterRow";
-import BackLink from "@/components/BackLink";
 import T from "@/components/T";
 import NotifyMeForm from "@/components/NotifyMeForm";
 import { trackCategoryView } from "@/lib/trackView";
+import { Suspense } from "react";
+import SortSelect from "@/components/SortSelect";
+import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
+import { isAvailable, parseSort, sortForListing } from "@/lib/shop";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -36,14 +39,30 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { sub?: string; era?: string };
+  searchParams: { sub?: string; era?: string; sort?: string };
 }) {
   const category = getCategory(params.slug);
   if (!category) return notFound();
 
   await trackCategoryView(category.slug);
 
-  const allInCategory = await getProductsByCategory(category.slug);
+  const sort = parseSort(searchParams.sort);
+  const allInCategory = sortForListing(await getProductsByCategory(category.slug));
+  const inStock = allInCategory.filter(isAvailable);
+  // Update 116: only show filter buttons that have something in stock
+  // (the one currently selected always stays, so it can be switched off).
+  const countBy = (key: "subcategory" | "era") => {
+    const m: Record<string, number> = {};
+    for (const p of inStock) {
+      const v = p[key];
+      if (v) m[v] = (m[v] || 0) + 1;
+    }
+    return m;
+  };
+  const subCounts = countBy("subcategory");
+  const eraCounts = countBy("era");
+  const subOptions = category.subcategories.filter((s) => subCounts[s] || s === searchParams.sub);
+  const eraOptions = (category.eras || []).filter((e) => eraCounts[e] || e === searchParams.era);
   let items = allInCategory;
   if (searchParams.sub) {
     items = items.filter((p) => p.subcategory === searchParams.sub);
@@ -52,6 +71,9 @@ export default async function CategoryPage({
     items = items.filter((p) => p.era === searchParams.era);
   }
 
+  items = sortForListing(items, sort);
+  const shownInStock = items.filter(isAvailable).length;
+  const shownSold = items.length - shownInStock;
   const isFiltered = Boolean(searchParams.sub || searchParams.era);
   const isEmpty = items.length === 0;
 
@@ -66,28 +88,40 @@ export default async function CategoryPage({
 
   return (
     <div>
-      <BackLink />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([{ name: "Home", url: "/" }, { name: category.name, url: `/category/${category.slug}` }])
+          ),
+        }}
+      />
+      <Breadcrumbs items={[{ href: "/", labelKey: "crumb.home" }, { labelKey: `category.name.${category.slug}` }]} />
       <h1 className="font-serif text-3xl">
         <T k={`category.name.${category.slug}`} />
       </h1>
 
       <div className="mt-5">
+        {subOptions.length > 0 && (
         <CategoryFilterRow
           labelKey="category.type"
           axis="sub"
           categorySlug={category.slug}
           currentSub={searchParams.sub}
           currentEra={searchParams.era}
-          options={category.subcategories}
+          options={subOptions}
+          counts={subCounts}
         />
-        {category.eras && (
+        )}
+        {eraOptions.length > 0 && (
           <CategoryFilterRow
             labelKey="category.era"
             axis="era"
             categorySlug={category.slug}
             currentSub={searchParams.sub}
             currentEra={searchParams.era}
-            options={category.eras}
+            options={eraOptions}
+            counts={eraCounts}
           />
         )}
       </div>
@@ -136,11 +170,27 @@ export default async function CategoryPage({
           )}
         </div>
       ) : (
-        <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-4">
+        <>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted">
+            {shownInStock} <T k="list.available" />
+            {shownSold > 0 && (
+              <>
+                {" · "}
+                {shownSold} <T k="list.sold" />
+              </>
+            )}
+          </p>
+          <Suspense>
+            <SortSelect value={sort} />
+          </Suspense>
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
           {items.map((p) => (
             <ProductCard key={p.slug} product={p} />
           ))}
         </div>
+        </>
       )}
     </div>
   );

@@ -13,6 +13,7 @@ const FRAME_LIGHT = "#6B5940";
 export const categoryTileBg: Record<string, string> = {
   furniture: "#EAE2D4",
   jewelry: "#F1E9D8",
+  silver: "#E6E7E3",
   decor: "#E8E6DC",
   art: "#EDE6D8",
 };
@@ -42,6 +43,19 @@ export function CategoryIcon({
           <ellipse cx="50" cy="56" rx="25" ry="27" fill="none" stroke={BRASS} strokeWidth="9" />
           <path d="M50 12 L57 22 L50 27 L43 22 Z" fill={BRASS_DARK} />
           <circle cx="50" cy="18" r="4" fill={CREAM} />
+        </svg>
+      );
+    case "silver":
+      // A silver teapot (update 117).
+      return (
+        <svg viewBox="0 0 100 100" className={className}>
+          <path d="M26 44 Q26 30 50 30 Q74 30 74 44 L72 70 Q70 80 50 80 Q30 80 28 70 Z" fill="#9EA3A6" />
+          <path d="M28 50 H72" stroke="#7D8286" strokeWidth="3" />
+          <path d="M74 46 Q88 44 88 58 Q88 68 74 66" fill="none" stroke="#7D8286" strokeWidth="6" strokeLinecap="round" />
+          <path d="M27 50 Q14 46 10 34" fill="none" stroke="#7D8286" strokeWidth="6" strokeLinecap="round" />
+          <ellipse cx="50" cy="29" rx="14" ry="4" fill="#7D8286" />
+          <circle cx="50" cy="22" r="5" fill={BRASS} />
+          <rect x="36" y="80" width="28" height="5" rx="2" fill="#7D8286" />
         </svg>
       );
     case "decor":

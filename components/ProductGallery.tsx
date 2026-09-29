@@ -42,14 +42,17 @@ export default function ProductGallery({
   legacyImage,
   icon,
   alt,
+  video,
 }: {
   images?: string[] | null;
   legacyImage?: string | null;
   icon: IconName;
   alt: string;
+  video?: { url: string; poster: string | null } | null; // update 117: the item's Reel
 }) {
   const photos = images && images.length > 0 ? images : legacyImage ? [legacyImage] : [];
   const [active, setActive] = useState(0);
+  const [showVideo, setShowVideo] = useState(Boolean(video));
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
 
@@ -240,6 +243,58 @@ export default function ProductGallery({
     );
   }
 
+  const videoThumb = video ? (
+    <button
+      type="button"
+      onClick={() => setShowVideo(true)}
+      aria-label="Play video"
+      className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border-2 bg-[#2a241d] text-white transition-colors ${
+        showVideo ? "border-ink" : "border-transparent"
+      }`}
+    >
+      {video.poster && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={video.poster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70" />
+      )}
+      <span className="relative text-lg">▶</span>
+    </button>
+  ) : null;
+
+  if (video && showVideo) {
+    return (
+      <div>
+        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black">
+          <video
+            src={video.url}
+            poster={video.poster || undefined}
+            controls
+            playsInline
+            preload="metadata"
+            className="h-full w-full object-contain"
+          />
+        </div>
+        <div className="mt-3 flex gap-2 overflow-x-auto">
+          {videoThumb}
+          {photos.map((src, i) => (
+            <button
+              key={src}
+              onClick={() => {
+                setShowVideo(false);
+                setActive(i);
+                setScale(1);
+                setOffset({ x: 0, y: 0 });
+              }}
+              className="h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 border-transparent bg-surface"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={`${alt} — photo ${i + 1} of ${photos.length}`} className="h-full w-full object-contain" />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div
@@ -307,8 +362,9 @@ export default function ProductGallery({
         )}
       </div>
 
-      {photos.length > 1 && (
+      {(photos.length > 1 || video) && (
         <div className="mt-3 flex gap-2 overflow-x-auto">
+          {videoThumb}
           {photos.map((src, i) => (
             <button
               key={src}
@@ -318,7 +374,7 @@ export default function ProductGallery({
                 setOffset({ x: 0, y: 0 });
               }}
               className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 bg-surface transition-colors ${
-                i === active ? "border-ink" : "border-transparent"
+                i === active && !showVideo ? "border-ink" : "border-transparent"
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

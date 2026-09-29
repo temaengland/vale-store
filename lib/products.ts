@@ -4,7 +4,7 @@ export type Product = {
   slug: string;
   name: string;
   price: number; // in pence — the sale/listing price shown to customers
-  category: "furniture" | "jewelry" | "decor" | "art";
+  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
   subcategory?: string;
   era?: string; // period/style, e.g. "Victorian" — currently used for Art
   description: string;
@@ -18,6 +18,8 @@ export type Product = {
   length_cm?: number;
   width_cm?: number;
   height_cm?: number;
+  id?: string; // database id (not set for seed data)
+  created_at?: string;
 };
 
 // Admin-only fields — never fetched on public pages, only via the
@@ -28,7 +30,7 @@ export type AdminProduct = Product & {
 };
 
 export type Category = {
-  slug: "furniture" | "jewelry" | "decor" | "art";
+  slug: "furniture" | "jewelry" | "silver" | "decor" | "art";
   name: string;
   subcategories: string[];
   eras?: string[]; // optional second filter axis, only set for categories that need it
@@ -84,7 +86,23 @@ export const categories: Category[] = [
       "Watches",
       "Medals",
       "Coins",
-      "Silver",
+    ],
+  },
+  {
+    // Update 117: silverware gets its own category (salvers, rattles,
+    // boxes, cutlery…) — silver jewellery stays in Jewellery & Watches.
+    slug: "silver",
+    name: "Silver",
+    subcategories: [
+      "Salvers & Trays",
+      "Tea & Coffee",
+      "Cutlery & Flatware",
+      "Candlesticks",
+      "Boxes & Cases",
+      "Christening & Baby",
+      "Cups & Trophies",
+      "Dressing Table",
+      "Novelties & Collectables",
       "Silver Plate",
     ],
   },
@@ -194,9 +212,13 @@ export function getProduct(slug: string) {
   return products.find((p) => p.slug === slug);
 }
 
+// Whole-pound prices show without ".00" (£1,250); pennies are kept when there are any (update 116).
 export function formatPrice(pence: number) {
+  const whole = pence % 100 === 0;
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "GBP",
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: 2,
   }).format(pence / 100);
 }

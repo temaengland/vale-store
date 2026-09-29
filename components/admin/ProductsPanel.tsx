@@ -12,7 +12,7 @@ type AdminProduct = {
   slug: string;
   name: string;
   price: number;
-  category: "furniture" | "jewelry" | "decor" | "art";
+  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
   subcategory?: string;
   era?: string;
   description: string;
@@ -99,6 +99,26 @@ export default function ProductsPanel({
   useEffect(() => {
     loadClips();
   }, []);
+
+  // Update 118: which item's photo is shown on each homepage category tile.
+  const [catPhotos, setCatPhotos] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch("/api/admin/category-photo")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setCatPhotos(d.photos || {}))
+      .catch(() => {});
+  }, []);
+  async function toggleCategoryPhoto(p: { id: string; category: string }) {
+    const isSet = catPhotos[p.category] === p.id;
+    const r = await fetch("/api/admin/category-photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: p.category, productId: isSet ? null : p.id }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) setCatPhotos(d.photos || {});
+    else alert(d.error || "Couldn't save the category photo.");
+  }
 
   async function loadInstagramStatus() {
     try {
@@ -869,6 +889,21 @@ export default function ProductsPanel({
                   : clips[p.id]?.status === "posted" || reeled.includes(p.id)
                   ? "Reel ✓"
                   : "Reel"}
+              </button>
+            )}
+            {((p.images && p.images.length > 0) || p.image) && p.status !== "sold" && !p.is_draft && (
+              <button
+                onClick={() => toggleCategoryPhoto(p)}
+                title={
+                  catPhotos[p.category] === p.id
+                    ? "This photo is shown on the homepage for its category — click to stop using it"
+                    : "Show this item's photo on the homepage tile for its category"
+                }
+                className={`shrink-0 rounded-md px-2.5 py-2 text-sm ${
+                  catPhotos[p.category] === p.id ? "text-green-700" : "text-muted hover:text-ink"
+                }`}
+              >
+                {catPhotos[p.category] === p.id ? "Cat. photo ✓" : "Cat. photo"}
               </button>
             )}
             <button

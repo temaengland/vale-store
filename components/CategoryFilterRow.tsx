@@ -21,6 +21,7 @@ export default function CategoryFilterRow({
   currentSub,
   currentEra,
   options,
+  counts,
 }: {
   labelKey: string;
   axis: "sub" | "era";
@@ -28,6 +29,7 @@ export default function CategoryFilterRow({
   currentSub?: string;
   currentEra?: string;
   options: string[];
+  counts?: Record<string, number>; // pieces in stock per option (update 116)
 }) {
   const { t } = useLanguage();
   const active = axis === "sub" ? currentSub : currentEra;
@@ -63,6 +65,7 @@ export default function CategoryFilterRow({
             }`}
           >
             {o}
+            {counts?.[o] ? <span className="ml-1.5 opacity-60">{counts[o]}</span> : null}
           </Link>
         ))}
       </div>

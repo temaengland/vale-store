@@ -5,7 +5,7 @@ type CaptionItem = {
   name: string;
   description?: string;
   price: number; // pence
-  category: "furniture" | "jewelry" | "decor" | "art";
+  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
   subcategory?: string;
   era?: string;
   length_cm?: number;
@@ -17,6 +17,7 @@ type CaptionItem = {
 const CATEGORY_TAGS: Record<CaptionItem["category"], [string, string]> = {
   furniture: ["antiquefurniture", "vintagefurniture"],
   jewelry: ["antiquejewellery", "vintagejewellery"],
+  silver: ["antiquesilver", "sterlingsilver"],
   decor: ["antiquedecor", "vintagedecor"],
   art: ["antiqueart", "vintageart"],
 };

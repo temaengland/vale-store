@@ -163,7 +163,7 @@ export type MusicChoice = string | undefined;
 
 function autoMood(p: { category: string; subcategory?: string | null }): Mood {
   if (/watch/i.test(p.subcategory || "")) return "lively";
-  if (p.category === "jewelry" || p.category === "art") return "elegant";
+  if (p.category === "jewelry" || p.category === "silver" || p.category === "art") return "elegant";
   return "calm";
 }
 
@@ -205,7 +205,7 @@ type Candidate = {
   name: string;
   description: string | null;
   price: number;
-  category: "furniture" | "jewelry" | "decor" | "art";
+  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
   subcategory: string | null;
   era: string | null;
   length_cm: number | null;
@@ -561,7 +561,8 @@ async function finishPending(pending: Pending, token: string, waitMs: number) {
     const st = await containerStatus(pending.containerId, token);
     if (st.code === "FINISHED") {
       const pub = await publishContainer(pending.containerId, token);
-      await write(`${REEL_PREFIX}${pending.productId}`, { mediaId: pub.mediaId, permalink: pub.permalink, at: new Date().toISOString(), trial: pending.trial });
+      // `video` (update 117): the posted Reel is also shown on the item's page.
+      await write(`${REEL_PREFIX}${pending.productId}`, { mediaId: pub.mediaId, permalink: pub.permalink, at: new Date().toISOString(), trial: pending.trial, video: pending.video });
       await remove(PENDING_KEY);
       if (pending.fromClip) {
         const rec = await getClip(pending.productId);
@@ -579,7 +580,7 @@ async function finishPending(pending: Pending, token: string, waitMs: number) {
     if (st.code === "PUBLISHED") {
       // Already live (e.g. an earlier request published it but was cut off
       // before it could record it) — count it as posted, never post twice.
-      await write(`${REEL_PREFIX}${pending.productId}`, { at: new Date().toISOString(), trial: pending.trial });
+      await write(`${REEL_PREFIX}${pending.productId}`, { at: new Date().toISOString(), trial: pending.trial, video: pending.video });
       await remove(PENDING_KEY);
       if (pending.fromClip) {
         const rec = await getClip(pending.productId);
@@ -696,3 +697,4 @@ export async function listReeled() {
     return [];
   }
 }
+

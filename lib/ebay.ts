@@ -240,11 +240,11 @@ export function slugify(s: string) {
  * Whole words only (update 115): "Collectables"/"Tableware" are not tables and
  * "Manchester" is not a chest, so plates no longer land in Furniture.
  */
-export function guessCategory(categoryName: string, title: string): "furniture" | "jewelry" | "decor" | "art" {
+export function guessCategory(categoryName: string, title: string): "furniture" | "jewelry" | "silver" | "decor" | "art" {
   return guessPlacement(categoryName, title).category;
 }
 
-type SiteCategory = "furniture" | "jewelry" | "decor" | "art";
+type SiteCategory = "furniture" | "jewelry" | "silver" | "decor" | "art";
 
 export function guessPlacement(categoryName: string, title: string): { category: SiteCategory; subcategory: string | null } {
   const t = `${categoryName} ${title}`.toLowerCase();
@@ -258,6 +258,27 @@ export function guessPlacement(categoryName: string, title: string): { category:
   // eBay's own category says furniture → trust it (a "china cabinet" is still a cabinet).
   if (/\bfurniture\b/i.test(categoryName)) return { category: "furniture", subcategory: null };
   if (has(W("watch|watches|wristwatch|pocket watch|chronograph"))) return { category: "jewelry", subcategory: "Watches" };
+  // Update 117: silverware (not silver jewellery) → Silver.
+  const isSilver = has(W("silver|sterling|hallmarked|epns|silver ?plated?"));
+  if (has(W("medals?|medallions?"))) return { category: "jewelry", subcategory: "Medals" };
+  if (isSilver) {
+    const sub: [string, string][] = [
+      ["salvers?|trays?|waiter|card tray", "Salvers & Trays"],
+      ["teapots?|coffee ?pots?|tea set|tea service|cream jug|milk jug|sugar bowl|tea caddy|caddy spoon|hot water jug", "Tea & Coffee"],
+      ["spoons?|forks?|ladles?|cutlery|flatware|sugar tongs|butter knife|fish knives|canteen", "Cutlery & Flatware"],
+      ["candlesticks?|candelabra|chambersticks?", "Candlesticks"],
+      ["vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|cases?|compact", "Boxes & Cases"],
+      ["rattles?|christening|napkin rings?|teething|baby", "Christening & Baby"],
+      ["trophy|trophies|challenge cup|goblets?|tankards?|cups?", "Cups & Trophies"],
+      ["hand mirror|brush|dressing table|vanity|scent bottle|perfume bottle|pin cushion|hair tidy|button hook", "Dressing Table"],
+    ];
+    const isObject = has(W("salvers?|trays?|teapots?|coffee ?pots?|jugs?|spoons?|forks?|ladles?|cutlery|flatware|candlesticks?|candelabra|vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|rattles?|christening|napkin rings?|trophy|challenge cup|goblets?|tankards?|mug|cups?|hand mirror|dressing table|scent bottle|perfume bottle|pin cushion|pepper|salt|cruet|mustard|toast rack|bowls?|dish|purse|thimble|photo frame|frame|vase|sauce boat|tureen|basket|coasters?|ornament|figure|model|mill"));
+    if (isObject) {
+      if (has(W("epns|silver ?plated?|plated"))) return { category: "silver", subcategory: "Silver Plate" };
+      for (const [words, name] of sub) if (has(W(words))) return { category: "silver", subcategory: name };
+      return { category: "silver", subcategory: "Novelties & Collectables" };
+    }
+  }
   if (has(W("jewellery|jewelry|jewel|rings?|necklaces?|pendants?|bracelets?|earrings?|brooch|brooches|cufflinks?|medals?|bangles?|lockets?|charms?"))) {
     return { category: "jewelry", subcategory: null };
   }
