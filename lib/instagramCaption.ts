@@ -5,7 +5,7 @@ type CaptionItem = {
   name: string;
   description?: string;
   price: number; // pence
-  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
+  category: import("@/lib/products").CategorySlug;
   subcategory?: string;
   era?: string;
   length_cm?: number;
@@ -17,7 +17,9 @@ type CaptionItem = {
 const CATEGORY_TAGS: Record<CaptionItem["category"], [string, string]> = {
   furniture: ["antiquefurniture", "vintagefurniture"],
   jewelry: ["antiquejewellery", "vintagejewellery"],
+  watches: ["vintagewatches", "watchcollector"],
   silver: ["antiquesilver", "sterlingsilver"],
+  ceramics: ["antiqueporcelain", "vintageglass"],
   decor: ["antiquedecor", "vintagedecor"],
   art: ["antiqueart", "vintageart"],
 };

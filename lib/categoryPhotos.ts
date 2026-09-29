@@ -34,8 +34,9 @@ export async function setCategoryPhoto(category: string, productId: string | nul
 const DEFAULT_PHOTO_FILES: Record<string, string> = {
   furniture: "ebay-800394913295-1.jpg",
   jewelry: "1788373263770-photo.jpg",
+  watches: "ebay-800388292559-1.jpg", // H Samuel pocket watch (121)
   silver: "1788465143196-photo.jpg",
-  decor: "ebay-800201621416-1.jpg",
+  ceramics: "ebay-800728523911-1.jpg", // Meissen tazza (121)
   art: "1788616077061-photo.jpg",
 };
 

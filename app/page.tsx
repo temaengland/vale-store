@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import heroPhoto from "@/public/images/hero.jpg";
-import { isAvailable } from "@/lib/shop";
+import { isAvailable, POPULAR_TAGS, matchesTag } from "@/lib/shop";
 import { getAllCategories, getAllProducts } from "@/lib/data";
 import CategoryTile from "@/components/CategoryTile";
 import ProductCard from "@/components/ProductCard";
@@ -32,16 +32,13 @@ export default async function HomePage({
 }) {
   const categories = getAllCategories();
   const products = await getAllProducts();
-  const furnitureSubcats = categories.find((c) => c.slug === "furniture")!
-    .subcategories;
   const available = products.filter(isAvailable);
   const categoryPhotos = await resolveCategoryPhotos(products, categories.map((c) => c.slug));
   // Update 116: 12 newest pieces in stock; sold ones get their own row.
   const newest = available.slice(0, 12);
   const recentlySold = products.filter((p) => p.status === "sold").slice(0, 6);
-  const furnitureChips = furnitureSubcats
-    .map((s) => [s, available.filter((p) => p.category === "furniture" && p.subcategory === s).length] as const)
-    .filter(([, n]) => n > 0);
+  // Update 121: popular types across all categories (only those in stock).
+  const popularTags = POPULAR_TAGS.filter((t) => available.some((p) => matchesTag(p, t)));
 
   // LocalBusiness structured data — tells Google this is a real local
   // antiques business, matching the Google Business Profile (same name,
@@ -108,36 +105,30 @@ export default async function HomePage({
       <p className="mt-10 text-xs tracking-widest text-muted">
         <T k="home.shopByCategory" />
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
-        {categories.map((c, i) => (
-          <CategoryTile
-            key={c.slug}
-            category={c}
-            // Update 120: on phones (2 per row) an odd last card spans the full
-            // row and is centred, so the grid has no gap.
-            className={
-              categories.length % 2 === 1 && i === categories.length - 1
-                ? "col-span-2 justify-center lg:col-span-1 lg:justify-start"
-                : ""
-            }
-            photo={categoryPhotos[c.slug]}
-          />
+      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
+        {categories.map((c) => (
+          <CategoryTile key={c.slug} category={c} photo={categoryPhotos[c.slug]} />
         ))}
       </div>
 
-      {/* Only furniture types that have something in stock (update 116). */}
-      {furnitureChips.length > 0 && (
-        <div className="mt-6 flex flex-wrap gap-2">
-          {furnitureChips.map(([s, n]) => (
-            <Link
-              key={s}
-              href={`/category/furniture?sub=${encodeURIComponent(s)}`}
-              className="rounded-full border border-border-strong px-4 py-2 text-sm text-muted hover:text-ink transition-colors"
-            >
-              {s} <span className="opacity-60">{n}</span>
-            </Link>
-          ))}
-        </div>
+      {/* Update 121: popular types — one tap straight to e.g. all rings. */}
+      {popularTags.length > 0 && (
+        <>
+          <p className="mt-10 text-xs tracking-widest text-muted">
+            <T k="home.popular" />
+          </p>
+          <div className="-mx-6 mt-3 flex gap-2 overflow-x-auto px-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+            {popularTags.map((t) => (
+              <Link
+                key={t.key}
+                href={`/category/${t.category}?tag=${t.key}`}
+                className="shrink-0 whitespace-nowrap rounded-full border border-border-strong bg-white px-4 py-2 text-sm text-ink transition-colors hover:border-ink"
+              >
+                {t.label}
+              </Link>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="mt-16 flex items-baseline justify-between">

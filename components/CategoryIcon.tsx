@@ -14,6 +14,8 @@ export const categoryTileBg: Record<string, string> = {
   furniture: "#EAE2D4",
   jewelry: "#F1E9D8",
   silver: "#E6E7E3",
+  watches: "#F1E9D8",
+  ceramics: "#E8E6DC",
   decor: "#E8E6DC",
   art: "#EDE6D8",
 };
@@ -37,6 +39,7 @@ export function CategoryIcon({
           <rect x="72" y="85" width="4" height="7" rx="1.5" fill={CHARCOAL} />
         </svg>
       );
+    case "watches":
     case "jewelry":
       return (
         <svg viewBox="0 0 100 100" className={className}>
@@ -58,6 +61,7 @@ export function CategoryIcon({
           <rect x="36" y="80" width="28" height="5" rx="2" fill="#7D8286" />
         </svg>
       );
+    case "ceramics":
     case "decor":
       return (
         <svg viewBox="0 0 100 100" className={className}>

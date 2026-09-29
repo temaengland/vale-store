@@ -21,7 +21,7 @@ export default function Header() {
         </Link>
 
         {/* Desktop nav — hidden on small screens */}
-        <nav className="hidden gap-7 whitespace-nowrap text-sm text-muted lg:flex">
+        <nav className="mx-3 hidden gap-3.5 whitespace-nowrap text-[13px] text-muted lg:flex xl:mx-4 xl:gap-5 xl:text-sm">
           {categories.map((c) => (
             <Link
               key={c.slug}
@@ -36,12 +36,12 @@ export default function Header() {
           </Link>
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-2 lg:flex xl:gap-3">
           <a
             href="https://wa.me/447918527790"
             target="_blank"
             rel="noreferrer"
-            className="whitespace-nowrap rounded-full border border-border-strong px-4 py-1.5 text-sm hover:text-ink"
+            className="hidden whitespace-nowrap rounded-full border border-border-strong px-4 py-1.5 text-sm hover:text-ink xl:inline-block"
           >
             {t("nav.whatsapp")}
           </a>

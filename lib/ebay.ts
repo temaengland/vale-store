@@ -240,11 +240,11 @@ export function slugify(s: string) {
  * Whole words only (update 115): "Collectables"/"Tableware" are not tables and
  * "Manchester" is not a chest, so plates no longer land in Furniture.
  */
-export function guessCategory(categoryName: string, title: string): "furniture" | "jewelry" | "silver" | "decor" | "art" {
+export function guessCategory(categoryName: string, title: string): SiteCategory {
   return guessPlacement(categoryName, title).category;
 }
 
-type SiteCategory = "furniture" | "jewelry" | "silver" | "decor" | "art";
+type SiteCategory = import("@/lib/products").CategorySlug;
 
 export function guessPlacement(categoryName: string, title: string): { category: SiteCategory; subcategory: string | null } {
   const t = `${categoryName} ${title}`.toLowerCase();
@@ -257,7 +257,11 @@ export function guessPlacement(categoryName: string, title: string): { category:
   }
   // eBay's own category says furniture → trust it (a "china cabinet" is still a cabinet).
   if (/\bfurniture\b/i.test(categoryName)) return { category: "furniture", subcategory: null };
-  if (has(W("watch|watches|wristwatch|pocket watch|chronograph"))) return { category: "jewelry", subcategory: "Watches" };
+  // Update 121: watches have their own category.
+  if (has(W("pocket watch|pocket watches|hunter|half hunter"))) return { category: "watches", subcategory: "Pocket Watches" };
+  if (has(W("watch|watches|wristwatch|chronograph"))) return { category: "watches", subcategory: "Wristwatches" };
+  // Update 122: clocks live in "Watches & Clocks".
+  if (has(W("clock|clocks|timepiece|longcase|carriage clock|mantel clock|bracket clock|wall clock"))) return { category: "watches", subcategory: "Clocks" };
   // Update 117: silverware (not silver jewellery) → Silver.
   const isSilver = has(W("silver|sterling|hallmarked|epns|silver ?plated?"));
   if (has(W("medals?|medallions?"))) return { category: "jewelry", subcategory: "Medals" };
@@ -282,21 +286,39 @@ export function guessPlacement(categoryName: string, title: string): { category:
   if (has(W("jewellery|jewelry|jewel|rings?|necklaces?|pendants?|bracelets?|earrings?|brooch|brooches|cufflinks?|medals?|bangles?|lockets?|charms?"))) {
     return { category: "jewelry", subcategory: null };
   }
-  if (has(W("paintings?|prints?|drawings?|etchings?|lithographs?|watercolou?rs?|oil on (canvas|board|panel)|sculptures?|photographs?|art"))) {
-    return { category: "art", subcategory: null };
+  // Paintings and prints first (a painting *of* a vase is still a painting).
+  if (has(W("paintings?|oil on (canvas|board|panel)|watercolou?rs?|etchings?|lithographs?|engravings?|prints?|drawings?"))) {
+    return { category: "art", subcategory: has(W("paintings?|oil on (canvas|board|panel)|watercolou?rs?")) ? "Paintings" : "Prints and drawings" };
   }
-  // China and glass before furniture: plates, cups and vases are decor.
-  if (has(W("plates?|dish|dishes|bowls?|cups?|saucers?|teapots?|tea set|tea service|dinner service|jugs?|tureens?|tableware|dinnerware|glassware|decanters?"))) {
-    return { category: "decor", subcategory: "Tableware" };
+  // Update 121: porcelain, pottery and glass → Ceramics & Glass.
+  const ceramic = has(W("porcelain|china|pottery|ceramics?|stoneware|earthenware|faience|majolica|delft|meissen|sitzendorf|dresden|royal copenhagen|doulton|wedgwood|moorcroft|worcester|minton|spode|staffordshire|limoges|herend|lladro|capodimonte|carlton ware|clarice cliff|poole"));
+  const glass = has(W("glass|glassware|crystal|murano|lalique|whitefriars|venetian|decanters?|vaseline"));
+  if (ceramic || glass) {
+    let sub: string | null = null;
+    if (has(W("figurines?|figures?|statues?|statuettes?|groups?"))) sub = "Figurines";
+    else if (has(W("vases?|jardinieres?|urns?"))) sub = glass && !ceramic ? "Art Glass" : "Vases";
+    else if (has(W("plates?|dish|dishes|bowls?|cups?|saucers?|teapots?|tea set|tea service|dinner service|jugs?|tureens?|tableware|dinnerware|comports?|tazza"))) sub = glass && !ceramic ? "Glassware" : "Tableware";
+    else if (glass) sub = has(W("murano|lalique|whitefriars|art glass|venetian")) ? "Art Glass" : "Glassware";
+    else sub = has(W("pottery|stoneware|earthenware|studio")) ? "Pottery" : "Porcelain";
+    return { category: "ceramics", subcategory: sub };
   }
-  if (has(W("vases?"))) return { category: "decor", subcategory: "Vases" };
-  if (has(W("figurines?|figures?|ornaments?|statues?|statuettes?"))) return { category: "decor", subcategory: "Ornaments & Figurines" };
-  if (has(W("porcelain|china|pottery|ceramics?|stoneware|earthenware"))) return { category: "decor", subcategory: null };
-  if (has(W("vases?"))) return { category: "decor", subcategory: "Vases" };
-  if (has(W("furniture|chairs?|tables?|desks?|cabinets?|chests?|drawers|wardrobes?|sideboards?|bookcases?|dressers?|stools?|benches|bench|sofas?|armchairs?|beds?|trunks?|commodes?|bureaus?|bureau"))) {
+  if (has(W("tribal|african|oceanic|ethnographic|tuareg"))) return { category: "art", subcategory: "Tribal & World" };
+  if (!has(W("wood|wooden|carved|treen|brass|copper|pewter|tin")) && has(W("plates?|dish|dishes|bowls?|cups?|saucers?|teapots?|tea set|tea service|dinner service|jugs?|tureens?|tableware|dinnerware"))) {
+    return { category: "ceramics", subcategory: "Tableware" };
+  }
+  if (has(W("furniture|chairs?|tables?|desks?|cabinets?|chests?|drawers|wardrobes?|sideboards?|bookcases?|dressers?|stools?|benches|bench|sofas?|armchairs?|beds?|trunks?|commodes?|bureaus?|bureau|plant stand|jardiniere stand"))) {
     return { category: "furniture", subcategory: null };
   }
-  return { category: "decor", subcategory: null };
+  // Everything else → Art & Decor.
+  if (has(W("mirrors?"))) return { category: "art", subcategory: "Mirrors" };
+  if (has(W("sculptures?|bronzes?|busts?"))) return { category: "art", subcategory: "Sculpture" };
+  if (has(W("photographs?|photography"))) return { category: "art", subcategory: "Photography" };
+  if (has(W("candlesticks?|candelabra"))) return { category: "art", subcategory: "Candlesticks" };
+  if (has(W("boxes|box|caskets?|tea caddy"))) return { category: "art", subcategory: "Boxes" };
+  if (has(W("tribal|african|oceanic|ethnographic|tuareg|asian|chinese|japanese|islamic|ottoman"))) return { category: "art", subcategory: "Tribal & World" };
+  if (has(W("textiles?|tapestry|tapestries|quilts?|samplers?|embroidery|lace|rugs?"))) return { category: "art", subcategory: "Textiles" };
+  if (has(W("ornaments?|figurines?|figures?|statues?"))) return { category: "art", subcategory: "Ornaments" };
+  return { category: "art", subcategory: has(W("art")) ? null : "Collectables" };
 }
 
 // ---------- two-way sync helpers (update 107) ----------

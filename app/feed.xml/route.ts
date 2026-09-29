@@ -15,17 +15,21 @@ const BASE_URL = "https://www.charmchase.co.uk";
 const GOOGLE_CATEGORY: Record<Product["category"], string> = {
   furniture: "Furniture",
   jewelry: "Apparel & Accessories > Jewelry",
+  watches: "Apparel & Accessories > Jewelry > Watches",
   silver: "Home & Garden > Decor",
+  ceramics: "Home & Garden > Decor",
   decor: "Home & Garden > Decor",
   art: "Home & Garden > Decor > Artwork",
 };
 
 const CATEGORY_NAME: Record<Product["category"], string> = {
   furniture: "Furniture",
-  jewelry: "Jewellery & Watches",
+  jewelry: "Jewellery",
+  watches: "Watches & Clocks",
   silver: "Silver",
+  ceramics: "Ceramics & Glass",
   decor: "Decor",
-  art: "Art",
+  art: "Art & Decor",
 };
 
 // Same limits as checkout (Royal Mail Medium Parcel): 61×46×46 cm, 20 kg.
@@ -121,7 +125,7 @@ export async function GET(request: Request) {
 <channel>
 <title>CharmChase — Antiques &amp; Vintage</title>
 <link>${BASE_URL}</link>
-<description>Antique and vintage furniture, jewellery, decor and art from Evesham, Worcestershire.</description>
+<description>Antique and vintage furniture, jewellery, watches, silver, ceramics and art from Evesham, Worcestershire.</description>
 ${items}
 </channel>
 </rss>`;

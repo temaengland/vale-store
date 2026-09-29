@@ -10,7 +10,7 @@ import { trackCategoryView } from "@/lib/trackView";
 import { Suspense } from "react";
 import SortSelect from "@/components/SortSelect";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
-import { isAvailable, parseSort, sortForListing } from "@/lib/shop";
+import { isAvailable, parseSort, sortForListing, POPULAR_TAGS, matchesTag } from "@/lib/shop";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { sub?: string; era?: string; sort?: string };
+  searchParams: { sub?: string; era?: string; sort?: string; tag?: string };
 }) {
   const category = getCategory(params.slug);
   if (!category) return notFound();
@@ -70,11 +70,14 @@ export default async function CategoryPage({
   if (searchParams.era) {
     items = items.filter((p) => p.era === searchParams.era);
   }
+  // Update 121: ?tag=rings from the homepage "Popular right now" chips.
+  const tag = POPULAR_TAGS.find((t) => t.key === searchParams.tag && t.category === category.slug);
+  if (tag) items = items.filter((p) => matchesTag(p, tag));
 
   items = sortForListing(items, sort);
   const shownInStock = items.filter(isAvailable).length;
   const shownSold = items.length - shownInStock;
-  const isFiltered = Boolean(searchParams.sub || searchParams.era);
+  const isFiltered = Boolean(searchParams.sub || searchParams.era || tag);
   const isEmpty = items.length === 0;
 
   // For an empty filtered view: which other subcategories in this same
@@ -100,6 +103,15 @@ export default async function CategoryPage({
       <h1 className="font-serif text-3xl">
         <T k={`category.name.${category.slug}`} />
       </h1>
+
+      {tag && (
+        <p className="mt-3 text-sm text-muted">
+          <T k="list.showing" />: <span className="text-ink">{tag.label}</span> ·{" "}
+          <Link href={`/category/${category.slug}`} className="underline">
+            <T k="list.clear" />
+          </Link>
+        </p>
+      )}
 
       <div className="mt-5">
         {subOptions.length > 0 && (

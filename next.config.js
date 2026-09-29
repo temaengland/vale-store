@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Update 121: the old Decor category became part of "Art & Decor".
+  async redirects() {
+    return [{ source: "/category/decor", destination: "/category/art", permanent: true }];
+  },
   images: {
     remotePatterns: [
       {

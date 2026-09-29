@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
+import NavTracker from "@/components/NavTracker";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/lib/cart-context";
@@ -66,6 +68,9 @@ export default function RootLayout({
       <body className={`${serif.variable} ${sans.variable} font-sans`}>
         <LanguageProvider>
           <CartProvider>
+            <Suspense>
+              <NavTracker />
+            </Suspense>
             <Header />
             <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
             <Footer />

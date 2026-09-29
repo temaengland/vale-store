@@ -8,7 +8,7 @@ export type InstagramItem = {
   name: string;
   description: string;
   price: number;
-  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
+  category: import("@/lib/products").CategorySlug;
   subcategory?: string;
   era?: string;
   image?: string;

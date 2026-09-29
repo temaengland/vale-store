@@ -12,7 +12,7 @@ type AdminProduct = {
   slug: string;
   name: string;
   price: number;
-  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
+  category: import("@/lib/products").CategorySlug;
   subcategory?: string;
   era?: string;
   description: string;

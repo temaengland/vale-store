@@ -25,14 +25,21 @@ export default function BackLink({ fallback = "/" }: { fallback?: string }) {
   const { t } = useLanguage();
 
   function handleBack() {
-    // If the previous page was on our own site, go back normally.
-    // Otherwise (e.g. returning from Stripe), use the explicit fallback
-    // URL — typically the product's category page — so the buyer lands
-    // somewhere useful rather than on the homepage or back at checkout.
-    const prev = document.referrer;
-    const isOurSite =
-      prev && new URL(prev).hostname === window.location.hostname;
-    if (isOurSite) {
+    // Update 121: if we got here from another page of our site in this tab,
+    // go back in history — same list, same scroll place. Otherwise (arrived
+    // from Google, or back from Stripe) go to the fallback, e.g. the category.
+    let depth = 0;
+    try {
+      depth = Number(sessionStorage.getItem("cc_nav_depth") || "0");
+    } catch {
+      depth = 0;
+    }
+    if (depth > 1 && window.history.length > 1) {
+      try {
+        sessionStorage.setItem("cc_nav_depth", String(depth - 2));
+      } catch {
+        /* ignore */
+      }
       router.back();
     } else {
       router.push(fallback);

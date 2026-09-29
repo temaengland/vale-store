@@ -163,7 +163,8 @@ export type MusicChoice = string | undefined;
 
 function autoMood(p: { category: string; subcategory?: string | null }): Mood {
   if (/watch/i.test(p.subcategory || "")) return "lively";
-  if (p.category === "jewelry" || p.category === "silver" || p.category === "art") return "elegant";
+  if (p.category === "watches") return "lively";
+  if (p.category === "jewelry" || p.category === "silver" || p.category === "art" || p.category === "ceramics") return "elegant";
   return "calm";
 }
 
@@ -205,7 +206,7 @@ type Candidate = {
   name: string;
   description: string | null;
   price: number;
-  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
+  category: import("@/lib/products").CategorySlug;
   subcategory: string | null;
   era: string | null;
   length_cm: number | null;

@@ -108,3 +108,39 @@ export function searchProducts<T extends Product>(list: T[], q: string): T[] {
   scored.sort((a, b) => b.score - a.score);
   return scored.map((x) => x.p);
 }
+
+/**
+ * Update 121: "Popular right now" chips on the homepage. Each one links to its
+ * category filtered by ?tag=…; an item matches by its type (subcategory) or by
+ * words in its name. A chip only shows when something in stock matches.
+ */
+export type PopularTag = { key: string; label: string; category: string; sub?: string; re: RegExp };
+
+export const POPULAR_TAGS: PopularTag[] = [
+  { key: "rings", label: "Rings", category: "jewelry", sub: "Rings", re: /\brings?\b|\bsolitaire\b|\btrilogy\b/i },
+  { key: "necklaces", label: "Necklaces", category: "jewelry", sub: "Necklaces", re: /\b(necklaces?|chains?|pendants?|lockets?)\b/i },
+  { key: "earrings", label: "Earrings", category: "jewelry", sub: "Earrings", re: /\b(earrings?|studs?)\b/i },
+  { key: "bracelets", label: "Bracelets", category: "jewelry", sub: "Bracelets", re: /\b(bracelets?|bangles?)\b/i },
+  { key: "brooches", label: "Brooches", category: "jewelry", sub: "Brooches", re: /\bbrooch(es)?\b/i },
+  { key: "wristwatches", label: "Wristwatches", category: "watches", sub: "Wristwatches", re: /\b(wrist ?watch(es)?|watch)\b/i },
+  { key: "pocket-watches", label: "Pocket Watches", category: "watches", sub: "Pocket Watches", re: /\bpocket watch(es)?\b/i },
+  { key: "clocks", label: "Clocks", category: "watches", sub: "Clocks", re: /\b(clocks?|carriage clock|mantel clock|bracket clock|longcase)\b/i },
+  { key: "chairs", label: "Chairs", category: "furniture", sub: "Chairs", re: /\b(chairs?|armchairs?|stools?)\b/i },
+  { key: "tables", label: "Tables", category: "furniture", sub: "Tables", re: /\btables?\b/i },
+  { key: "chests-of-drawers", label: "Chests of Drawers", category: "furniture", sub: "Chest of Drawers", re: /\b(chest of drawers|chests of drawers|commodes?)\b/i },
+  { key: "desks", label: "Desks", category: "furniture", sub: "Desks & Office", re: /\b(desks?|bureaus?|davenports?)\b/i },
+  { key: "salvers", label: "Salvers & Trays", category: "silver", sub: "Salvers & Trays", re: /\b(salvers?|trays?)\b/i },
+  { key: "christening", label: "Christening & Baby", category: "silver", sub: "Christening & Baby", re: /\b(rattles?|christening|baby)\b/i },
+  { key: "porcelain", label: "Porcelain", category: "ceramics", sub: "Porcelain", re: /\b(porcelain|china|meissen|sitzendorf|dresden|royal copenhagen|doulton|worcester|wedgwood)\b/i },
+  { key: "art-glass", label: "Art Glass", category: "ceramics", sub: "Art Glass", re: /\b(murano|art glass|glass|crystal)\b/i },
+  { key: "paintings", label: "Oil Paintings", category: "art", sub: "Paintings", re: /\b(paintings?|oil on)\b/i },
+  { key: "mirrors", label: "Mirrors", category: "art", sub: "Mirrors", re: /\bmirrors?\b/i },
+];
+
+export function matchesTag<T extends Product>(p: T, t: PopularTag) {
+  if (p.category !== t.category) return false;
+  if (t.sub && p.subcategory === t.sub) return true;
+  if (t.key === "wristwatches" && /\bpocket watch/i.test(p.name)) return false;
+  if (t.key === "wristwatches" && p.subcategory === "Clocks") return false;
+  return t.re.test(p.name);
+}

@@ -5,6 +5,7 @@ import { formatPrice, Product } from "@/lib/products";
 import ProductGallery from "@/components/ProductGallery";
 import ProductInfoPanel from "@/components/ProductInfoPanel";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
+import BackLink from "@/components/BackLink";
 import ProductCard from "@/components/ProductCard";
 import T from "@/components/T";
 import { getCategory } from "@/lib/data";
@@ -85,7 +86,12 @@ export default async function ProductPage({
     (p) => p.category === product.category && !sameSubcategory.includes(p)
   );
   const others = available.filter((p) => p.category !== product.category);
-  const relatedProducts: Product[] = [...sameSubcategory, ...sameCategory, ...others].slice(0, 4);
+  // Only what the cards need (update 121): keeps other items' photo lists and
+  // descriptions out of this page, so Google ties each photo to its own page.
+  const relatedProducts: Product[] = [...sameSubcategory, ...sameCategory, ...others].slice(0, 4).map((p) => {
+    const cover = p.images?.[0] || p.image || undefined;
+    return { ...p, description: "", images: cover ? [cover] : [], image: undefined };
+  });
   const forSale = isAvailable(product);
   const video = await productVideo(product.id);
   const category = getCategory(product.category);
@@ -157,7 +163,11 @@ export default async function ProductPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(crumbs.map((c) => ({ name: c.name, url: c.url })))) }}
       />
-      <Breadcrumbs items={crumbs.map((c) => ({ href: c.href, labelKey: c.labelKey, label: c.label }))} />
+      {/* Update 121: "Back" returns to where you came from (same list, same place). */}
+      <BackLink fallback={`/category/${product.category}`} />
+      <div className="-mt-2 hidden sm:block">
+        <Breadcrumbs items={crumbs.map((c) => ({ href: c.href, labelKey: c.labelKey, label: c.label }))} />
+      </div>
       <div className="grid min-w-0 gap-10 sm:grid-cols-2 [&>*]:min-w-0">
         <script
           type="application/ld+json"

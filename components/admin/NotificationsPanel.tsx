@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import BackupPanel from "@/components/admin/BackupPanel";
+import ReorganisePanel from "@/components/admin/ReorganisePanel";
 
 type FeedItem = {
   id: string;
@@ -103,6 +104,7 @@ export default function NotificationsPanel() {
         eBay sales and notify sign-ups, all in one place.
       </p>
 
+      <ReorganisePanel />
       <BackupPanel />
 
       {loadError && (

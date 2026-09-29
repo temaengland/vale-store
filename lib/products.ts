@@ -1,10 +1,14 @@
 import { IconName } from "@/components/ItemIllustration";
 
+// Update 121: six categories. "decor" is kept only so older records still
+// type-check; the category-reorganise tool moves them to "ceramics" / "art".
+export type CategorySlug = "furniture" | "jewelry" | "watches" | "silver" | "ceramics" | "art" | "decor";
+
 export type Product = {
   slug: string;
   name: string;
   price: number; // in pence — the sale/listing price shown to customers
-  category: "furniture" | "jewelry" | "silver" | "decor" | "art";
+  category: CategorySlug;
   subcategory?: string;
   era?: string; // period/style, e.g. "Victorian" — currently used for Art
   description: string;
@@ -30,7 +34,7 @@ export type AdminProduct = Product & {
 };
 
 export type Category = {
-  slug: "furniture" | "jewelry" | "silver" | "decor" | "art";
+  slug: CategorySlug;
   name: string;
   subcategories: string[];
   eras?: string[]; // optional second filter axis, only set for categories that need it
@@ -74,7 +78,7 @@ export const categories: Category[] = [
   },
   {
     slug: "jewelry",
-    name: "Jewellery & Watches",
+    name: "Jewellery",
     subcategories: [
       "Rings",
       "Necklaces",
@@ -83,14 +87,18 @@ export const categories: Category[] = [
       "Earrings",
       "Brooches",
       "Cufflinks",
-      "Watches",
       "Medals",
       "Coins",
     ],
   },
   {
-    // Update 117: silverware gets its own category (salvers, rattles,
-    // boxes, cutlery…) — silver jewellery stays in Jewellery & Watches.
+    // Update 121: watches get their own category (most searched: "vintage watches").
+    slug: "watches",
+    name: "Watches & Clocks",
+    subcategories: ["Wristwatches", "Pocket Watches", "Clocks"],
+  },
+  {
+    // Update 117: silverware (not silver jewellery).
     slug: "silver",
     name: "Silver",
     subcategories: [
@@ -107,35 +115,32 @@ export const categories: Category[] = [
     ],
   },
   {
-    slug: "decor",
-    name: "Decor",
-    subcategories: [
-      "Vases",
-      "Mirrors",
-      "Textiles",
-      "Tableware",
-      "Clocks",
-      "Candlesticks",
-      "Ornaments & Figurines",
-      "Boxes",
-    ],
+    // Update 121: porcelain, pottery and glass (UK's No.2 antiques category).
+    slug: "ceramics",
+    name: "Ceramics & Glass",
+    subcategories: ["Porcelain", "Pottery", "Figurines", "Tableware", "Vases", "Art Glass", "Glassware"],
   },
   {
+    // Update 121: "Art" + the former "Decor" category.
     slug: "art",
-    name: "Art",
+    name: "Art & Decor",
     subcategories: [
       "Paintings",
       "Prints and drawings",
       "Sculpture",
       "Photography",
-      "Ceramics",
+      "Mirrors",
+      "Boxes",
+      "Candlesticks",
+      "Ornaments",
+      "Textiles",
+      "Tribal & World",
+      "Collectables",
     ],
     eras: ["Georgian", "Victorian", "Edwardian", "Mid-century", "Contemporary"],
   },
 ];
 
-// Prices are in pence (e.g. 64000 = £640.00) — kept for consistent formatting
-// even though there's no checkout; useful if payment is ever switched back on.
 export const products: Product[] = [
   {
     slug: "georgian-walnut-armchair",
@@ -171,7 +176,7 @@ export const products: Product[] = [
     slug: "hand-thrown-ceramic-vase",
     name: "Hand-thrown ceramic vase",
     price: 9500,
-    category: "decor",
+    category: "ceramics",
     subcategory: "Vases",
     description:
       "A studio-thrown stoneware vase with a reactive glaze. Each piece is unique.",
@@ -192,7 +197,7 @@ export const products: Product[] = [
     slug: "victorian-silver-teapot",
     name: "Victorian silver-plated teapot",
     price: 18500,
-    category: "jewelry",
+    category: "silver",
     subcategory: "Silver Plate",
     description:
       "An ornate silver-plated teapot with engraved floral detailing, Victorian era. Good polished condition, no dents.",
