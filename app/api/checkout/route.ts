@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { getAllProducts } from "@/lib/data";
+import { ukDelivery } from "@/lib/shipping";
 
 // Handles both "Buy now" (a single slug) and cart checkout (multiple
 // slugs) — the request body is always { slugs: string[] }.
@@ -72,118 +73,29 @@ export async function POST(req: NextRequest) {
         };
       });
 
-    // Royal Mail hard limits (Medium Parcel, 2026):
-    // max 61cm × 46cm × 46cm, max 20kg.
-    // If ANY item in the order exceeds these, skip RM tiers entirely and
-    // fall back to the seller's own flat rate (set per item in admin).
-    const ROYAL_MAIL_MAX_LENGTH_CM = 61;
-    const ROYAL_MAIL_MAX_WIDTH_CM = 46;
-    const ROYAL_MAIL_MAX_HEIGHT_CM = 46;
-    const ROYAL_MAIL_MAX_WEIGHT_G = 20000;
-
-    const tooBigForRoyalMail = products.some((p) => {
-      const dims = [p.length_cm, p.width_cm, p.height_cm].filter(Boolean) as number[];
-      if (dims.length > 0) {
-        const sorted = [...dims].sort((a, b) => b - a);
-        if (sorted[0] > ROYAL_MAIL_MAX_LENGTH_CM) return true;
-        if ((sorted[1] ?? 0) > ROYAL_MAIL_MAX_WIDTH_CM) return true;
-        if ((sorted[2] ?? 0) > ROYAL_MAIL_MAX_HEIGHT_CM) return true;
-      }
-      if (p.weight_grams && p.weight_grams > ROYAL_MAIL_MAX_WEIGHT_G) return true;
-      return false;
-    });
-
-    // Two Royal Mail tiers for UK buyers:
-    //  - Tracked 48: standard 2-day delivery, up to £75 compensation
-    //  - Special Delivery: guaranteed next-day by 1pm, £750 compensation
-    //    — mandatory for items worth £150+ (Tracked 48's £75 cap would
-    //    leave most of the item's value unprotected if lost)
-    const SPECIAL_DELIVERY_FLOOR_PENCE = 815; // £8.15 minimum (Royal Mail small parcel rate)
-    const SPECIAL_DELIVERY_PREMIUM_PENCE = 450; // £4.50 over Tracked 48
-    const HIGH_VALUE_THRESHOLD_PENCE = 15000;    // £150 — above this, only Special Delivery
-    const VERY_HIGH_VALUE_THRESHOLD_PENCE = 100000; // £1000 — above this, manual delivery only
-
-    const subtotal = products.reduce((sum, p) => sum + p.price, 0);
-    const requiresManualDelivery = subtotal >= VERY_HIGH_VALUE_THRESHOLD_PENCE;
-    const requiresSpecialDelivery = !requiresManualDelivery &&
-      subtotal >= HIGH_VALUE_THRESHOLD_PENCE;
-
-    const ukShippingTotal = products.reduce(
-      (sum, p) => sum + (p.shipping_cost ?? 0),
-      0
-    );
-    const specialDeliveryTotal = Math.max(
-      SPECIAL_DELIVERY_FLOOR_PENCE,
-      ukShippingTotal + SPECIAL_DELIVERY_PREMIUM_PENCE
-    );
+    // Update 130: all UK delivery rules live in lib/shipping.ts (the product
+    // page shows exactly the same options and prices). Don't change here.
+    const uk = ukDelivery(products);
     const intlShippingTotal = products.reduce(
       (sum, p) => sum + (p.international_shipping_cost ?? 0),
       0
     );
-
     const shippingOptions: Stripe.Checkout.SessionCreateParams.ShippingOption[] =
-      tooBigForRoyalMail || requiresManualDelivery
-        ? [
-            // Too large for Royal Mail, OR high-value item (£1000+) —
-            // delivery arranged personally with the buyer after purchase.
-            {
-              shipping_rate_data: {
-                type: "fixed_amount",
-                fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
-                display_name: requiresManualDelivery
-                  ? "Insured delivery — we will contact you to arrange"
-                  : "Delivery (contact us to arrange)",
-              },
-            },
-          ]
-        : requiresSpecialDelivery
-        ? [
-            // High-value item (£150+) — only offer Special Delivery so
-            // the shipment is always covered for up to £750.
-            {
-              shipping_rate_data: {
-                type: "fixed_amount",
-                fixed_amount: { amount: specialDeliveryTotal, currency: "gbp" },
-                display_name:
-                  "Royal Mail Special Delivery — next day by 1pm, £750 insured",
+      uk.options.map((o) => ({
+        shipping_rate_data: {
+          type: "fixed_amount",
+          fixed_amount: { amount: o.amount, currency: "gbp" },
+          display_name: o.stripeName,
+          ...(o.days
+            ? {
                 delivery_estimate: {
-                  minimum: { unit: "business_day", value: 1 },
-                  maximum: { unit: "business_day", value: 1 },
+                  minimum: { unit: "business_day" as const, value: o.days[0] },
+                  maximum: { unit: "business_day" as const, value: o.days[1] },
                 },
-              },
-            },
-          ]
-        : [
-            {
-              shipping_rate_data: {
-                type: "fixed_amount",
-                fixed_amount: { amount: ukShippingTotal, currency: "gbp" },
-                display_name:
-                  ukShippingTotal === 0
-                    ? "Royal Mail Tracked 48 (Free)"
-                    : "Royal Mail Tracked 48",
-                delivery_estimate: {
-                  minimum: { unit: "business_day", value: 2 },
-                  maximum: { unit: "business_day", value: 3 },
-                },
-              },
-            },
-            {
-              shipping_rate_data: {
-                type: "fixed_amount",
-                fixed_amount: {
-                  amount: specialDeliveryTotal,
-                  currency: "gbp",
-                },
-                display_name:
-                  "Royal Mail Special Delivery — next day by 1pm, £750 insured",
-                delivery_estimate: {
-                  minimum: { unit: "business_day", value: 1 },
-                  maximum: { unit: "business_day", value: 1 },
-                },
-              },
-            },
-          ];
+              }
+            : {}),
+        },
+      }));
     if (intlShippingTotal > 0) {
       shippingOptions.push({
         shipping_rate_data: {

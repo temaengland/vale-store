@@ -23,7 +23,7 @@ const faqs = [
   },
   {
     q: "How much does shipping cost?",
-    a: "UK delivery is shown on each product page (Royal Mail Tracked 48 or Special Delivery; large furniture by arrangement). Where an international rate is set it's shown too — otherwise just message us for a shipping quote to your country. You'll see the final shipping cost at checkout before you pay.",
+    a: "UK orders under £150 go by Royal Mail Tracked 48 (from £4.95), or next-day Special Delivery if you prefer. Orders of £150 and over get free Royal Mail Special Delivery — next working day by 1pm, signed for and insured to the value of the item (up to £2,500). Pieces over £2,500 get free, fully insured delivery arranged with you personally, and large furniture is delivered by arrangement. Where an international rate is set it's shown on the product page — otherwise message us for a quote. You always see the exact delivery options and cost at checkout before you pay.",
   },
   {
     q: "What is your returns policy?",

@@ -87,6 +87,17 @@ export async function createShipment(
 
 // Map our Stripe shipping_rate display_name to a Royal Mail service code
 export function shippingNameToServiceCode(displayName: string): string {
-  if (displayName.toLowerCase().includes("special delivery")) return "SD1";
+  const n = displayName.toLowerCase();
+  // Update 130: Special Delivery compensation level follows the order value.
+  if (n.includes("special delivery")) {
+    if (n.includes("£2,500")) return "SD3";
+    if (n.includes("£1,000")) return "SD2";
+    return "SD1";
+  }
   return "TRK48"; // default to Tracked 48
+}
+
+/** Update 130: orders delivered "by arrangement" / "arranged personally" get no automatic label. */
+export function needsManualDelivery(displayName: string): boolean {
+  return /arrang/i.test(displayName);
 }

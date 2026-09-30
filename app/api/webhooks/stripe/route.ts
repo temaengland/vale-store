@@ -6,6 +6,7 @@ import { endEbayListingsFor } from "@/lib/ebaySync";
 import {
   createShipment,
   shippingNameToServiceCode,
+  needsManualDelivery,
 } from "@/lib/royalMail";
 
 export const runtime = "nodejs";
@@ -142,6 +143,9 @@ export async function POST(req: NextRequest) {
                   )
                 ).display_name ?? ""
               : "";
+
+          // Update 130: personal / by-arrangement deliveries — no Royal Mail label.
+          if (needsManualDelivery(shippingDisplayName)) throw new Error("manual delivery — no label");
 
           // Sum up the weight from all purchased products
           const { data: productDetails } = await admin

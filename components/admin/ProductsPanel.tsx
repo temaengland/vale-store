@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ImageCropUpload from "@/components/admin/ImageCropUpload";
 import { categories } from "@/lib/products";
+import { ukDelivery, parcelSize } from "@/lib/shipping";
 import InstagramPublishModal, { PostedInfo } from "@/components/admin/InstagramPublishModal";
 import ReelsPanel from "@/components/admin/ReelsPanel";
 import ClipModal, { ClipInfo, TrackInfo } from "@/components/admin/ClipModal";
@@ -544,9 +545,9 @@ export default function ProductsPanel({
 
         <div>
           <label className="text-xs text-muted">
-            UK shipping cost (£){" "}
+            Courier price for large items (£){" "}
             <span className="normal-case text-muted">
-              — shown to buyers, offered at checkout
+              — only for furniture too big for Royal Mail. UK Royal Mail prices are automatic (see Delivery below)
             </span>
           </label>
           <div className="mt-1 flex items-center gap-3">
@@ -708,6 +709,43 @@ export default function ProductsPanel({
             </div>
           </div>
         </div>
+
+        {/* Update 130: live preview of what the buyer will be offered (lib/shipping.ts). */}
+        {(() => {
+          const kg = form.weightUnit === "kg";
+          const item = {
+            price: Math.round(Number(form.price || 0) * 100),
+            category: form.category,
+            weight_grams: form.weight_grams ? Math.round(Number(form.weight_grams) * (kg ? 1000 : 1)) : null,
+            length_cm: form.length_cm ? Number(form.length_cm) : null,
+            width_cm: form.width_cm ? Number(form.width_cm) : null,
+            height_cm: form.height_cm ? Number(form.height_cm) : null,
+            shipping_cost: form.shipping_cost ? Math.round(Number(form.shipping_cost) * 100) : null,
+          };
+          const size = parcelSize(item);
+          const d = ukDelivery([item]);
+          const noSize = !item.weight_grams && !item.length_cm;
+          return (
+            <div className="rounded-lg border border-[#E8C874] bg-[#FFF9EC] px-3 py-2.5 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#8A6420]">Delivery the buyer will see</p>
+              <p className="mt-1 text-xs text-muted">
+                Parcel: <b className="text-ink">{size === "small" ? "Small parcel" : size === "medium" ? "Medium parcel" : "Large — by arrangement"}</b>
+                {noSize && " (no weight/size entered — guessed from category)"}
+              </p>
+              <ul className="mt-1.5 space-y-0.5">
+                {d.options.map((o) => (
+                  <li key={o.id} className="flex justify-between gap-3">
+                    <span>
+                      {o.title}
+                      {o.badge ? ` · ${o.badge.toLowerCase()}` : ""}
+                    </span>
+                    <b>{o.amount === 0 ? (o.id === "arrange" ? "set courier price above" : "Free") : `£${(o.amount / 100).toFixed(2)}`}</b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
 
         <div>
           <label className="text-xs text-muted">Status</label>

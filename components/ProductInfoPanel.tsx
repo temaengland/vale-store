@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Product, formatPrice } from "@/lib/products";
 import InquiryForm from "@/components/InquiryForm";
 import BuyNowButton from "@/components/BuyNowButton";
@@ -10,7 +11,8 @@ import ExpandableDescription from "@/components/ExpandableDescription";
 import ProductCard from "@/components/ProductCard";
 import NotifyMeForm from "@/components/NotifyMeForm";
 import { useLanguage } from "@/lib/language-context";
-import { extractDimensions, ukDeliveryLines, cleanDescription } from "@/lib/shop";
+import { extractDimensions, cleanDescription } from "@/lib/shop";
+import { ukDelivery } from "@/lib/shipping";
 
 export default function ProductInfoPanel({
   product,
@@ -81,7 +83,7 @@ export default function ProductInfoPanel({
       {/* Update 128: Royal Mail delivery card (phones: same place as before). */}
       <div className="mt-4 lg:hidden">
         <DeliveryCard product={product} isForSale={isForSale} />
-        {typeof product.shipping_cost === "number" && product.shipping_cost > 0 && (
+        {isForSale && (
           <p className="mt-2 text-xs text-muted">Local collection welcome — <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline">message us on WhatsApp</a></p>
         )}
       </div>
@@ -159,9 +161,9 @@ export default function ProductInfoPanel({
             <li>🔒 {t("trust.secure")}</li>
             <li>
               ↩{" "}
-              <a href="/returns" className="underline-offset-2 hover:underline">
+              <Link href="/returns" className="underline-offset-2 hover:underline">
                 {t("trust.returns")}
-              </a>
+              </Link>
             </li>
             <li>📦 {t("trust.delivery")}</li>
             <li>✓ {t("trust.inspected")}</li>
@@ -182,66 +184,50 @@ export default function ProductInfoPanel({
   );
 }
 
-// Update 128 (variant A): Royal Mail delivery card — the same options, prices
-// and insurance the buyer is offered at checkout (rules in /api/checkout).
+// Update 130: Royal Mail delivery card — options and prices come from
+// lib/shipping.ts, exactly what Stripe charges at checkout.
 function DeliveryCard({ product, isForSale }: { product: Product; isForSale: boolean }) {
   const { t } = useLanguage();
-  const d = ukDeliveryLines(product);
+  const d = ukDelivery([product]);
   const intl = product.international_shipping_cost;
-  const money = (v: number | null) => (v === null ? null : v === 0 ? "Free" : formatPrice(v));
-  type Row = { title: ReactNode; note: string; price: string | null };
-  const rows: Row[] =
+  const royalMail = d.kind === "standard" || d.kind === "free";
+  const headRight =
     d.kind === "standard"
-      ? [
-          { title: "Tracked 48", note: "2–3 working days · tracked", price: money(d.lines[0].price) },
-          {
-            title: (
-              <>
-                Special Delivery
-                <span className="ml-1.5 inline-block rounded bg-[#FFF1DA] px-1.5 py-px align-[1px] text-[10px] tracking-[0.06em] text-[#8A6420]">INSURED £750</span>
-              </>
-            ),
-            note: "Next working day by 1pm · signed for",
-            price: money(d.lines[1].price),
-          },
-        ]
-      : d.kind === "special"
-      ? [
-          {
-            title: (
-              <>
-                Special Delivery
-                <span className="ml-1.5 inline-block rounded bg-[#FFF1DA] px-1.5 py-px align-[1px] text-[10px] tracking-[0.06em] text-[#8A6420]">INSURED £750</span>
-              </>
-            ),
-            note: "Next working day by 1pm · signed for — used for all items over £150",
-            price: money(d.lines[0].price),
-          },
-        ]
-      : d.kind === "insured"
-      ? [{ title: "Fully insured delivery", note: "Arranged with you personally after purchase", price: money(d.lines[0].price) }]
-      : [{ title: "Delivery by arrangement", note: "Large item — we'll contact you after purchase", price: money(d.lines[0].price) }];
-  const royalMail = d.kind === "standard" || d.kind === "special";
+      ? "UK delivery — choose at checkout"
+      : d.kind === "free"
+      ? "Free UK delivery"
+      : d.kind === "personal"
+      ? "Items over £2,500"
+      : "Large item";
   return (
     <div className="overflow-hidden rounded-xl border border-border text-sm text-ink">
       <div className="flex items-center justify-between gap-3 border-b border-border bg-[#FBF9F5] px-3.5 py-2 text-[12.5px]">
         {royalMail ? (
-          <span className="inline-flex items-center gap-1.5 font-semibold text-[#DA202A]">
-            <span className="inline-block h-2 w-2 rounded-full bg-[#DA202A]" />
+          <span className="inline-flex items-center gap-1.5 font-semibold text-ink">
+            {/* Update 131: thin gold parcel icon (not the Royal Mail logo). */}
+            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="#AD8A4E" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z" />
+              <path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M7.8 5.2l8.5 4.6" />
+            </svg>
             Royal Mail
           </span>
         ) : (
           <span className="font-semibold">UK delivery</span>
         )}
-        <span className="text-muted">{d.kind === "standard" ? "UK delivery — choose at checkout" : "UK delivery"}</span>
+        <span className="text-muted">{headRight}</span>
       </div>
-      {rows.map((r, i) => (
-        <div key={i} className="flex items-start justify-between gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
+      {d.options.map((o) => (
+        <div key={o.id} className="flex items-start justify-between gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
           <div>
-            {r.title}
-            <span className="mt-0.5 block text-[12.5px] text-muted">{r.note}</span>
+            {o.title}
+            {o.badge && (
+              <span className="ml-1.5 inline-block rounded bg-[#FFF1DA] px-1.5 py-px align-[1px] text-[10px] tracking-[0.06em] text-[#8A6420]">{o.badge}</span>
+            )}
+            <span className="mt-0.5 block text-[12.5px] text-muted">{o.note}</span>
           </div>
-          {r.price && <span className="whitespace-nowrap font-semibold">{r.price}</span>}
+          <span className="whitespace-nowrap font-semibold">
+            {o.amount === 0 ? (o.id === "arrange" ? "" : "Free") : formatPrice(o.amount)}
+          </span>
         </div>
       ))}
       {typeof intl === "number" && intl > 0 ? (
@@ -270,7 +256,7 @@ function DesktopFacts({ product, isForSale }: { product: Product; isForSale: boo
       {isForSale && (
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13.5px] text-ink">
           <span>🔒 {t("trust.secure")}</span>
-          <a href="/returns" className="underline-offset-2 hover:underline">↩ {t("trust.returns")}</a>
+          <Link href="/returns" className="underline-offset-2 hover:underline">↩ {t("trust.returns")}</Link>
           <a href="https://wa.me/447918527790" target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">📍 Collection in Evesham</a>
           <span>✓ {t("trust.inspected")}</span>
         </div>

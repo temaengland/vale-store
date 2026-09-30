@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
+import AutoBack from "@/components/AutoBack";
 import NavTracker from "@/components/NavTracker";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -72,7 +73,10 @@ export default function RootLayout({
               <NavTracker />
             </Suspense>
             <Header />
-            <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+            <main className="mx-auto max-w-6xl px-6 py-10">
+              <AutoBack />
+              {children}
+            </main>
             <Footer />
             <Analytics />
           </CartProvider>

@@ -1,4 +1,5 @@
 import { getAllProducts } from "@/lib/data";
+import { cheapestUkPrice } from "@/lib/shipping";
 import { Product } from "@/lib/products";
 import { isFeedRestricted } from "@/lib/shop";
 
@@ -87,21 +88,14 @@ function itemXml(p: Product, isMeta: boolean): string | null {
   if (isMeta) lines.push(`<g:brand>CharmChase</g:brand>`);
   if (p.weight_grams) lines.push(`<g:shipping_weight>${p.weight_grams} g</g:shipping_weight>`);
 
-  // UK delivery price shown on Google/Meta. Mirrors checkout: the item's own
-  // UK shipping cost if set; large furniture without a set cost = £70 courier.
-  const ukShippingPence =
-    p.shipping_cost && p.shipping_cost > 0
-      ? p.shipping_cost
-      : isLargeItem(p)
-      ? LARGE_ITEM_UK_DELIVERY_PENCE
-      : null;
-  if (ukShippingPence !== null) {
-    lines.push(
-      `<g:shipping><g:country>GB</g:country><g:service>${
-        isLargeItem(p) ? "Furniture courier" : "Royal Mail"
-      }</g:service><g:price>${(ukShippingPence / 100).toFixed(2)} GBP</g:price></g:shipping>`
-    );
-  }
+  // UK delivery price shown on Google/Meta — update 130: same rules as the
+  // site and checkout (lib/shipping.ts). Large items without a courier price
+  // still show the £70 furniture courier estimate.
+  const ship = cheapestUkPrice(p);
+  const ukShippingPence = isLargeItem(p) && ship.amount === 0 ? LARGE_ITEM_UK_DELIVERY_PENCE : ship.amount;
+  lines.push(
+    `<g:shipping><g:country>GB</g:country><g:service>${ship.service}</g:service><g:price>${(ukShippingPence / 100).toFixed(2)} GBP</g:price></g:shipping>`
+  );
 
   return `<item>\n${lines.map((l) => "  " + l).join("\n")}\n</item>`;
 }
