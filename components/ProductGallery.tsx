@@ -298,7 +298,7 @@ export default function ProductGallery({
   // Update 125 (computers): thumbnails in a column on the left, the main photo
   // fits the screen height, and the gallery stays in view while scrolling.
   return (
-    <div className="lg:sticky lg:top-4 lg:flex lg:flex-row-reverse lg:items-start lg:gap-3 lg:self-start">
+    <div className="lg:sticky lg:top-[76px] lg:flex lg:flex-row-reverse lg:items-start lg:gap-3 lg:self-start">
       <div
         ref={containerRef}
         className="group relative aspect-square w-full touch-none overflow-hidden rounded-xl bg-surface lg:aspect-auto lg:h-[calc(100vh-150px)] lg:max-h-[640px] lg:min-h-[360px] lg:min-w-0 lg:flex-1"

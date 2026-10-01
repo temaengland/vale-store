@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { categories } from "@/lib/products";
 import Logo from "@/components/Logo";
@@ -12,12 +12,34 @@ import { useLanguage } from "@/lib/language-context";
 export default function Header() {
   const [open, setOpen] = useState(false);
   const { t } = useLanguage();
+  // Update 134 (computers only): the header stays at the top while scrolling
+  // and becomes slimmer. Two thresholds so it doesn't flicker at the edge.
+  const [slim, setSlim] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      setSlim((s) => (s ? y > 20 : y > 90));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <header className="border-b border-border">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    <header
+      className={`border-b border-border bg-white lg:sticky lg:top-0 lg:z-40 lg:transition-shadow ${
+        slim ? "lg:shadow-[0_4px_14px_rgba(0,0,0,0.07)]" : ""
+      }`}
+    >
+      <div
+        className={`mx-auto flex max-w-6xl items-center justify-between px-6 py-5 lg:transition-[padding] lg:duration-200 ${
+          slim ? "lg:py-2.5" : ""
+        }`}
+      >
         <Link href="/" onClick={() => setOpen(false)}>
-          <Logo className="h-12 w-auto lg:h-10 min-[1150px]:h-12" />
+          {/* Phones: always the full logo. Computers: full at the top, compact while scrolling. */}
+          <Logo className={`h-12 w-auto lg:h-10 min-[1150px]:h-12 ${slim ? "lg:hidden" : ""}`} />
+          {slim && <Logo compact className="hidden h-12 w-auto lg:block lg:h-[34px]" />}
         </Link>
 
         {/* Desktop nav — hidden on small screens */}

@@ -1,9 +1,11 @@
 const INK = "#332E27";
 const BRASS = "#AD8A4E";
 
-export default function Logo({ className }: { className?: string }) {
+// Update 134: `compact` = the slim desktop header while scrolling — the
+// wordmark only (no "Curated antiques & vintage" line), cropped tight.
+export default function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
-    <svg viewBox="0 0 260 60" className={className}>
+    <svg viewBox={compact ? "0 6 186 42" : "0 0 260 60"} className={className}>
       <text
         x="0"
         y="34"
@@ -21,6 +23,7 @@ export default function Logo({ className }: { className?: string }) {
         strokeWidth="1.2"
       />
       <circle cx="90" cy="41.5" r="1.6" fill={BRASS} />
+      {!compact && (
       <text
         x="0"
         y="56"
@@ -31,6 +34,7 @@ export default function Logo({ className }: { className?: string }) {
       >
         CURATED ANTIQUES &amp; VINTAGE
       </text>
+      )}
     </svg>
   );
 }
