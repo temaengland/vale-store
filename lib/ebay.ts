@@ -346,7 +346,7 @@ export function guessPlacement(categoryName: string, title: string): { category:
   if (has(W("tribal|african|oceanic|ethnographic|tuareg|asian|chinese|japanese|islamic|ottoman"))) return { category: "art", subcategory: "Tribal & World" };
   if (has(W("textiles?|tapestry|tapestries|quilts?|samplers?|embroidery|lace|rugs?"))) return { category: "art", subcategory: "Textiles" };
   if (has(W("ornaments?|figurines?|figures?|statues?"))) return { category: "art", subcategory: "Ornaments" };
-  return { category: "art", subcategory: has(W("art")) ? null : "Collectables" };
+  return { category: "art", subcategory: has(W("art")) ? null : "Curiosities" };
 }
 
 // ---------- two-way sync helpers (update 107) ----------

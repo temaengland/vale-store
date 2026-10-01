@@ -7,10 +7,10 @@ import CategoryFilterRow from "@/components/CategoryFilterRow";
 import T from "@/components/T";
 import NotifyMeForm from "@/components/NotifyMeForm";
 import { trackCategoryView } from "@/lib/trackView";
-import { Suspense } from "react";
+import { Suspense, Fragment } from "react";
 import SortSelect from "@/components/SortSelect";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
-import { isAvailable, parseSort, sortForListing, POPULAR_TAGS, matchesTag } from "@/lib/shop";
+import { isAvailable, parseSort, sortForListing, groupBySubcategory, FINE_ART_SUBS, POPULAR_TAGS, matchesTag } from "@/lib/shop";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -65,7 +65,9 @@ export default async function CategoryPage({
   const eraOptions = (category.eras || []).filter((e) => eraCounts[e] || e === searchParams.era);
   let items = allInCategory;
   if (searchParams.sub) {
-    items = items.filter((p) => p.subcategory === searchParams.sub);
+    // Update 133: old links to ?sub=Collectables now show Curiosities.
+    const wanted = searchParams.sub === "Collectables" ? "Curiosities" : searchParams.sub;
+    items = items.filter((p) => (p.subcategory === "Collectables" ? "Curiosities" : p.subcategory) === wanted);
   }
   if (searchParams.era) {
     items = items.filter((p) => p.era === searchParams.era);
@@ -75,6 +77,15 @@ export default async function CategoryPage({
   if (tag) items = items.filter((p) => matchesTag(p, tag));
 
   items = sortForListing(items, sort);
+  // Update 133: Art & Decor — paintings first, then prints, then the rest.
+  const groupArt = category.slug === "art" && sort === "newest";
+  if (groupArt) items = groupBySubcategory(items, category.subcategories);
+  // Where the decorative pieces start (thin gold line with a label), only in
+  // the full list when both fine art and decor are for sale.
+  const firstDecor = groupArt && !searchParams.sub
+    ? items.findIndex((p) => isAvailable(p) && !FINE_ART_SUBS.includes(p.subcategory || ""))
+    : -1;
+  const showDivider = firstDecor > 0;
   const shownInStock = items.filter(isAvailable).length;
   const shownSold = items.length - shownInStock;
   const isFiltered = Boolean(searchParams.sub || searchParams.era || tag);
@@ -216,8 +227,16 @@ export default async function CategoryPage({
           {countAndSort}
         </div>
         <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4 lg:mt-5">
-          {items.map((p) => (
-            <ProductCard key={p.slug} product={p} />
+          {items.map((p, i) => (
+            <Fragment key={p.slug}>
+              {showDivider && i === firstDecor && (
+                <div className="col-span-full -mb-1 mt-2 flex items-center gap-3 text-[11.5px] font-medium uppercase tracking-[0.16em] text-[#AD8A4E]">
+                  <T k="category.decorDivider" />
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
+              <ProductCard product={p} />
+            </Fragment>
           ))}
         </div>
         </>

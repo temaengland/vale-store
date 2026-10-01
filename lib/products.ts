@@ -141,7 +141,8 @@ export const categories: Category[] = [
       "Ornaments",
       "Textiles",
       "Tribal & World",
-      "Collectables",
+      // Update 133: was "Collectables".
+      "Curiosities",
     ],
     eras: ["Georgian", "Victorian", "Edwardian", "Mid-century", "Contemporary"],
   },

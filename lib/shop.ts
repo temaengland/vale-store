@@ -20,6 +20,25 @@ export function parseSort(v?: string): SortKey {
 }
 
 /** Sorts the available pieces; sold ones always stay at the end (newest first). */
+/**
+ * Update 133: in Art & Decor the "Newest" view is grouped by type, in the same
+ * order as the type buttons — Paintings, then Prints and drawings, Sculpture,
+ * Photography, then the decorative pieces. Newest first inside each type.
+ * Sold pieces stay at the end. Price sorting is unchanged.
+ */
+export const FINE_ART_SUBS = ["Paintings", "Prints and drawings", "Sculpture", "Photography"];
+export function groupBySubcategory<T extends Product>(list: T[], order: string[]): T[] {
+  const rank = (p: T) => {
+    const sub = p.subcategory === "Collectables" ? "Curiosities" : p.subcategory;
+    const i = sub ? order.indexOf(sub) : -1;
+    return i === -1 ? order.length : i;
+  };
+  const avail = list.filter(isAvailable);
+  const gone = list.filter((p) => !isAvailable(p));
+  const ranked = avail.map((p, i) => ({ p, i, r: rank(p) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.p);
+  return [...ranked, ...gone];
+}
+
 export function sortForListing<T extends Product>(list: T[], sort: SortKey = "newest"): T[] {
   const avail = list.filter(isAvailable);
   const gone = list.filter((p) => !isAvailable(p));

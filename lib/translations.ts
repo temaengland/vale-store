@@ -130,6 +130,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "category.intro.silver": "Hallmarked sterling silver: salvers, christening pieces, boxes and table silver, with maker and date described.",
     "category.intro.ceramics": "Porcelain, pottery and art glass, from Meissen and Royal Doulton to Delft and Murano, with marks and condition shown in close-up photos.",
     "category.intro.art": "Original paintings, prints and decorative pieces with character, from signed oils to tribal and collectable objects.",
+    "category.decorDivider": "Decor & Curiosities",
     "home.popular": "Popular right now",
     "list.showing": "Showing",
     "list.clear": "clear",
@@ -250,6 +251,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "category.intro.silver": "Серебро с клеймами: подносы, детское серебро, шкатулки и столовое серебро — с указанием мастера и года.",
     "category.intro.ceramics": "Фарфор, керамика и художественное стекло — от Meissen и Royal Doulton до Delft и Murano, клейма и состояние на крупных фото.",
     "category.intro.art": "Оригинальные картины, гравюры и предметы декора с характером — от подписанной живописи до этнических и коллекционных вещей.",
+    "category.decorDivider": "Декор и редкости",
     "home.popular": "Популярное",
     "list.showing": "Показано",
     "list.clear": "сбросить",
@@ -327,6 +329,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "category.intro.silver": "带印记的纯银器：托盘、洗礼银器、银盒和餐桌银器，注明制造者和年份。",
     "category.intro.ceramics": "瓷器、陶器和艺术玻璃，从 Meissen、Royal Doulton 到 Delft 和 Murano，特写照片展示款识与品相。",
     "category.intro.art": "原创绘画、版画和富有个性的装饰品，从签名油画到部落与收藏品。",
+    "category.decorDivider": "装饰与珍奇",
   },
   fr: {
     "footer.contact": "Contact",
@@ -401,6 +404,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "category.intro.silver": "Argent massif poinçonné : plateaux, pièces de baptême, boîtes et argenterie de table, avec orfèvre et date.",
     "category.intro.ceramics": "Porcelaine, faïence et verre d'art, de Meissen et Royal Doulton à Delft et Murano, marques et état en gros plan.",
     "category.intro.art": "Peintures originales, gravures et objets décoratifs de caractère, des huiles signées aux objets tribaux et de collection.",
+    "category.decorDivider": "Décoration & curiosités",
   },
   de: {
     "footer.contact": "Kontakt",
@@ -475,6 +479,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "category.intro.silver": "Punziertes Sterlingsilber: Tabletts, Taufgeschenke, Dosen und Tafelsilber, mit Hersteller und Jahr.",
     "category.intro.ceramics": "Porzellan, Keramik und Kunstglas, von Meissen und Royal Doulton bis Delft und Murano, Marken und Zustand in Nahaufnahmen.",
     "category.intro.art": "Originalgemälde, Drucke und Dekostücke mit Charakter, von signierten Ölbildern bis zu Stammeskunst und Sammlerstücken.",
+    "category.decorDivider": "Dekor & Kuriositäten",
   },
   es: {
     "footer.contact": "Contacto",
@@ -549,5 +554,6 @@ export const translations: Record<Locale, Record<string, string>> = {
     "category.intro.silver": "Plata de ley contrastada: bandejas, piezas de bautizo, cajas y cubertería, con platero y fecha.",
     "category.intro.ceramics": "Porcelana, cerámica y vidrio artístico, de Meissen y Royal Doulton a Delft y Murano, con marcas y estado en primeros planos.",
     "category.intro.art": "Pinturas originales, grabados y piezas decorativas con carácter, desde óleos firmados hasta objetos tribales y de colección.",
+    "category.decorDivider": "Decoración y curiosidades",
   },
 };
