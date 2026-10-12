@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { categories } from "@/lib/products";
 import Logo from "@/components/Logo";
 import CartIcon from "@/components/CartIcon";
@@ -12,6 +13,9 @@ import { useLanguage } from "@/lib/language-context";
 export default function Header() {
   const [open, setOpen] = useState(false);
   const { t } = useLanguage();
+  // Update 135: the admin gets only the logo — no categories, search,
+  // language, cart or menu, and the header does not stick.
+  const isAdmin = (usePathname() || "").startsWith("/admin");
   // Update 134 (computers only): the header stays at the top while scrolling
   // and becomes slimmer. Two thresholds so it doesn't flicker at the edge.
   const [slim, setSlim] = useState(false);
@@ -24,6 +28,18 @@ export default function Header() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  if (isAdmin) {
+    return (
+      <header className="border-b border-border bg-white">
+        <div className="mx-auto flex max-w-6xl items-center px-6 py-4">
+          <Link href="/" aria-label="CharmChase — shop">
+            <Logo className="h-10 w-auto" />
+          </Link>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header

@@ -116,8 +116,11 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* Update 118: the tab bar stays at the top of the screen while scrolling. */}
-      <div className="sticky top-0 z-40 -mx-6 mt-6 flex gap-2 overflow-x-auto whitespace-nowrap border-b border-border bg-white/95 px-6 shadow-[0_6px_12px_-10px_rgba(0,0,0,0.25)] backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [scroll-snap-type:x_proximity]">
+      {/* Update 118: the tab bar stays at the top of the screen while scrolling.
+          Update 135: swiping it left/right no longer jiggles it up/down —
+          no vertical overflow (overflow-y-hidden), the finger only scrolls it
+          sideways (touch-action: pan-x), no snap. */}
+      <div className="sticky top-0 z-40 -mx-6 mt-6 flex gap-2 overflow-x-auto overflow-y-hidden overscroll-x-contain whitespace-nowrap border-b border-border bg-white px-6 shadow-[0_6px_12px_-10px_rgba(0,0,0,0.25)] [-ms-overflow-style:none] [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden">
         {(
           [
             "notifications",
@@ -135,7 +138,7 @@ export default function AdminPage() {
               setTab(t);
               window.scrollTo({ top: 0 });
             }}
-            className={`shrink-0 scroll-mx-4 px-4 py-2 text-sm border-b-2 -mb-px transition-colors [scroll-snap-align:start] ${
+            className={`shrink-0 px-4 py-2 text-sm border-b-2 transition-colors ${
               tab === t
                 ? "border-ink text-ink"
                 : "border-transparent text-muted hover:text-ink"
