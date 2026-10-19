@@ -13,6 +13,15 @@ body {
 .crop-viewport .ReactCrop,
 .crop-viewport .ReactCrop__child-wrapper {
   max-height: 58dvh !important;
+  /* Update 138: never wider than the editor (on iPhone it used to spill
+     off the right side of the screen). */
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+.crop-viewport {
+  width: 100%;
+  /* fingers move the frame, never zoom or scroll the page underneath */
+  touch-action: none;
 }
 .crop-viewport .ReactCrop__child-wrapper > img {
   max-height: 58dvh !important;
@@ -91,4 +100,24 @@ body {
     width: 20px !important;
     height: 20px !important;
   }
+}
+
+/* Update 136: admin on phones.
+   iPhone zooms the page in when you tap a field whose text is smaller than
+   16px, and then the page sits off to the right. Admin fields get 16px text
+   on phones and tablets, and the admin page can never be wider than the
+   screen (clip, not hidden, so the sticky tab bar keeps working). */
+@media (max-width: 1023px) {
+  body:has(.admin-root) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  body:has(.admin-root) select,
+  body:has(.admin-root) textarea {
+    font-size: 16px !important;
+  }
+}
+body:has(.admin-root) {
+  overflow-x: clip;
+}
+.admin-root img,
+.admin-root video {
+  max-width: 100%;
 }

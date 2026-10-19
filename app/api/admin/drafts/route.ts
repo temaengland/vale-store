@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notifyIndexNow } from "@/lib/indexnow";
+import { guessPlacement } from "@/lib/ebay";
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Unknown server error.";
@@ -20,7 +21,28 @@ export async function GET() {
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ drafts: data });
+
+    // Update 137: drafts imported before the fix that landed in Watches &
+    // Clocks only because of eBay's "Jewellery & Watches" path — if the title
+    // has nothing to do with watches or clocks, put them where the title says.
+    const db = supabaseAdmin();
+    const watchy = /\b(watch|watches|wristwatch|chronograph|pocket watch|hunter|clock|clocks|timepiece|longcase)\b/i;
+    const drafts = data || [];
+    for (const d of drafts) {
+      if (d.category !== "watches" || watchy.test(d.name || "")) continue;
+      const g = guessPlacement("", d.name || "");
+      if (g.category === "watches") continue;
+      const { error: upErr } = await db
+        .from("products")
+        .update({ category: g.category, subcategory: g.subcategory })
+        .eq("id", d.id)
+        .eq("is_draft", true);
+      if (!upErr) {
+        d.category = g.category;
+        d.subcategory = g.subcategory;
+      }
+    }
+    return NextResponse.json({ drafts });
   } catch (e) {
     return NextResponse.json(
       { error: `Server error: ${errMsg(e)}` },

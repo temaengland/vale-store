@@ -78,7 +78,7 @@ export default function AdminPage() {
 
   if (!authed) {
     return (
-      <div className="mx-auto max-w-sm py-20">
+      <div className="admin-root mx-auto max-w-sm py-20">
         <h1 className="font-serif text-2xl">Admin login</h1>
         <form onSubmit={handleLogin} className="mt-6 space-y-3">
           <input
@@ -101,7 +101,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="pb-20">
+    <div className="admin-root pb-20">
       <div className="flex items-baseline justify-between">
         <h1 className="font-serif text-2xl">
           Admin

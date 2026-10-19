@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactCrop, {
   Crop,
   PixelCrop,
@@ -113,6 +113,16 @@ export default function ImageCropUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const imgRef = useRef<HTMLImageElement>(null);
+  // Update 138: while the editor is open the page behind it doesn't scroll.
+  const editorOpen = Boolean(workingUrl && editTarget);
+  useEffect(() => {
+    if (!editorOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [editorOpen]);
 
   // Drag-to-reorder for already-added photos — works the same way with a
   // mouse or a finger, via the Pointer Events API.
@@ -565,8 +575,17 @@ export default function ImageCropUpload({
                 {cropMode ? (
                   <ReactCrop
                     crop={crop}
-                    onChange={(_, percentCrop) => setCrop(percentCrop)}
-                    onComplete={(c) => setPixelCrop(c)}
+                    onChange={(_, percentCrop) => {
+                      if (!percentCrop.width || !percentCrop.height) return;
+                      setCrop(percentCrop);
+                    }}
+                    onComplete={(c) => {
+                      if (!c.width || !c.height) return;
+                      setPixelCrop(c);
+                    }}
+                    // Update 138: a touch on the photo outside the frame no
+                    // longer starts a new tiny frame in the corner.
+                    keepSelection
                     minWidth={40}
                     minHeight={40}
                     ruleOfThirds

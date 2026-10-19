@@ -251,7 +251,12 @@ const ASIAN_WORDS =
   "chinese|china export|japanese|japan|oriental|asian|qianlong|kangxi|yongzheng|jiaqing|daoguang|guangxu|tongzhi|xianfeng|ming|qing|canton|famille rose|famille verte|nanking|tek sing|satsuma|imari|arita|kutani|noritake|meiji|korean|celadon";
 
 export function guessPlacement(categoryName: string, title: string): { category: SiteCategory; subcategory: string | null } {
-  const t = `${categoryName} ${title}`.toLowerCase();
+  // Update 137: eBay sends the full category path, e.g.
+  // "Jewellery & Watches:Fine Jewellery:Fine Rings". The top-level name
+  // contains the word "Watches", which sent every ring and brooch to
+  // Watches & Clocks. Drop that top-level name before guessing.
+  const catPath = categoryName.replace(/jewe?l(?:le)?ry\s*(?:&|and)\s*watch(?:es)?/gi, "Jewellery");
+  const t = `${catPath} ${title}`.toLowerCase();
   const has = (re: RegExp) => re.test(t);
   const W = (words: string) => new RegExp(`\\b(${words})\\b`);
 
@@ -272,7 +277,7 @@ export function guessPlacement(categoryName: string, title: string): { category:
     return { category: "silver", subcategory: "Coins & Medals" };
   }
   // eBay's own category says furniture → trust it (a "china cabinet" is still a cabinet).
-  if (/\bfurniture\b/i.test(categoryName)) return { category: "furniture", subcategory: null };
+  if (/\bfurniture\b/i.test(catPath)) return { category: "furniture", subcategory: null };
   // Update 121: watches have their own category.
   if (has(W("pocket watch|pocket watches|hunter|half hunter"))) return { category: "watches", subcategory: "Pocket Watches" };
   if (has(W("watch|watches|wristwatch|chronograph"))) return { category: "watches", subcategory: "Wristwatches" };
@@ -308,7 +313,20 @@ export function guessPlacement(categoryName: string, title: string): { category:
     }
   }
   if (has(W("jewellery|jewelry|jewel|rings?|necklaces?|pendants?|bracelets?|earrings?|brooch|brooches|cufflinks?|medals?|bangles?|lockets?|charms?"))) {
-    return { category: "jewelry", subcategory: null };
+    // Update 137: also pick the type from the title (title words win over eBay's path).
+    const types: [string, string][] = [
+      ["earrings?|studs?|ear ?rings?", "Earrings"],
+      ["cufflinks?", "Cufflinks"],
+      ["brooch|brooches|pins?", "Brooches"],
+      ["bracelets?|bangles?|cuffs?", "Bracelets"],
+      ["pendants?|lockets?", "Pendants"],
+      ["necklaces?|chains?|chokers?|beads|pearls? strand", "Necklaces"],
+      ["rings?|solitaire|trilogy|eternity|signet", "Rings"],
+    ];
+    const tl = title.toLowerCase();
+    const byTitle = types.find(([w]) => new RegExp(`\\b(${w})\\b`).test(tl));
+    const byPath = byTitle ? null : types.find(([w]) => has(W(w)));
+    return { category: "jewelry", subcategory: (byTitle || byPath)?.[1] ?? null };
   }
   // Paintings and prints first (a painting *of* a vase is still a painting).
   if (has(W("paintings?|oil on (canvas|board|panel)|watercolou?rs?|etchings?|lithographs?|engravings?|prints?|drawings?"))) {
