@@ -1,5 +1,6 @@
 "use client";
 
+import { STYLE_LABEL, type Style } from "@/lib/reelStyles";
 import { useEffect, useRef, useState } from "react";
 
 // Admin → Items → "Daily Reel" (update 109).
@@ -12,8 +13,8 @@ type Data = {
   error?: string;
 };
 
-type Mood = "calm" | "elegant" | "lively" | "festive";
-const MOOD_LABEL: Record<Mood, string> = { calm: "Calm", elegant: "Elegant", lively: "Lively", festive: "Festive" };
+type Mood = Style;
+const MOOD_LABEL = STYLE_LABEL;
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00–22:00
 
@@ -212,8 +213,8 @@ export default function ReelsPanel() {
               Music ({d.music.filter((m) => m.on).length} on / {d.music.length})
             </p>
             <p className="mb-2 text-muted">
-              ▶ listen · choose the mood · untick to stop using a track. “Auto” picks by item: jewellery & art →
-              Elegant, watches → Lively, furniture & decor → Calm. Festive stays off until you tick it.
+              ▶ listen · choose the style · untick to stop using a track. “Auto” picks the style by the item&apos;s era
+              (title, then AI reads the listing, then the section). Festive stays off until you tick it.
             </p>
             {d.music.map((m) => (
               <div key={m.name} className="flex flex-wrap items-center gap-2 border-b border-border py-1.5">

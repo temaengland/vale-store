@@ -1,5 +1,6 @@
 "use client";
 
+import { STYLES, STYLE_LABEL } from "@/lib/reelStyles";
 import { useRef, useState } from "react";
 
 // Items → 🎥 Video (update 111): upload your own video of an item; the site adds
@@ -246,11 +247,12 @@ export default function ClipModal({
               disabled={!!busy || sound === "original"}
               className="w-full rounded-md border border-border px-2 py-1.5"
             >
-              <option value="auto">Auto (by item type)</option>
-              <option value="calm">Calm</option>
-              <option value="elegant">Elegant</option>
-              <option value="lively">Lively</option>
-              <option value="festive">Festive</option>
+              <option value="auto">Auto (by the item&apos;s era)</option>
+              {STYLES.map((k) => (
+                <option key={k} value={k}>
+                  {STYLE_LABEL[k]}
+                </option>
+              ))}
               {tracks.length > 0 && <option disabled>──────────</option>}
               {tracks.map((t) => (
                 <option key={t.name} value={`track:${t.name}`}>

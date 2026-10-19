@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       path?: string;
       sound?: "both" | "music" | "original";
       music?: string; // "auto" | mood | "track:<name>"
-      mood?: "calm" | "elegant" | "lively" | "festive";
+      mood?: string;
       on?: boolean;
     };
     const choice = body.music && body.music !== "auto" ? body.music : undefined;

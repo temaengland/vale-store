@@ -1,4 +1,5 @@
 import "server-only";
+import { STYLES, LEGACY_STYLE, normStyle, type Style } from "@/lib/reelStyles";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildInstagramCaption } from "@/lib/instagramCaption";
 import {
@@ -119,20 +120,22 @@ async function ensureBucket() {
 
 // ---------- music ----------
 
-// Moods (update 112). Taken from the file name ("calm-piano-01.mp3",
-// "elegant-…", "lively-…", "festive-…"); can be changed in admin.
-export const MOODS = ["calm", "elegant", "lively", "festive"] as const;
-export type Mood = (typeof MOODS)[number];
+// Music styles (update 141, replaces the 4 moods of update 112). Taken from the
+// file name ("romantic-01-chopin….mp3"); can be changed in admin.
+export const MOODS = STYLES;
+export type Mood = Style;
 const MUSIC_META_KEY = "reels_music_meta";
-type MusicMeta = Record<string, { mood?: Mood; on?: boolean }>;
+type MusicMeta = Record<string, { mood?: string; on?: boolean }>;
 
 function moodFromName(name: string): Mood {
   const n = name.toLowerCase().replace(/^\d+-/, "");
   for (const m of MOODS) if (n.startsWith(m)) return m;
+  for (const [old, m] of Object.entries(LEGACY_STYLE)) if (n.startsWith(old)) return m;
   if (/christmas|xmas|festive|jingle|holiday|carol/.test(n)) return "festive";
-  if (/beat|hip-?hop|upbeat|driving|energetic|funk|pop/.test(n)) return "lively";
-  if (/classic|elegant|piano|romantic|waltz|string/.test(n)) return "elegant";
-  return "calm";
+  if (/swing|upbeat|jazz/.test(n)) return "artdeco";
+  if (/classic|piano|romantic|waltz|nocturne/.test(n)) return "romantic";
+  if (/string|elegant/.test(n)) return "luxury";
+  return "midcentury";
 }
 
 export type Track = { name: string; url: string; mood: Mood; on: boolean };
@@ -144,7 +147,7 @@ export async function listMusic(): Promise<Track[]> {
   return (data || [])
     .filter((f) => /\.(mp3|m4a|aac|wav)$/i.test(f.name))
     .map((f) => {
-      const mood = meta[f.name]?.mood || moodFromName(f.name);
+      const mood = normStyle(meta[f.name]?.mood) || moodFromName(f.name);
       // Festive music is off until switched on (December).
       const on = meta[f.name]?.on ?? mood !== "festive";
       return { name: f.name, url: db().storage.from(BUCKET).getPublicUrl(`${MUSIC_DIR}/${f.name}`).data.publicUrl, mood, on };
@@ -152,34 +155,141 @@ export async function listMusic(): Promise<Track[]> {
     .sort((a, b) => MOODS.indexOf(a.mood) - MOODS.indexOf(b.mood) || a.name.localeCompare(b.name));
 }
 
-export async function setTrack(name: string, patch: { mood?: Mood; on?: boolean }) {
+export async function setTrack(name: string, patch: { mood?: string; on?: boolean }) {
   const meta = await read<MusicMeta>(MUSIC_META_KEY, {});
-  meta[name] = { ...meta[name], ...patch };
+  const mood = patch.mood ? normStyle(patch.mood) : null;
+  meta[name] = { ...meta[name], ...(mood ? { mood } : {}), ...(typeof patch.on === "boolean" ? { on: patch.on } : {}) };
   await write(MUSIC_META_KEY, meta);
 }
 
-/** "auto" | a mood | "track:<file name>" */
+/** "auto" | a style | "track:<file name>" */
 export type MusicChoice = string | undefined;
 
-function autoMood(p: { category: string; subcategory?: string | null }): Mood {
-  if (/watch/i.test(p.subcategory || "")) return "lively";
-  if (p.category === "watches") return "lively";
-  if (p.category === "jewelry" || p.category === "silver" || p.category === "art" || p.category === "ceramics") return "elegant";
-  return "calm";
+type StyleItem = {
+  id?: string;
+  name?: string;
+  description?: string | null;
+  era?: string | null;
+  category: string;
+  subcategory?: string | null;
+};
+
+// Era words → style. Checked on the title + era first, then on the description.
+const STYLE_WORDS: [Style, RegExp][] = [
+  ["oriental", /\b(chinese|china export|japanese|japan|oriental|satsuma|imari|kutani|cloisonn[eé]|netsuke|inro|meiji|qing|ming|kangxi|qianlong|guangxu|korean|tibetan|canton|famille|chinoiserie)\b/i],
+  ["artdeco", /\b(art ?deco|deco|1920s|1930s|jazz age|bakelite)\b/i],
+  ["midcentury", /\b(mid[- ]?century|1950s|1960s|1970s|danish|g[- ]?plan|ercol|eames|space age|atomic|retro|teak)\b/i],
+  ["french", /\b(art nouveau|nouveau|belle [eé]poque|jugendstil|secessionist|french|louis xv|louis xvi|liberty (&|and) co)\b/i],
+  ["ragtime", /\b(edwardian|1900s|1910s)\b/i],
+  ["romantic", /\b(victorian|19th century|nineteenth century|william iv)\b/i],
+  ["baroque", /\b(georgian|regency|18th century|eighteenth century|17th century|queen anne|william (&|and) mary|baroque|charles ii)\b/i],
+];
+const LUXURY_WORDS = /\b(diamonds?|sapphire|emerald|ruby|rubies|platinum|18ct|18k|22ct|cartier|tiffany|van cleef|bulgari|rolex|patek)\b/i;
+const RUSTIC_WORDS = /\b(oak|pine|elm|country|farmhouse|rustic|primitive|treen|folk|stoneware|arts (&|and) crafts|cottage|tribal|african)\b/i;
+
+function styleFromYear(text: string): Style | null {
+  const m = text.match(/\b(1[5-9]\d\d)s?\b/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  if (y < 1837) return "baroque";
+  if (y < 1890) return "romantic";
+  if (y < 1901) return "french";
+  if (y < 1920) return "ragtime";
+  if (y < 1946) return "artdeco";
+  if (y < 1990) return "midcentury";
+  return null;
 }
 
-/** Picks a music track for an item: a chosen track, a chosen mood, or by category. */
-async function pickTrack(p: { category: string; subcategory?: string | null }, choice: MusicChoice) {
+function styleFromWords(text: string): Style | null {
+  for (const [s, re] of STYLE_WORDS) if (re.test(text)) return s;
+  return null;
+}
+
+function styleByCategory(p: StyleItem): Style {
+  if (/watch/i.test(p.subcategory || "") || p.category === "watches") return "artdeco";
+  if (p.category === "jewelry") return "luxury";
+  if (p.category === "silver" || p.category === "ceramics") return "romantic";
+  if (p.category === "art") return "french";
+  if (p.category === "furniture") return "midcentury";
+  return "rustic";
+}
+
+const aiStyleCache = new Map<string, Style | null>();
+
+/** Claude picks the style from the listing (if ANTHROPIC_API_KEY is set). */
+async function aiStyle(p: StyleItem): Promise<Style | null> {
+  const key = (process.env.ANTHROPIC_API_KEY || "").trim();
+  if (!key) return null;
+  const cacheKey = p.id || p.name || "";
+  if (aiStyleCache.has(cacheKey)) return aiStyleCache.get(cacheKey) ?? null;
+  const model = (process.env.REELS_AI_MODEL || "claude-haiku-4-5").trim();
+  const prompt = `Choose background music for an Instagram Reel selling one antique/vintage item. Pick the style that matches the item's period and character.
+
+Styles:
+baroque = Georgian/Regency/18th century or earlier (Bach, Handel harpsichord)
+romantic = Victorian/19th century (Chopin piano)
+french = Art Nouveau, Belle Époque, French pieces, fine art paintings (Satie, Debussy)
+ragtime = Edwardian 1900-1919 (Scott Joplin)
+artdeco = 1920s-1940s, Art Deco, cocktail era (swing jazz)
+midcentury = 1950s-1980s, retro, mid-century modern (lounge, bossa nova)
+luxury = modern or undated fine jewellery, diamonds, gold, glamorous pieces (cinematic strings/piano)
+oriental = Chinese, Japanese and other Asian items (Asian instruments)
+rustic = country oak/pine furniture, folk, stoneware, tribal (acoustic guitar)
+
+Item: ${p.name || ""}
+Section: ${p.category}${p.subcategory ? " / " + p.subcategory : ""}${p.era ? "\nEra: " + p.era : ""}
+Listing text:
+${(p.description || "").slice(0, 1500)}
+
+Answer with one word only: the style.`;
+  let out: Style | null = null;
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model, max_tokens: 10, messages: [{ role: "user", content: prompt }] }),
+    });
+    const data = await res.json().catch(() => ({}));
+    const word = String(data?.content?.[0]?.text || "").toLowerCase().match(/[a-z]+/)?.[0];
+    const s = normStyle(word);
+    out = s && s !== "festive" ? s : null;
+  } catch {
+    out = null;
+  }
+  aiStyleCache.set(cacheKey, out);
+  return out;
+}
+
+/** Style for an item: era in the title → Claude → description → materials → section. */
+export async function styleFor(p: StyleItem): Promise<Style> {
+  const head = `${p.name || ""} ${p.era || ""}`;
+  const fromHead = styleFromWords(head) || styleFromYear(head);
+  if (fromHead) return fromHead;
+  const fromAi = await aiStyle(p);
+  if (fromAi) return fromAi;
+  const desc = p.description || "";
+  const fromDesc = styleFromWords(desc) || styleFromYear(desc);
+  if (fromDesc) return fromDesc;
+  if (LUXURY_WORDS.test(head + " " + desc)) return "luxury";
+  if (RUSTIC_WORDS.test(head + " " + desc)) return "rustic";
+  return styleByCategory(p);
+}
+
+/** Picks a music track for an item: a chosen track, a chosen style, or automatically. */
+async function pickTrack(p: StyleItem, choice: MusicChoice) {
   const all = await listMusic();
   if (choice && choice.startsWith("track:")) {
     const t = all.find((x) => x.name === choice.slice(6));
     if (t) return t;
   }
   const on = all.filter((t) => t.on);
-  const mood = choice && (MOODS as readonly string[]).includes(choice) ? (choice as Mood) : autoMood(p);
-  const pool = on.filter((t) => t.mood === mood);
-  const list = pool.length ? pool : on.length ? on : all;
-  return list.length ? list[Math.floor(Math.random() * list.length)] : null;
+  const chosen = normStyle(choice);
+  const mood = chosen || (await styleFor(p));
+  let pool = on.filter((t) => t.mood === mood);
+  if (!pool.length && !chosen) pool = on.filter((t) => t.mood === styleByCategory(p));
+  if (!pool.length) pool = on.filter((t) => t.mood !== "festive");
+  if (!pool.length) pool = on.length ? on : all;
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
 }
 
 export async function musicUploadUrl(filename: string) {
