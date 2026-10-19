@@ -108,6 +108,12 @@ body {
    on phones and tablets, and the admin page can never be wider than the
    screen (clip, not hidden, so the sticky tab bar keeps working). */
 @media (max-width: 1023px) {
+  /* Update 140: also without :has(), for older iPhones */
+  .admin-root input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  .admin-root select,
+  .admin-root textarea {
+    font-size: 16px !important;
+  }
   body:has(.admin-root) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
   body:has(.admin-root) select,
   body:has(.admin-root) textarea {
@@ -115,6 +121,9 @@ body {
   }
 }
 body:has(.admin-root) {
+  overflow-x: clip;
+}
+.admin-root {
   overflow-x: clip;
 }
 .admin-root img,

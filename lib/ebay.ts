@@ -250,6 +250,12 @@ type SiteCategory = import("@/lib/products").CategorySlug;
 const ASIAN_WORDS =
   "chinese|china export|japanese|japan|oriental|asian|qianlong|kangxi|yongzheng|jiaqing|daoguang|guangxu|tongzhi|xianfeng|ming|qing|canton|famille rose|famille verte|nanking|tek sing|satsuma|imari|arita|kutani|noritake|meiji|korean|celadon";
 
+/** Update 138: true when the title alone clearly says what the item is. */
+export function titleIsClear(title: string): boolean {
+  const g = guessPlacement("", title);
+  return !(g.category === "art" && (g.subcategory === "Curiosities" || g.subcategory === null));
+}
+
 export function guessPlacement(categoryName: string, title: string): { category: SiteCategory; subcategory: string | null } {
   // Update 137: eBay sends the full category path, e.g.
   // "Jewellery & Watches:Fine Jewellery:Fine Rings". The top-level name
@@ -276,11 +282,25 @@ export function guessPlacement(categoryName: string, title: string): { category:
     if (worn) return { category: "jewelry", subcategory: worn[1] };
     return { category: "silver", subcategory: "Coins & Medals" };
   }
+  // Update 138: the TITLE decides watches and clocks first — before anything
+  // eBay's category path says (a watch listed under any eBay category is
+  // still a watch).
+  const tt = title.toLowerCase();
+  const T = (words: string) => new RegExp(`\\b(${words})\\b`).test(tt);
+  if (T("pocket watch|pocket watches|half hunter|full hunter")) return { category: "watches", subcategory: "Pocket Watches" };
+  if (T("watch|watches|wristwatch|wristwatches|chronograph")) return { category: "watches", subcategory: "Wristwatches" };
+  // Watch brands count too — unless the title is clearly a piece of jewellery
+  // ("Omega chain necklace", "Rotary bangle").
+  if (
+    T("rolex|omega|seiko|citizen|tissot|longines|sekonda|rotary|timex|swatch|tudor|zenith|garrard|eterna|bulova|hamilton|accurist|ingersoll|casio|breitling|tag heuer|oris|certina|rado|mido|movado|poljot|vostok|raketa|slava|precimax|brax") &&
+    !T("necklaces?|chains?|bracelets?|bangles?|rings?|earrings?|brooch|brooches|pendants?|lockets?|cufflinks?")
+  ) return { category: "watches", subcategory: "Wristwatches" };
+  if (T("clock|clocks|longcase|carriage clock|mantel clock|bracket clock|wall clock")) return { category: "watches", subcategory: "Clocks" };
   // eBay's own category says furniture → trust it (a "china cabinet" is still a cabinet).
   if (/\bfurniture\b/i.test(catPath)) return { category: "furniture", subcategory: null };
   // Update 121: watches have their own category.
   if (has(W("pocket watch|pocket watches|hunter|half hunter"))) return { category: "watches", subcategory: "Pocket Watches" };
-  if (has(W("watch|watches|wristwatch|chronograph"))) return { category: "watches", subcategory: "Wristwatches" };
+  if (has(W("watch|watches|wristwatch|wristwatches|chronograph"))) return { category: "watches", subcategory: "Wristwatches" };
   // Update 122: clocks live in "Watches & Clocks".
   if (has(W("clock|clocks|timepiece|longcase|carriage clock|mantel clock|bracket clock|wall clock"))) return { category: "watches", subcategory: "Clocks" };
   // Update 117: silverware (not silver jewellery) → Silver.
@@ -303,8 +323,12 @@ export function guessPlacement(categoryName: string, title: string): { category:
       ["trophy|trophies|challenge cup|goblets?|tankards?|cups?", "Cups & Trophies"],
       ["hand mirror|brush|dressing table|vanity|scent bottle|perfume bottle|pin cushion|hair tidy|button hook", "Dressing Table"],
     ];
-    const isObject = has(W("hip flasks?|flasks?|corkscrews?|wine labels?|pipes?|cigarette cases?|cigar cases?|ashtrays?|lighters?|card cases?|card holders?|photo frames?|comports?|bon ?bon|sweetmeat|mustards?|cruets?|casters?|creamers?|pitchers?|salvers?|trays?|teapots?|coffee ?pots?|jugs?|spoons?|forks?|ladles?|cutlery|flatware|candlesticks?|candelabra|vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|rattles?|christening|napkin rings?|trophy|challenge cup|goblets?|tankards?|mug|cups?|hand mirror|dressing table|scent bottle|perfume bottle|pin cushion|pepper|salt|cruet|mustard|toast rack|bowls?|dish|purse|thimble|photo frame|frame|vase|sauce boat|tureen|basket|coasters?|ornament|figure|model|mill"));
-    if (isObject) {
+    const isObject = has(W("tongs|sugar tongs|hip flasks?|flasks?|corkscrews?|wine labels?|pipes?|cigarette cases?|cigar cases?|ashtrays?|lighters?|card cases?|card holders?|photo frames?|comports?|bon ?bon|sweetmeat|mustards?|cruets?|casters?|creamers?|pitchers?|salvers?|trays?|teapots?|coffee ?pots?|jugs?|spoons?|forks?|ladles?|cutlery|flatware|candlesticks?|candelabra|vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|rattles?|christening|napkin rings?|trophy|challenge cup|goblets?|tankards?|mug|cups?|hand mirror|dressing table|scent bottle|perfume bottle|pin cushion|pepper|salt|cruet|mustard|toast rack|bowls?|dish|purse|thimble|photo frame|frame|vase|sauce boat|tureen|basket|coasters?|ornament|figure|model|mill"));
+    // Update 138: "Sterling silver necklace with box chain" is jewellery, not a silver box.
+    const wornJewellery =
+      has(W("necklaces?|bracelets?|bangles?|earrings?|brooch|brooches|pendants?|lockets?|cufflinks?|rings?")) &&
+      !has(W("posy ring|napkin rings?|ring bowl|ring stand|ring box|ring tree|bowl|bowls"));
+    if (isObject && !wornJewellery) {
       if (has(W("epns|silver ?plated?|plated"))) return { category: "silver", subcategory: "Silver Plate" };
       // Update 127: Chinese export, Japanese, Malay, Indian … silver → Asian Silver.
       if (has(W(ASIAN_WORDS + "|export silver|wang hing|straits|malay|malayan|siam|siamese|thai|burmese|indian|kutch|cutch|persian"))) return { category: "silver", subcategory: "Asian Silver" };
@@ -333,7 +357,7 @@ export function guessPlacement(categoryName: string, title: string): { category:
     return { category: "art", subcategory: has(W("paintings?|oil on (canvas|board|panel)|watercolou?rs?")) ? "Paintings" : "Prints and drawings" };
   }
   // Update 121: porcelain, pottery and glass → Ceramics & Glass.
-  const ceramic = has(W("porcelain|china|pottery|ceramics?|stoneware|earthenware|faience|majolica|delft|meissen|sitzendorf|dresden|royal copenhagen|doulton|wedgwood|moorcroft|worcester|minton|spode|staffordshire|limoges|herend|lladro|capodimonte|carlton ware|clarice cliff|poole"));
+  const ceramic = has(W("porcelain|china|pottery|ceramics?|stoneware|earthenware|faience|majolica|delft|meissen|sitzendorf|dresden|royal copenhagen|doulton|wedgwood|moorcroft|worcester|minton|spode|staffordshire|limoges|herend|lladro|capodimonte|carlton ware|clarice cliff|poole|coalport|royal crown derby|crown derby|aynsley|shelley|royal albert|belleek|beswick|goebel|hummel|glaze|flambe|lustre ?ware|art pottery|bone china"));
   const glass = has(W("glass|glassware|crystal|murano|lalique|whitefriars|venetian|decanters?|vaseline"));
   // Update 127: Chinese / Japanese porcelain → Ceramics & Glass › Asian Ceramics.
   if (has(W(ASIAN_WORDS)) && !glass && (ceramic || has(W("blue (and|&) white|bowls?|vases?|platters?|plates?|chargers?|ginger jars?|jars?|teapots?|dish|dishes|cups?|saucers?|tea bowls?")))) {
@@ -352,7 +376,7 @@ export function guessPlacement(categoryName: string, title: string): { category:
   if (!has(W("wood|wooden|carved|treen|brass|copper|pewter|tin")) && has(W("plates?|dish|dishes|bowls?|cups?|saucers?|teapots?|tea set|tea service|dinner service|jugs?|tureens?|tableware|dinnerware"))) {
     return { category: "ceramics", subcategory: "Tableware" };
   }
-  if (has(W("furniture|chairs?|tables?|desks?|cabinets?|chests?|drawers|wardrobes?|sideboards?|bookcases?|dressers?|stools?|benches|bench|sofas?|armchairs?|beds?|trunks?|commodes?|bureaus?|bureau|plant stand|jardiniere stand"))) {
+  if (has(W("strong ?box|safe|furniture|chairs?|tables?|desks?|cabinets?|chests?|drawers|wardrobes?|sideboards?|bookcases?|dressers?|stools?|benches|bench|sofas?|armchairs?|beds?|trunks?|commodes?|bureaus?|bureau|plant stand|jardiniere stand"))) {
     return { category: "furniture", subcategory: null };
   }
   // Everything else → Art & Decor.

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notifyIndexNow } from "@/lib/indexnow";
-import { guessPlacement } from "@/lib/ebay";
+import { guessPlacement, titleIsClear } from "@/lib/ebay";
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Unknown server error.";
@@ -22,16 +22,22 @@ export async function GET() {
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Update 137: drafts imported before the fix that landed in Watches &
-    // Clocks only because of eBay's "Jewellery & Watches" path — if the title
-    // has nothing to do with watches or clocks, put them where the title says.
+    // Updates 137–138: drafts imported before the fixes that landed in the
+    // wrong section (rings in Watches, watches in Furniture) are moved to
+    // where their title clearly says. Only drafts imported before the fix,
+    // and only between Watches / Jewellery / Furniture, so manual choices on
+    // newer drafts are never overridden.
     const db = supabaseAdmin();
-    const watchy = /\b(watch|watches|wristwatch|chronograph|pocket watch|hunter|clock|clocks|timepiece|longcase)\b/i;
+    const FIX_BEFORE = Date.parse("2026-10-22T00:00:00Z");
+    const fixable = new Set(["watches", "jewelry", "furniture"]);
     const drafts = data || [];
     for (const d of drafts) {
-      if (d.category !== "watches" || watchy.test(d.name || "")) continue;
-      const g = guessPlacement("", d.name || "");
-      if (g.category === "watches") continue;
+      if (!d.created_at || Date.parse(d.created_at) > FIX_BEFORE) continue;
+      const name = d.name || "";
+      if (!titleIsClear(name)) continue;
+      const g = guessPlacement("", name);
+      if (g.category === d.category) continue;
+      if (!fixable.has(g.category) || !fixable.has(d.category)) continue;
       const { error: upErr } = await db
         .from("products")
         .update({ category: g.category, subcategory: g.subcategory })

@@ -5,6 +5,7 @@ import {
   activeListingsPage,
   getItem,
   guessPlacement,
+  titleIsClear,
   htmlToText,
   slugify,
   userAccessToken,
@@ -90,7 +91,11 @@ export async function POST(req: NextRequest) {
             .select("site_category, site_subcategory")
             .eq("ebay_category_id", d.categoryId)
             .maybeSingle();
-          if (map) {
+          // Update 138: a saved eBay-category mapping is only used when the
+          // title itself doesn't make it clear (an old mapping once sent
+          // watches to Furniture).
+          const weakGuess = guess.category === "art" && (guess.subcategory === "Curiosities" || guess.subcategory === null);
+          if (map && weakGuess && !titleIsClear(d.title)) {
             category = map.site_category;
             subcategory = map.site_subcategory;
           }
