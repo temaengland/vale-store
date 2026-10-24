@@ -8,6 +8,7 @@ import {
   prepareEtsy,
   publishOnEtsy,
   runEtsySync,
+  saveEtsySettings,
   sendToEtsy,
   startConnect,
   type EtsyDraft,
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
     action?: string;
     productId?: string;
     draft?: EtsyDraft;
+    markup?: number;
   };
   try {
     switch (body.action) {
@@ -52,6 +54,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       case "eligible":
         return NextResponse.json(await eligibleForEtsy());
+      case "settings":
+        return NextResponse.json(await saveEtsySettings({ markup: Number(body.markup) || 0 }));
       case "sync":
         return NextResponse.json(await runEtsySync());
       default:

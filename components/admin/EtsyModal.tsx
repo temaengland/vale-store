@@ -22,6 +22,8 @@ type Prepared = {
   shipping: string;
   link: Link | null;
   vintageOk: boolean;
+  aiNote?: string;
+  sitePrice?: number;
 };
 
 const WHEN = [
@@ -163,6 +165,7 @@ export default function EtsyModal({
 
         {data && d && (
           <>
+            {data.aiNote && <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">{data.aiNote}</p>}
             {/* How it looks on Etsy */}
             <p className="mt-4 text-xs font-semibold uppercase tracking-[.14em] text-[#F1641E]">Preview — how buyers see it on Etsy</p>
             <div className="mt-2 grid gap-4 rounded-xl border border-border p-3 sm:grid-cols-[1.1fr_1fr]">
@@ -202,7 +205,9 @@ export default function EtsyModal({
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-xs text-muted">Price on Etsy (£)</label>
+                <label className="block text-xs text-muted">
+                  Price on Etsy (£){data.sitePrice && data.sitePrice !== d.price ? ` — site £${(data.sitePrice / 100).toLocaleString("en-GB")}` : ""}
+                </label>
                 <input
                   type="number"
                   min={1}

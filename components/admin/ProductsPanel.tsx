@@ -131,6 +131,8 @@ export default function ProductsPanel({
     connected?: boolean;
     shopName?: string;
     shopUrl?: string;
+    aiConfigured?: boolean;
+    settings?: { markup: number };
     map: Record<string, { listingId: number; state: string }>;
   }>({ configured: false, map: {} });
   const [etsyItem, setEtsyItem] = useState<AdminProduct | null>(null);
@@ -158,6 +160,18 @@ export default function ProductsPanel({
     const j = await r.json().catch(() => ({}));
     if (j.url) window.location.href = j.url;
     else setEtsyMsg(j.error || "Could not start Etsy login.");
+  }
+  async function saveMarkup(v: string) {
+    const r = await fetch("/api/admin/etsy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "settings", markup: Number(v) || 0 }),
+    });
+    if (r.ok) {
+      const j = await r.json();
+      setEtsy((e) => ({ ...e, settings: j }));
+      setEtsyMsg(`Etsy prices: site price +${j.markup}% ✓`);
+    }
   }
   async function syncEtsy() {
     setEtsyMsg("Checking Etsy…");
@@ -413,6 +427,18 @@ export default function ProductsPanel({
               <button onClick={syncEtsy} className="text-muted underline hover:text-ink">
                 Check sold
               </button>
+              <label className="flex items-center gap-1 text-muted">
+                price +
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  defaultValue={etsy.settings?.markup ?? 0}
+                  onBlur={(e) => saveMarkup(e.target.value)}
+                  className="w-14 rounded border border-border px-1 py-0.5"
+                />
+                %
+              </label>
               <a href="https://www.etsy.com/your/shops/me/tools/listings/state:draft" target="_blank" rel="noreferrer" className="text-muted underline hover:text-ink">
                 Etsy drafts
               </a>
@@ -421,6 +447,11 @@ export default function ProductsPanel({
             <button onClick={connectEtsy} className="rounded-md bg-[#F1641E] px-3 py-1 text-white">
               Connect Etsy
             </button>
+          )}
+          {etsy.connected && etsy.aiConfigured === false && (
+            <span className="w-full text-xs text-amber-700">
+              AI is off (no ANTHROPIC_API_KEY in Vercel) — Etsy titles and tags are made by simple rules.
+            </span>
           )}
           {etsyMsg && <span className="w-full text-xs text-muted">{etsyMsg}</span>}
         </div>

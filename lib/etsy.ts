@@ -21,6 +21,25 @@ const MAP_KEY = "etsy_map";
 const TAXO_KEY = "etsy_taxonomy";
 const SHIP_KEY = "etsy_shipping_profiles";
 const LAST_KEY = "etsy_sync_last";
+const SETTINGS_KEY = "etsy_settings";
+
+export type EtsySettings = { markup: number };
+export async function etsySettings() {
+  return readJson<EtsySettings>(SETTINGS_KEY, { markup: 0 });
+}
+export async function saveEtsySettings(v: EtsySettings) {
+  const markup = Math.max(0, Math.min(50, Math.round(Number(v.markup) || 0)));
+  await writeJson(SETTINGS_KEY, { markup });
+  return { markup };
+}
+
+/** Site price + markup, rounded up: whole pounds under £100, then to £5. */
+export function etsyPrice(pence: number, markup: number) {
+  if (!markup) return pence;
+  const pounds = (pence / 100) * (1 + markup / 100);
+  const r = pounds < 100 ? Math.ceil(pounds) : Math.ceil(pounds / 5) * 5;
+  return r * 100;
+}
 
 export const MAX_ETSY_PHOTOS = 10;
 
@@ -151,6 +170,8 @@ export async function etsyStatus() {
   const t = await readJson<Tokens | null>(TOKEN_KEY, null);
   return {
     configured: true as const,
+    aiConfigured: Boolean((process.env.ANTHROPIC_API_KEY || "").trim()),
+    settings: await etsySettings(),
     connected: Boolean(t?.shopId),
     shopName: t?.shopName,
     shopUrl: t?.shopUrl,
@@ -319,11 +340,15 @@ function words(s: string) {
 }
 
 /** Up to 25 likely Etsy categories for an item, best first. */
-export async function categoryCandidates(p: { name: string; category: string; subcategory?: string | null }) {
+export async function categoryCandidates(p: { name: string; category: string; subcategory?: string | null; description?: string | null }) {
   const leaves = await taxonomy();
   const roots = ROOTS[p.category] || ["Home & Living", "Art & Collectibles"];
   let text = `${p.name} ${p.subcategory || ""}`;
   for (const [re, add] of SYN) if (re.test(text)) text += ` ${add}`;
+  const g = `${p.name} ${(p.description || "").slice(0, 400)}`;
+  if (/\b(ladies|lady'?s|women'?s?|womens|her)\b/i.test(g)) text += " women";
+  else if (/\b(men'?s|mens|gents?|gentleman'?s?)\b/i.test(g)) text += " men";
+  else if (/watch/i.test(text)) text += " unisex";
   const want = words(text);
   const scored = leaves
     .filter((l) => roots.some((r) => l.path.startsWith(r + " >")))
@@ -495,19 +520,33 @@ function etsyDescription(desc: string | null, name: string) {
   return body + FOOTER;
 }
 
+const STOP = new Set(["and", "with", "the", "for", "of", "in", "a", "an", "uk", "size", "approx", "rare", "lovely", "beautiful", "stunning", "genuine", "authentic", "signed", "working", "boxed", "fully", "tested", "hallmarked"]);
+
 function ruleTags(p: ProductRow, when: string | null) {
   const t: string[] = [];
   const add = (x: string) => {
     const c = cleanTag(x);
-    if (c && c.length > 2 && !t.includes(c)) t.push(c);
+    if (c && c.length > 2 && c.length <= 20 && !t.includes(c)) t.push(c);
   };
-  if (when && /^\d{4}s$/.test(when)) add(when);
-  add(p.subcategory || p.category);
-  for (const w of ["antique", "vintage", "victorian", "edwardian", "georgian", "art deco", "art nouveau", "sterling silver", "9ct gold", "18ct gold", "diamond", "porcelain", "mahogany", "oak"])
-    if (new RegExp(`\\b${w}\\b`, "i").test(`${p.name} ${p.description || ""}`)) add(`${w}`);
-  add("gift for her");
-  add("collectible");
+  const text = `${p.name} ${p.description || ""}`;
+  const sub = (p.subcategory || p.category).toLowerCase().replace(/es$|s$/, "");
+  // Pairs of words from the title ("cartier must", "roman dial"…).
+  const w = p.name
+    .toLowerCase()
+    .replace(/[^a-z0-9' ]+/g, " ")
+    .split(/\s+/)
+    .filter((x) => x.length > 1 && !STOP.has(x) && !/^\d+(cm|mm|g|ct)?$/.test(x));
+  for (let i = 0; i < w.length - 1 && t.length < 6; i++) add(`${w[i]} ${w[i + 1]}`);
+  if (when && /^\d{4}s$/.test(when)) add(`${when} ${sub}`.slice(0, 20).trim());
+  const era = (text.match(/\b(victorian|edwardian|georgian|regency|art deco|art nouveau|mid century|antique|vintage)\b/i) || [])[1];
+  if (era) add(`${era.toLowerCase()} ${sub}`);
+  for (const m of ["sterling silver", "9ct gold", "18ct gold", "diamond", "porcelain", "mahogany", "oak", "brass", "enamel", "pearl"])
+    if (new RegExp(`\\b${m}\\b`, "i").test(text)) add(m);
+  add(`vintage ${sub}`);
+  add(`antique ${sub}`);
+  if (/\b(ladies|women|her)\b/i.test(text) || p.category === "jewelry") add("gift for her");
   add("british antique");
+  add("collectible");
   return t.slice(0, 13);
 }
 
@@ -522,9 +561,15 @@ export type EtsyDraft = {
 };
 
 /** Claude writes an Etsy-style title, 13 tags and materials (falls back to rules). */
+let lastAiError = "";
+
 async function aiCopy(p: ProductRow, candidates: { id: number; path: string }[], when: string | null) {
+  lastAiError = "";
   const key = (process.env.ANTHROPIC_API_KEY || "").trim();
-  if (!key) return null;
+  if (!key) {
+    lastAiError = "ANTHROPIC_API_KEY is not set in Vercel — title and tags made by simple rules.";
+    return null;
+  }
   const model = (process.env.REELS_AI_MODEL || "claude-haiku-4-5").trim();
   const prompt = `You prepare an Etsy listing (UK seller of genuine antiques & vintage) from this item.
 
@@ -555,6 +600,10 @@ Never invent makers, dates, hallmarks or stones that are not in the listing.`;
       body: JSON.stringify({ model, max_tokens: 600, messages: [{ role: "user", content: prompt }] }),
     });
     const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      lastAiError = `AI: ${data?.error?.message || res.status}`;
+      return null;
+    }
     const text: string = data?.content?.[0]?.text || "";
     const j = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
     return {
@@ -564,7 +613,8 @@ Never invent makers, dates, hallmarks or stones that are not in the listing.`;
       whenMade: (WHEN_MADE as readonly string[]).includes(j.when_made) ? (j.when_made as string) : null,
       taxonomyId: candidates.some((c) => c.id === Number(j.taxonomy_id)) ? Number(j.taxonomy_id) : null,
     };
-  } catch {
+  } catch (e) {
+    lastAiError = `AI: ${e instanceof Error ? e.message : "no answer"}`;
     return null;
   }
 }
@@ -590,7 +640,7 @@ export async function prepareEtsy(productId: string) {
   const draft: EtsyDraft = {
     title: ai?.title || cleanEtsyTitle(p.name),
     description: etsyDescription(p.description, p.name),
-    price: p.price,
+    price: etsyPrice(p.price, (await etsySettings()).markup),
     whenMade: MODERN.test(p.name) ? null : whenMade,
     taxonomyId: ai?.taxonomyId || candidates[0]?.id || null,
     tags,
@@ -604,6 +654,8 @@ export async function prepareEtsy(productId: string) {
     shipping: etsyShipping(p).label,
     link: map[p.id] || null,
     vintageOk: Boolean(draft.whenMade),
+    aiNote: ai ? "" : lastAiError,
+    sitePrice: p.price,
   };
 }
 
