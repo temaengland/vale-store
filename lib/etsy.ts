@@ -41,7 +41,7 @@ export function etsyPrice(pence: number, markup: number) {
   return r * 100;
 }
 
-export const MAX_ETSY_PHOTOS = 10;
+export const MAX_ETSY_PHOTOS = 20;
 
 // ---------- small helpers ----------
 
@@ -249,10 +249,12 @@ function decadeOf(y: number) {
 
 /** Best guess of Etsy's "when made"; null = not vintage / unknown. */
 export function guessWhenMade(p: { name: string; description?: string | null; era?: string | null }): string | null {
-  const head = `${p.name} ${p.era || ""}`;
-  const all = `${head} ${p.description || ""}`;
+  // Artist life spans ("1903-1984") are not the date the piece was made.
+  const noSpan = (t: string) => t.replace(/\b(1[5-9]\d\d)\s*[-–—]\s*(1[5-9]\d\d|20\d\d)\b/g, (m, a, b) => (Number(b) - Number(a) > 25 ? " " : m));
+  const head = noSpan(`${p.name} ${p.era || ""}`);
+  const all = `${head} ${noSpan(p.description || "")}`;
   if (MODERN.test(head)) return null;
-  const year = head.match(/\b(1[5-9]\d\d|200[0-6])s?\b/) || (p.description || "").match(/\b(?:c\.?|circa|made in|dated?)\s*(1[5-9]\d\d)\b/i);
+  const year = head.match(/\b(1[5-9]\d\d|200[0-6])s?\b/) || noSpan(p.description || "").match(/\b(?:c\.?|circa|made in|dated?)\s*(1[5-9]\d\d)\b/i);
   if (year) return decadeOf(Number(year[1]));
   const word = (t: string): string | null => {
     if (/\b(georgian|18th century|eighteenth century|queen anne|william (&|and) mary)\b/i.test(t)) return "1700s";
@@ -492,6 +494,7 @@ All our pieces are genuine antique or vintage and described honestly — please 
 
 export function cleanEtsyTitle(s: string) {
   let t = s
+    .normalize("NFC")
     .replace(/[^\p{L}\p{Nd}\p{P}\p{Sm}\p{Zs}™©®]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -532,6 +535,7 @@ export function finalizeTags(tags: string[], fill: string[], whenMade: string | 
 
 export function cleanTag(s: string) {
   return s
+    .normalize("NFC")
     .replace(/[^\p{L}\p{Nd}\p{Zs}\-']/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
@@ -539,7 +543,7 @@ export function cleanTag(s: string) {
 }
 
 function cleanMaterial(s: string) {
-  return s.replace(/[^\p{L}\p{Nd}\p{Zs}]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 45);
+  return s.normalize("NFC").replace(/[^\p{L}\p{Nd}\p{Zs}]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 45);
 }
 
 function etsyDescription(desc: string | null, name: string) {
@@ -745,10 +749,10 @@ export async function sendToEtsy(productId: string, d: EtsyDraft) {
 
   let uploaded = 0;
   const list = photos(p).slice(0, MAX_ETSY_PHOTOS);
-  for (let i = 0; i < list.length; i++) {
+  const upload = async (i: number) => {
     try {
       const r = await fetch(list[i], { cache: "no-store" });
-      if (!r.ok) continue;
+      if (!r.ok) return;
       const type = r.headers.get("content-type") || "image/jpeg";
       const blob = new Blob([await r.arrayBuffer()], { type });
       const fd = new FormData();
@@ -760,7 +764,10 @@ export async function sendToEtsy(productId: string, d: EtsyDraft) {
     } catch {
       /* one bad photo must not stop the listing */
     }
-  }
+  };
+  // First photo alone (it becomes the main one), then the rest 4 at a time.
+  if (list.length) await upload(0);
+  for (let i = 1; i < list.length; i += 4) await Promise.all([i, i + 1, i + 2, i + 3].filter((k) => k < list.length).map(upload));
   return { listingId, updated: false, photos: uploaded };
 }
 
