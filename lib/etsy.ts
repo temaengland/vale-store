@@ -404,18 +404,27 @@ export function etsyShipping(p: ProductRow) {
     : { pence: TRACKED48_SMALL, label: "Royal Mail Tracked 48 £4.95" };
 }
 
+type ShipProfile = { shipping_profile_id: number; title: string; origin_postal_code?: string | null };
+
 async function shippingProfileFor(pence: number) {
   const shopId = await shop();
   const saved = await readJson<Record<string, number>>(SHIP_KEY, {});
   if (saved[String(pence)]) return saved[String(pence)];
   const title = pence === 0 ? "CharmChase — Free UK delivery" : `CharmChase — UK £${(pence / 100).toFixed(2)}`;
   // Reuse one with the same name if it already exists on Etsy.
-  const list = await etsy<{ results: { shipping_profile_id: number; title: string }[] }>("GET", `/shops/${shopId}/shipping-profiles`);
-  let id = list.results?.find((r) => r.title === title)?.shipping_profile_id;
+  const list = await etsy<{ results: ShipProfile[] }>("GET", `/shops/${shopId}/shipping-profiles`);
+  const all = list.results || [];
+  let id = all.find((r) => r.title === title)?.shipping_profile_id;
   if (!id) {
+    // Etsy needs the dispatch post code: take it from the shop's own delivery profiles.
+    const postcode =
+      all.find((r) => r.origin_postal_code)?.origin_postal_code || (process.env.ETSY_ORIGIN_POSTCODE || "").trim();
+    if (!postcode)
+      throw new Error("Etsy needs your dispatch post code: Etsy → Settings → Delivery settings → Edit origin post code.");
     const made = await etsy<{ shipping_profile_id: number }>("POST", `/shops/${shopId}/shipping-profiles`, {
       title,
       origin_country_iso: "GB",
+      origin_postal_code: postcode,
       destination_country_iso: "GB",
       primary_cost: (pence / 100).toFixed(2),
       secondary_cost: (pence / 100).toFixed(2),
@@ -494,7 +503,31 @@ export function cleanEtsyTitle(s: string) {
       return m;
     });
   }
-  return t.replace(/\s+/g, " ").slice(0, 140).trim();
+  // Etsy: at most 3 words in ALL CAPS — longer shouty words become Title Case.
+  const caps = t.split(" ").filter((w) => /^[A-Z]{2,}$/.test(w.replace(/[^A-Za-z]/g, "")));
+  if (caps.length > 3)
+    t = t
+      .split(" ")
+      .map((w) => (/^[A-Z]{4,}$/.test(w.replace(/[^A-Za-z]/g, "")) ? w.charAt(0) + w.slice(1).toLowerCase() : w))
+      .join(" ");
+  t = t.replace(/\s+/g, " ").trim();
+  if (t.length > 140) t = t.slice(0, 140).replace(/\s+\S*$/, "");
+  return t.replace(/[\s,\-–&:+]+$/, "").trim();
+}
+
+/** Valid Etsy tags: ≤20 letters, no repeats, no "antique" for items under ~100 years, 13 in total. */
+export function finalizeTags(tags: string[], fill: string[], whenMade: string | null) {
+  const young = !!whenMade && /^(19[3-9]0s|2000_2006)$/.test(whenMade);
+  const out: string[] = [];
+  for (const raw of [...tags, ...fill]) {
+    const t = cleanTag(raw);
+    if (t.length < 2 || t.length > 20) continue;
+    if (young && /\bantique\b/.test(t)) continue;
+    if (out.includes(t)) continue;
+    out.push(t);
+    if (out.length === 13) break;
+  }
+  return out;
 }
 
 export function cleanTag(s: string) {
@@ -502,9 +535,7 @@ export function cleanTag(s: string) {
     .replace(/[^\p{L}\p{Nd}\p{Zs}\-']/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .toLowerCase()
-    .slice(0, 20)
-    .trim();
+    .toLowerCase();
 }
 
 function cleanMaterial(s: string) {
@@ -588,11 +619,11 @@ Return JSON only:
 {"title":"...","tags":["..."],"materials":["..."],"when_made":"...","taxonomy_id":123}
 Rules:
 - title: max 140 characters, British English, most important search words first (what it is, maker/brand, material, era), no ALL CAPS words, no emojis, no price, use "&" at most once and ":" "%" "+" at most once.
-- tags: exactly 13, each max 20 characters, lowercase, only letters/numbers/spaces/hyphens, varied buyer search phrases (e.g. "victorian brooch", "antique jewellery", "gift for her"), no repeats of the same word set.
+- tags: exactly 13, each max 20 characters INCLUDING spaces (count them), lowercase, never cut a word, only letters/numbers/spaces/hyphens, varied buyer search phrases (e.g. "victorian brooch", "antique jewellery", "gift for her"), no repeats of the same word set.
 - materials: up to 5, only materials actually stated in the listing.
 - when_made: the decade from the listing if stated or clearly implied by the era; otherwise "before_2007". Never invent a date.
 - taxonomy_id: the single best id from the list above.
-Never invent makers, dates, hallmarks or stones that are not in the listing.`;
+Never invent makers, dates, hallmarks or stones that are not in the listing.\n- Use the word "antique" only for items 100+ years old; 1930s–2000s items are "vintage".`;
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -636,7 +667,7 @@ export async function prepareEtsy(productId: string) {
   const candidates = await categoryCandidates(p);
   const ai = await aiCopy(p, candidates, guess);
   const whenMade = guess && guess !== "before_2007" ? guess : ai?.whenMade || guess;
-  const tags = [...new Set([...(ai?.tags || []), ...ruleTags(p, whenMade)])].slice(0, 13);
+  const tags = finalizeTags(ai?.tags || [], ruleTags(p, whenMade), whenMade);
   const draft: EtsyDraft = {
     title: ai?.title || cleanEtsyTitle(p.name),
     description: etsyDescription(p.description, p.name),
@@ -668,7 +699,7 @@ export async function sendToEtsy(productId: string, d: EtsyDraft) {
   if (!d.taxonomyId) throw new Error("Choose an Etsy category.");
   const shopId = await shop();
   const title = cleanEtsyTitle(d.title);
-  const tags = [...new Set(d.tags.map(cleanTag).filter(Boolean))].slice(0, 13);
+  const tags = finalizeTags(d.tags, [], d.whenMade);
   const materials = d.materials.map(cleanMaterial).filter(Boolean).slice(0, 13);
   const ship = etsyShipping(p);
   const map = await etsyMap();
