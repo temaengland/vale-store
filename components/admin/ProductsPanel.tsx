@@ -7,6 +7,7 @@ import { ukDelivery, parcelSize } from "@/lib/shipping";
 import InstagramPublishModal, { PostedInfo } from "@/components/admin/InstagramPublishModal";
 import ReelsPanel from "@/components/admin/ReelsPanel";
 import ClipModal, { ClipInfo, TrackInfo } from "@/components/admin/ClipModal";
+import EtsyModal from "@/components/admin/EtsyModal";
 
 type AdminProduct = {
   id: string;
@@ -123,6 +124,52 @@ export default function ProductsPanel({
   useEffect(() => {
     loadClips();
   }, []);
+
+  // Etsy (update 142).
+  const [etsy, setEtsy] = useState<{
+    configured: boolean;
+    connected?: boolean;
+    shopName?: string;
+    shopUrl?: string;
+    map: Record<string, { listingId: number; state: string }>;
+  }>({ configured: false, map: {} });
+  const [etsyItem, setEtsyItem] = useState<AdminProduct | null>(null);
+  const [etsyMsg, setEtsyMsg] = useState("");
+  async function loadEtsy() {
+    try {
+      const r = await fetch("/api/admin/etsy", { cache: "no-store" });
+      if (r.ok) setEtsy(await r.json());
+    } catch {
+      /* optional */
+    }
+  }
+  useEffect(() => {
+    loadEtsy();
+    const m = new URLSearchParams(window.location.search).get("etsy");
+    if (m) setEtsyMsg(m);
+  }, []);
+  async function connectEtsy() {
+    setEtsyMsg("");
+    const r = await fetch("/api/admin/etsy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "connect" }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (j.url) window.location.href = j.url;
+    else setEtsyMsg(j.error || "Could not start Etsy login.");
+  }
+  async function syncEtsy() {
+    setEtsyMsg("Checking Etsy…");
+    const r = await fetch("/api/admin/etsy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sync" }),
+    });
+    const j = await r.json().catch(() => ({}));
+    setEtsyMsg(r.ok ? `Etsy checked ✓ ${j.soldOnEtsy?.length ? `· ${j.soldOnEtsy.length} sold on Etsy` : ""}${j.ended ? ` · ${j.ended} removed from Etsy` : ""}` : j.error || "Etsy check failed");
+    loadEtsy();
+  }
 
   // Update 118: which item's photo is shown on each homepage category tile.
   const [catPhotos, setCatPhotos] = useState<Record<string, string>>({});
@@ -344,6 +391,39 @@ export default function ProductsPanel({
           onClose={() => setClipItem(null)}
           onChanged={loadClips}
         />
+      )}
+      {etsyItem && (
+        <EtsyModal
+          item={{ id: etsyItem.id, name: etsyItem.name }}
+          shopName={etsy.shopName}
+          onClose={() => setEtsyItem(null)}
+          onChanged={loadEtsy}
+        />
+      )}
+      {etsy.configured && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border px-3 py-2 text-sm">
+          <span className="font-medium text-[#F1641E]">Etsy</span>
+          {etsy.connected ? (
+            <>
+              <span className="text-muted">
+                {etsy.shopName} ·{" "}
+                {Object.values(etsy.map).filter((l) => l.state === "active").length} live ·{" "}
+                {Object.values(etsy.map).filter((l) => l.state === "draft").length} drafts
+              </span>
+              <button onClick={syncEtsy} className="text-muted underline hover:text-ink">
+                Check sold
+              </button>
+              <a href="https://www.etsy.com/your/shops/me/tools/listings/state:draft" target="_blank" rel="noreferrer" className="text-muted underline hover:text-ink">
+                Etsy drafts
+              </a>
+            </>
+          ) : (
+            <button onClick={connectEtsy} className="rounded-md bg-[#F1641E] px-3 py-1 text-white">
+              Connect Etsy
+            </button>
+          )}
+          {etsyMsg && <span className="w-full text-xs text-muted">{etsyMsg}</span>}
+        </div>
       )}
       {igStatus.configured && <ReelsPanel />}
       {igStatus.configured && igStatus.error && (
@@ -957,6 +1037,21 @@ export default function ProductsPanel({
                   : clips[p.id]?.status === "posted" || reeled.includes(p.id)
                   ? "Reel ✓"
                   : "Reel"}
+              </button>
+            )}
+            {etsy.connected && ((p.images && p.images.length > 0) || p.image) && p.status !== "sold" && !p.is_draft && (
+              <button
+                onClick={() => setEtsyItem(p)}
+                title="Send this item to Etsy (as a draft) — see how it will look first"
+                className={`shrink-0 whitespace-nowrap rounded-md px-2 py-2 text-[13px] ${
+                  etsy.map[p.id]?.state === "active"
+                    ? "text-green-700"
+                    : etsy.map[p.id]?.state === "draft"
+                    ? "text-[#F1641E]"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {etsy.map[p.id]?.state === "active" ? "Etsy ✓" : etsy.map[p.id]?.state === "draft" ? "Etsy ✎" : "Etsy"}
               </button>
             )}
             {((p.images && p.images.length > 0) || p.image) && p.status !== "sold" && !p.is_draft && (

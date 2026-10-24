@@ -22,7 +22,7 @@ const MAX_LOG = 60;
 
 export type SyncEvent = {
   at: string;
-  kind: "sold_on_ebay" | "ended_on_ebay" | "linked" | "error";
+  kind: "sold_on_ebay" | "ended_on_ebay" | "sold_on_etsy" | "ended_on_etsy" | "linked" | "error";
   text: string;
 };
 
@@ -55,6 +55,10 @@ export async function readSyncLog() {
 
 export async function lastSync() {
   return readJson<{ at: string; summary: string } | null>(LAST_KEY, null);
+}
+
+export async function logSyncEvents(events: Omit<SyncEvent, "at">[]) {
+  return addEvents(events);
 }
 
 async function addEvents(events: Omit<SyncEvent, "at">[]) {

@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { endEbayListingsFor } from "@/lib/ebaySync";
+import { endEtsyListingsFor } from "@/lib/etsy";
 import {
   createShipment,
   shippingNameToServiceCode,
@@ -124,6 +125,7 @@ export async function POST(req: NextRequest) {
           .in("id", matchedIds);
         // Same item listed on eBay → end that listing so it can't sell twice.
         await endEbayListingsFor(matchedIds);
+        await endEtsyListingsFor(matchedIds).catch(() => []);
       }
 
       // Generate Royal Mail shipping label automatically — best-effort,

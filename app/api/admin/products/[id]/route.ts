@@ -3,6 +3,7 @@ import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notifyIndexNow } from "@/lib/indexnow";
 import { endEbayListingsFor } from "@/lib/ebaySync";
+import { endEtsyListingsFor } from "@/lib/etsy";
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Unknown server error.";
@@ -40,6 +41,10 @@ export async function PUT(
     let ebay: { ok: boolean; error?: string }[] = [];
     if (data?.status === "sold" && before?.status !== "sold" && data.ebay_item_id) {
       ebay = await endEbayListingsFor([data.id]);
+    }
+    // …and the Etsy listing (update 142).
+    if (data?.status === "sold" && before?.status !== "sold") {
+      await endEtsyListingsFor([data.id]).catch(() => []);
     }
 
     return NextResponse.json({ product: data, ebay });
