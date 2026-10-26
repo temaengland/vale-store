@@ -23,6 +23,7 @@ type Prepared = {
   link: Link | null;
   vintageOk: boolean;
   aiNote?: string;
+  restricted?: boolean;
   sitePrice?: number;
 };
 
@@ -165,6 +166,11 @@ export default function EtsyModal({
 
         {data && d && (
           <>
+            {data.restricted && (
+              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                Etsy does not allow this item (ivory, tortoiseshell, taxidermy, weapons, tobacco…). It stays on the site and eBay only.
+              </p>
+            )}
             {data.aiNote && <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">{data.aiNote}</p>}
             {/* How it looks on Etsy */}
             <p className="mt-4 text-xs font-semibold uppercase tracking-[.14em] text-[#F1641E]">Preview — how buyers see it on Etsy</p>
@@ -289,7 +295,7 @@ export default function EtsyModal({
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 onClick={send}
-                disabled={!!busy || !d.whenMade || !d.taxonomyId || tags.length > 13 || badTags.length > 0 || !d.title.trim()}
+                disabled={!!busy || !!data.restricted || !d.whenMade || !d.taxonomyId || tags.length > 13 || badTags.length > 0 || !d.title.trim()}
                 className="rounded-md bg-ink px-5 py-2 text-sm text-white disabled:opacity-50"
               >
                 {busy === "send" ? "Sending… (up to a minute)" : live ? "Update on Etsy" : "Send to Etsy as draft"}

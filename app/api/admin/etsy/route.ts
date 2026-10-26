@@ -8,6 +8,7 @@ import {
   prepareEtsy,
   publishOnEtsy,
   runEtsySync,
+  organiseSections,
   saveEtsySettings,
   sendToEtsy,
   startConnect,
@@ -56,6 +57,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(await eligibleForEtsy());
       case "settings":
         return NextResponse.json(await saveEtsySettings({ markup: Number(body.markup) || 0 }));
+      case "sections":
+        return NextResponse.json(await organiseSections());
       case "sync":
         return NextResponse.json(await runEtsySync());
       default:

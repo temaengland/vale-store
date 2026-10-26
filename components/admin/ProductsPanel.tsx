@@ -173,6 +173,16 @@ export default function ProductsPanel({
       setEtsyMsg(`Etsy prices: site price +${j.markup}% ✓`);
     }
   }
+  async function sortEtsySections() {
+    setEtsyMsg("Sorting Etsy listings into sections…");
+    const r = await fetch("/api/admin/etsy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sections" }),
+    });
+    const j = await r.json().catch(() => ({}));
+    setEtsyMsg(r.ok ? `Etsy sections ✓ (${j.moved} moved)` : j.error || "Could not sort sections");
+  }
   async function syncEtsy() {
     setEtsyMsg("Checking Etsy…");
     const r = await fetch("/api/admin/etsy", {
@@ -426,6 +436,9 @@ export default function ProductsPanel({
               </span>
               <button onClick={syncEtsy} className="text-muted underline hover:text-ink">
                 Check sold
+              </button>
+              <button onClick={sortEtsySections} className="text-muted underline hover:text-ink">
+                Sort into sections
               </button>
               <label className="flex items-center gap-1 text-muted">
                 price +

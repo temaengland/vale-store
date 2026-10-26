@@ -2,6 +2,8 @@ import "server-only";
 import { createHash, randomBytes } from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { absoluteImageUrl } from "@/lib/instagram";
+import { FEED_RESTRICTED } from "@/lib/shop";
+import { guessPlacement } from "@/lib/ebay";
 import { parcelSize, FREE_DELIVERY_FROM, TRACKED48_SMALL, TRACKED48_MEDIUM } from "@/lib/shipping";
 
 // Etsy shop sync (update 142). Etsy Open API v3, seller app "charmchase-shop-sync".
@@ -689,15 +691,83 @@ export async function prepareEtsy(productId: string) {
     shipping: etsyShipping(p).label,
     link: map[p.id] || null,
     vintageOk: Boolean(draft.whenMade),
+    restricted: etsyRestricted(p),
     aiNote: ai ? "" : lastAiError,
     sitePrice: p.price,
   };
+}
+
+export function etsyRestricted(p: { name: string; description?: string | null }) {
+  return FEED_RESTRICTED.test(`${p.name} ${p.description || ""}`);
+}
+
+// ---------- shop sections (same six as the site) ----------
+
+const SECTION_KEY = "etsy_sections";
+const SECTION_TITLE: Record<string, string> = {
+  jewelry: "Jewellery",
+  watches: "Watches & Clocks",
+  silver: "Silver",
+  ceramics: "Ceramics & Glass",
+  art: "Art & Decor",
+  furniture: "Furniture",
+};
+
+async function sectionIdFor(category: string) {
+  const title = SECTION_TITLE[category];
+  if (!title) return undefined;
+  const saved = await readJson<Record<string, number>>(SECTION_KEY, {});
+  if (saved[category]) return saved[category];
+  const shopId = await shop();
+  try {
+    const list = await etsy<{ results: { shop_section_id: number; title: string }[] }>("GET", `/shops/${shopId}/sections`);
+    let id = list.results?.find((r) => r.title.toLowerCase() === title.toLowerCase())?.shop_section_id;
+    if (!id) id = (await etsy<{ shop_section_id: number }>("POST", `/shops/${shopId}/sections`, { title })).shop_section_id;
+    saved[category] = id;
+    await writeJson(SECTION_KEY, saved);
+    return id;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Puts every listing in the Etsy shop into its section (site items by their category, others by title). */
+export async function organiseSections() {
+  const shopId = await shop();
+  const map = await etsyMap();
+  const byListing = new Map<number, string>();
+  for (const [pid, l] of Object.entries(map)) byListing.set(l.listingId, pid);
+  const ids = [...byListing.values()];
+  const { data } = ids.length ? await db().from("products").select("id, category").in("id", ids) : { data: [] };
+  const cat = new Map((data || []).map((p) => [p.id as string, p.category as string]));
+  let moved = 0;
+  for (const state of ["active", "draft", "inactive"]) {
+    const r = await etsy<{ results: { listing_id: number; title: string; shop_section_id: number | null }[] }>(
+      "GET",
+      `/shops/${shopId}/listings?state=${state}&limit=100`
+    );
+    for (const l of r.results || []) {
+      const pid = byListing.get(l.listing_id);
+      const c = (pid && cat.get(pid)) || guessPlacement("", l.title).category;
+      const sid = await sectionIdFor(c);
+      if (!sid || l.shop_section_id === sid) continue;
+      try {
+        await etsy("PATCH", `/shops/${shopId}/listings/${l.listing_id}`, { shop_section_id: sid });
+        moved++;
+      } catch {
+        /* keep going */
+      }
+    }
+  }
+  return { moved };
 }
 
 /** Creates the Etsy draft (or updates the existing one). */
 export async function sendToEtsy(productId: string, d: EtsyDraft) {
   const p = await product(productId);
   if (p.status === "sold") throw new Error("This item is sold.");
+  if (etsyRestricted(p))
+    throw new Error("Etsy does not allow this item (ivory, tortoiseshell, taxidermy, weapons, tobacco…) — it stays on the site and eBay only.");
   if (!d.whenMade || !(WHEN_MADE as readonly string[]).includes(d.whenMade))
     throw new Error("Choose when it was made — Etsy only allows vintage items (20+ years old).");
   if (!d.taxonomyId) throw new Error("Choose an Etsy category.");
@@ -722,6 +792,7 @@ export async function sendToEtsy(productId: string, d: EtsyDraft) {
     shipping_profile_id: await shippingProfileFor(ship.pence),
     return_policy_id: await returnPolicyId(),
     readiness_state_id: await readinessStateId(),
+    shop_section_id: await sectionIdFor(p.category),
     should_auto_renew: true,
     type: "physical",
   };
@@ -885,7 +956,10 @@ export async function eligibleForEtsy() {
     .order("created_at", { ascending: false });
   const map = await etsyMap();
   const rows = (data || []) as ProductRow[];
-  const out = rows.filter((p) => !map[p.id] || map[p.id].state === "removed").filter((p) => photos(p).length > 0);
+  const out = rows
+    .filter((p) => !map[p.id] || map[p.id].state === "removed")
+    .filter((p) => photos(p).length > 0)
+    .filter((p) => !etsyRestricted(p));
   return {
     ready: out.filter((p) => guessWhenMade(p)).map((p) => ({ id: p.id, name: p.name })),
     notVintage: out.filter((p) => !guessWhenMade(p)).map((p) => ({ id: p.id, name: p.name })),
