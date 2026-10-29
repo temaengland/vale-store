@@ -8,6 +8,8 @@ import ProductCard from "@/components/ProductCard";
 import PaidBanner from "@/components/PaidBanner";
 import T from "@/components/T";
 import NewsletterSignup from "@/components/NewsletterSignup";
+import VisitShop from "@/components/VisitShop";
+import { getTrust } from "@/lib/trust";
 import { resolveCategoryPhotos } from "@/lib/categoryPhotos";
 import type { Metadata } from "next";
 
@@ -167,6 +169,8 @@ export default async function HomePage({
           </div>
         </>
       )}
+
+      <VisitShop trust={await getTrust()} />
 
       <NewsletterSignup />
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useCart } from "@/lib/cart-context";
 import { useLanguage } from "@/lib/language-context";
+import { trackPixel } from "@/components/MetaPixel";
 
 export default function ProductPaidBanner({ slug }: { slug: string }) {
   const { removeItem } = useCart();
@@ -11,6 +12,7 @@ export default function ProductPaidBanner({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!done.current) {
+      trackPixel("Purchase", { currency: "GBP" });
       removeItem(slug);
       done.current = true;
     }

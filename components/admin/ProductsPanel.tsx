@@ -161,18 +161,6 @@ export default function ProductsPanel({
     if (j.url) window.location.href = j.url;
     else setEtsyMsg(j.error || "Could not start Etsy login.");
   }
-  async function saveMarkup(v: string) {
-    const r = await fetch("/api/admin/etsy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "settings", markup: Number(v) || 0 }),
-    });
-    if (r.ok) {
-      const j = await r.json();
-      setEtsy((e) => ({ ...e, settings: j }));
-      setEtsyMsg(`Etsy prices: site price +${j.markup}% ✓`);
-    }
-  }
   async function sortEtsySections() {
     setEtsyMsg("Sorting Etsy listings into sections…");
     const r = await fetch("/api/admin/etsy", {
@@ -440,18 +428,7 @@ export default function ProductsPanel({
               <button onClick={sortEtsySections} className="text-muted underline hover:text-ink">
                 Sort into sections
               </button>
-              <label className="flex items-center gap-1 text-muted">
-                price +
-                <input
-                  type="number"
-                  min={0}
-                  max={50}
-                  defaultValue={etsy.settings?.markup ?? 0}
-                  onBlur={(e) => saveMarkup(e.target.value)}
-                  className="w-14 rounded border border-border px-1 py-0.5"
-                />
-                %
-              </label>
+              <span className="text-muted">price = eBay (site −10%)</span>
               <a href="https://www.etsy.com/your/shops/me/tools/listings/state:draft" target="_blank" rel="noreferrer" className="text-muted underline hover:text-ink">
                 Etsy drafts
               </a>

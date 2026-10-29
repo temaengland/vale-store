@@ -14,18 +14,31 @@ import { useLanguage } from "@/lib/language-context";
 import { extractDimensions, cleanDescription } from "@/lib/shop";
 import { ukDelivery } from "@/lib/shipping";
 
+export type TrustInfo = {
+  google: { rating: number; count: number; url: string; show?: boolean };
+  ebay: { score: number; positive: number; user: string; url: string } | null;
+};
+
 export default function ProductInfoPanel({
   product,
   paid,
   canceled,
   relatedProducts,
+  trust,
 }: {
   product: Product;
   paid?: string;
   canceled?: string;
   relatedProducts?: Product[];
+  trust?: TrustInfo;
 }) {
   const { t, locale } = useLanguage();
+
+  // Update 147: Meta Pixel — "ViewContent" for this item (only if the pixel is on).
+  useEffect(() => {
+    const w = window as unknown as { fbq?: (...a: unknown[]) => void };
+    if (w.fbq) w.fbq("track", "ViewContent", { content_ids: [product.id || product.slug], content_type: "product", value: product.price / 100, currency: "GBP" });
+  }, [product.id, product.slug, product.price]);
 
   // Auto-translated name/description (1stDibs-style) — the seller only
   // ever writes these in English; a translation is fetched (and cached
@@ -78,7 +91,15 @@ export default function ProductInfoPanel({
         {product.era ? ` · ${product.era}` : ""}
       </p>
       <h1 className="mt-2 font-serif text-3xl lg:order-2 lg:text-[25px] lg:leading-snug">{displayName}</h1>
-      <p className="mt-3 text-lg text-muted lg:order-3 lg:mt-[18px] lg:text-[21px] lg:font-semibold lg:tracking-[0.01em] lg:text-ink">{formatPrice(product.price)}</p>
+      <div className="lg:order-3">
+        <p className="mt-3 text-lg text-muted lg:mt-[18px] lg:text-[21px] lg:font-semibold lg:tracking-[0.01em] lg:text-ink">{formatPrice(product.price)}</p>
+        {/* Update 147: the site price is 10% below our eBay & Etsy shops. */}
+        {isForSale && product.ebay_item_id && (
+          <p className="mt-1.5 inline-block rounded-full bg-[#F4EBD9] px-2.5 py-1 text-[12px] font-semibold text-[#7a5c2b]">
+            Best price — 10% less than on eBay &amp; Etsy
+          </p>
+        )}
+      </div>
 
       {/* Update 128: Royal Mail delivery card (phones: same place as before). */}
       <div className="mt-4 lg:hidden">
@@ -155,6 +176,9 @@ export default function ProductInfoPanel({
           {canceled && (
             <p className="mt-2 text-sm text-muted lg:order-4">{t("product.cancelled")}</p>
           )}
+
+          {/* Update 147: real reviews + guarantee + shop, under the buy buttons. */}
+          <TrustBox trust={trust} category={product.category} className="mt-4 lg:order-5 lg:mt-3" />
 
           {/* Update 116: reassurance right under the buy buttons. */}
           <ul className="mt-4 lg:hidden grid grid-cols-1 gap-x-4 gap-y-2 rounded-lg border border-border px-4 py-3 text-[13px] text-ink sm:grid-cols-2">
@@ -261,6 +285,39 @@ function DesktopFacts({ product, isForSale }: { product: Product; isForSale: boo
           <span>✓ {t("trust.inspected")}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+// Update 147: reviews (Google + eBay), jewellery guarantee, the real shop.
+function TrustBox({ trust, category, className = "" }: { trust?: TrustInfo; category: string; className?: string }) {
+  if (!trust) return null;
+  const jewellery = category === "jewelry" || category === "watches";
+  return (
+    <div className={`rounded-lg border border-border px-4 py-3 text-[13px] leading-relaxed text-ink ${className}`}>
+      {(trust.google.show || trust.ebay) && (
+        <p>
+          <span className="tracking-[1px] text-[#C9962E]">★★★★★</span>{" "}
+          {trust.google.show && (
+            <a href={trust.google.url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+              <b>{trust.google.rating.toFixed(1)} on Google</b> ({trust.google.count} reviews)
+            </a>
+          )}
+          {trust.google.show && trust.ebay && " · "}
+          {trust.ebay && (
+            <a href={trust.ebay.url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+              <b>{trust.ebay.positive % 1 ? trust.ebay.positive.toFixed(1) : trust.ebay.positive}% positive feedback</b> on eBay ({trust.ebay.score} reviews)
+            </a>
+          )}
+        </p>
+      )}
+      {jewellery && <p>📜 Written guarantee certificate with every piece of jewellery</p>}
+      <p>
+        🏛 Visit our shop:{" "}
+        <a href={trust.google.url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+          51 High Street, Evesham
+        </a>
+      </p>
     </div>
   );
 }

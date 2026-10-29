@@ -24,6 +24,7 @@ export type Product = {
   height_cm?: number;
   id?: string; // database id (not set for seed data)
   created_at?: string;
+  ebay_item_id?: string | null; // update 147: also on eBay → "10% less than eBay" note
 };
 
 // Admin-only fields — never fetched on public pages, only via the

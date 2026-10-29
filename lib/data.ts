@@ -17,7 +17,7 @@ import { cleanTitle } from "@/lib/shop";
 // it's business-sensitive and only ever fetched via the admin API routes,
 // which use the service role key on the server, never the public anon key.
 const PUBLIC_PRODUCT_COLUMNS =
-  "id, slug, name, price, category, subcategory, era, description, image, images, icon, status, shipping_cost, international_shipping_cost, weight_grams, length_cm, width_cm, height_cm, created_at";
+  "id, slug, name, price, category, subcategory, era, description, image, images, icon, status, shipping_cost, international_shipping_cost, weight_grams, length_cm, width_cm, height_cm, created_at, ebay_item_id";
 
 export async function getAllProducts(): Promise<Product[]> {
   if (isSupabaseConfigured && supabase) {

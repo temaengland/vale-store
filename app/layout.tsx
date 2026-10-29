@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import { CartProvider } from "@/lib/cart-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { Analytics } from "@vercel/analytics/next";
+import MetaPixel from "@/components/MetaPixel";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -79,6 +80,7 @@ export default function RootLayout({
             </main>
             <Footer />
             <Analytics />
+            <MetaPixel />
           </CartProvider>
         </LanguageProvider>
       </body>

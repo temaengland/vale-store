@@ -10,6 +10,7 @@ import {
   slugify,
   userAccessToken,
 } from "@/lib/ebay";
+import { saveEbayPrices, sitePriceFromEbay } from "@/lib/pricing";
 
 // POST { page } — imports one page (5 listings) of your ACTIVE eBay listings
 // as hidden drafts (is_draft = true) for review in Admin → Review drafts.
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
         const { error } = await db.from("products").insert({
           slug,
           name: d.title,
-          price: d.pricePence,
+          price: sitePriceFromEbay(d.pricePence), // update 148: site = eBay − 10%
           category,
           subcategory,
           description: htmlToText(d.descriptionHtml) || d.title,
@@ -126,6 +127,8 @@ export async function POST(req: NextRequest) {
           is_draft: true,
         });
         if (error) throw new Error(error.message);
+        const { data: made } = await db.from("products").select("id").eq("ebay_item_id", d.itemId).maybeSingle();
+        if (made) await saveEbayPrices({ [made.id]: d.pricePence });
         results.push({
           itemId: d.itemId,
           title: d.title,

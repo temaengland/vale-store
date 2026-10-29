@@ -12,6 +12,7 @@ import { getCategory } from "@/lib/data";
 import { isAvailable } from "@/lib/shop";
 import { trackProductView } from "@/lib/trackView";
 import { productVideo } from "@/lib/productVideo";
+import { getTrust } from "@/lib/trust";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -189,6 +190,7 @@ export default async function ProductPage({
           paid={searchParams.paid}
           canceled={searchParams.canceled}
           relatedProducts={forSale ? [] : relatedProducts.slice(0, 4)}
+          trust={await getTrust()}
         />
       </div>
 

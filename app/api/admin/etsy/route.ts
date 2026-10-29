@@ -9,6 +9,7 @@ import {
   publishOnEtsy,
   runEtsySync,
   organiseSections,
+  repriceEtsy,
   saveEtsySettings,
   sendToEtsy,
   startConnect,
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
     productId?: string;
     draft?: EtsyDraft;
     markup?: number;
+    offset?: number;
   };
   try {
     switch (body.action) {
@@ -57,6 +59,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(await eligibleForEtsy());
       case "settings":
         return NextResponse.json(await saveEtsySettings({ markup: Number(body.markup) || 0 }));
+      case "reprice":
+        return NextResponse.json(await repriceEtsy(Number(body.offset) || 0));
       case "sections":
         return NextResponse.json(await organiseSections());
       case "sync":

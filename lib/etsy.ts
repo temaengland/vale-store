@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { absoluteImageUrl } from "@/lib/instagram";
 import { FEED_RESTRICTED } from "@/lib/shop";
+import { etsyPriceFor, ebayPrices } from "@/lib/pricing";
 import { guessPlacement } from "@/lib/ebay";
 import { parcelSize, FREE_DELIVERY_FROM, TRACKED48_SMALL, TRACKED48_MEDIUM } from "@/lib/shipping";
 
@@ -677,7 +678,7 @@ export async function prepareEtsy(productId: string) {
   const draft: EtsyDraft = {
     title: ai?.title || cleanEtsyTitle(p.name),
     description: etsyDescription(p.description, p.name),
-    price: etsyPrice(p.price, (await etsySettings()).markup),
+    price: await etsyPriceFor(p.id, p.price),
     whenMade: MODERN.test(p.name) ? null : whenMade,
     taxonomyId: ai?.taxonomyId || candidates[0]?.id || null,
     tags,
@@ -762,6 +763,65 @@ export async function organiseSections() {
   return { moved };
 }
 
+type InvOffering = { quantity: number; is_enabled: boolean; price: { amount: number; divisor: number } | number };
+type InvProduct = {
+  sku?: string;
+  property_values?: { property_id: number; value_ids?: number[]; scale_id?: number | null; property_name?: string; values?: string[] }[];
+  offerings: InvOffering[];
+};
+
+async function setEtsyPrice(listingId: number, pounds: number) {
+  const inv = await etsy<{ products: InvProduct[]; price_on_property?: number[]; quantity_on_property?: number[]; sku_on_property?: number[] }>(
+    "GET",
+    `/listings/${listingId}/inventory`
+  );
+  const products = (inv.products || []).map((p) => ({
+    sku: p.sku || "",
+    property_values: (p.property_values || []).map((v) => ({
+      property_id: v.property_id,
+      value_ids: v.value_ids || [],
+      scale_id: v.scale_id ?? null,
+      property_name: v.property_name,
+      values: v.values || [],
+    })),
+    offerings: p.offerings.map((o) => ({ price: Number(pounds.toFixed(2)), quantity: o.quantity || 1, is_enabled: o.is_enabled !== false })),
+  }));
+  await etsy(
+    "PUT",
+    `/listings/${listingId}/inventory`,
+    {
+      products,
+      price_on_property: inv.price_on_property || [],
+      quantity_on_property: inv.quantity_on_property || [],
+      sku_on_property: inv.sku_on_property || [],
+    },
+    true
+  );
+}
+
+/** Update 148: Etsy prices = eBay price (site is 10% cheaper). */
+export async function repriceEtsy(offset = 0, limit = 15) {
+  const map = await etsyMap();
+  const known = await ebayPrices();
+  const ids = Object.keys(map).filter((id) => ["active", "draft", "inactive"].includes(map[id].state));
+  const slice = ids.slice(offset, offset + limit);
+  const { data } = slice.length ? await db().from("products").select("id, price").in("id", slice) : { data: [] };
+  const price = new Map((data || []).map((p) => [p.id as string, p.price as number]));
+  let done = 0;
+  const errors: string[] = [];
+  for (const id of slice) {
+    const p = price.get(id);
+    if (!p) continue;
+    try {
+      await setEtsyPrice(map[id].listingId, (await etsyPriceFor(id, p, known)) / 100);
+      done++;
+    } catch (e) {
+      errors.push(`${map[id].listingId}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return { done, errors, next: offset + limit < ids.length ? offset + limit : null, total: ids.length };
+}
+
 /** Creates the Etsy draft (or updates the existing one). */
 export async function sendToEtsy(productId: string, d: EtsyDraft) {
   const p = await product(productId);
@@ -809,7 +869,9 @@ export async function sendToEtsy(productId: string, d: EtsyDraft) {
 
   if (existing && existing.state !== "removed" && existing.state !== "sold") {
     delete fields.type;
+    delete fields.price; // price lives in the inventory (set below)
     await etsy("PATCH", `/shops/${shopId}/listings/${existing.listingId}`, fields);
+    await setEtsyPrice(existing.listingId, d.price / 100).catch(() => {});
     await setLink(p.id, { ...existing, at: new Date().toISOString() });
     return { listingId: existing.listingId, updated: true, photos: 0 };
   }
