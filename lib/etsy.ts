@@ -763,7 +763,7 @@ export async function organiseSections() {
   return { moved };
 }
 
-type InvOffering = { quantity: number; is_enabled: boolean; price: { amount: number; divisor: number } | number };
+type InvOffering = { quantity: number; is_enabled: boolean; readiness_state_id?: number; price: { amount: number; divisor: number } | number };
 type InvProduct = {
   sku?: string;
   property_values?: { property_id: number; value_ids?: number[]; scale_id?: number | null; property_name?: string; values?: string[] }[];
@@ -775,6 +775,8 @@ async function setEtsyPrice(listingId: number, pounds: number) {
     "GET",
     `/listings/${listingId}/inventory`
   );
+  // Update 150: Etsy now requires a readiness state on every offering.
+  const ready = await readinessStateId();
   const products = (inv.products || []).map((p) => ({
     sku: p.sku || "",
     property_values: (p.property_values || []).map((v) => ({
@@ -784,7 +786,12 @@ async function setEtsyPrice(listingId: number, pounds: number) {
       property_name: v.property_name,
       values: v.values || [],
     })),
-    offerings: p.offerings.map((o) => ({ price: Number(pounds.toFixed(2)), quantity: o.quantity || 1, is_enabled: o.is_enabled !== false })),
+    offerings: p.offerings.map((o) => ({
+      price: Number(pounds.toFixed(2)),
+      quantity: o.quantity || 1,
+      is_enabled: o.is_enabled !== false,
+      ...((o.readiness_state_id ?? ready) ? { readiness_state_id: o.readiness_state_id ?? ready } : {}),
+    })),
   }));
   await etsy(
     "PUT",
