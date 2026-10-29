@@ -23,9 +23,9 @@ export const GOOGLE_REVIEWS = {
 export const SHOP = {
   address: "51 High Street, Evesham WR11 4DA",
   photos: {
-    front: "https://hbmfkrrjxlpamzgozzmh.supabase.co/storage/v1/object/public/product-images/1793281118778-shop-front.jpg",
-    inside: "https://hbmfkrrjxlpamzgozzmh.supabase.co/storage/v1/object/public/product-images/1793281120020-shop-inside.jpg",
-    jewellery: "https://hbmfkrrjxlpamzgozzmh.supabase.co/storage/v1/object/public/product-images/1793281121493-shop-jewellery.jpg",
+    front: "/shop/shop-front.jpg",
+    inside: "/shop/shop-inside.jpg",
+    jewellery: "/shop/shop-gallery.jpg",
   },
 };
 

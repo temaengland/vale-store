@@ -11,7 +11,6 @@ import T from "@/components/T";
 import { getCategory } from "@/lib/data";
 import { isAvailable } from "@/lib/shop";
 import { trackProductView } from "@/lib/trackView";
-import { productVideo } from "@/lib/productVideo";
 import { getTrust } from "@/lib/trust";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
@@ -94,7 +93,7 @@ export default async function ProductPage({
     return { ...p, description: "", images: cover ? [cover] : [], image: undefined };
   });
   const forSale = isAvailable(product);
-  const video = await productVideo(product.id);
+  // Update 150: no videos on the site — photos only (Reels stay on Instagram).
   const category = getCategory(product.category);
 
   // Structured data (schema.org Product) — lets Google show price and
@@ -183,7 +182,6 @@ export default async function ProductPage({
           legacyImage={product.image}
           icon={product.icon}
           alt={product.name}
-          video={video}
         />
         <ProductInfoPanel
           product={product}

@@ -7,11 +7,11 @@ export default function VisitShop({ trust }: { trust: Trust }) {
     <section className="mt-16 grid items-center gap-6 rounded-xl border border-border p-4 sm:p-6 lg:grid-cols-[1.1fr_1fr] lg:gap-10">
       <div className="grid h-[260px] grid-cols-[2fr_1fr] grid-rows-2 gap-2 sm:h-[320px]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photos.front} alt="CharmChase antique shop front, High Street, Evesham" className="row-span-2 h-full w-full rounded-lg object-cover" />
+        <img src={photos.front} alt="CharmChase antique shop front, High Street, Evesham" className="row-span-2 h-full w-full rounded-lg object-cover object-top" />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={photos.inside} alt="Inside the CharmChase shop" className="h-full w-full rounded-lg object-cover" />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photos.jewellery} alt="Antique jewellery at CharmChase" className="h-full w-full rounded-lg object-cover" />
+        <img src={photos.jewellery} alt="Paintings, glass and clocks inside the CharmChase shop" className="h-full w-full rounded-lg object-cover" />
       </div>
       <div>
         <p className="text-xs tracking-widest text-muted uppercase">A real shop on Evesham High Street</p>
