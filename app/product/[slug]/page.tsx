@@ -12,6 +12,7 @@ import { getCategory } from "@/lib/data";
 import { isAvailable } from "@/lib/shop";
 import { trackProductView } from "@/lib/trackView";
 import { getTrust } from "@/lib/trust";
+import { cheapestUkPrice } from "@/lib/shipping";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -93,12 +94,14 @@ export default async function ProductPage({
     return { ...p, description: "", images: cover ? [cover] : [], image: undefined };
   });
   const forSale = isAvailable(product);
-  // Update 150: no videos on the site — photos only (Reels stay on Instagram).
+  // Update 151: no videos on the site — photos only (Reels stay on Instagram).
   const category = getCategory(product.category);
 
   // Structured data (schema.org Product) — lets Google show price and
   // stock status directly in search results, and helps it understand
   // this page is a product listing rather than plain text.
+  const ship = cheapestUkPrice(product);
+  const brand = makerBrand(product.name);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -110,7 +113,9 @@ export default async function ProductPage({
         : product.image
         ? [product.image]
         : undefined,
-    sku: product.slug,
+    // Update 152: short SKU (Google limit 50 chars) + maker as brand when known.
+    sku: `CC-${String(product.id || product.slug).replace(/-/g, "").slice(0, 10).toUpperCase()}`,
+    ...(brand ? { brand: { "@type": "Brand", name: brand } } : {}),
     offers: {
       "@type": "Offer",
       url: `https://www.charmchase.co.uk/product/${product.slug}`,
@@ -124,20 +129,17 @@ export default async function ProductPage({
           : "https://schema.org/InStock",
       itemCondition: "https://schema.org/UsedCondition",
       seller: { "@type": "Organization", name: "CharmChase" },
-      // Update 116: delivery and returns, so Google can show them in results.
-      ...(typeof product.shipping_cost === "number"
-        ? {
-            shippingDetails: {
-              "@type": "OfferShippingDetails",
-              shippingRate: {
-                "@type": "MonetaryAmount",
-                value: (product.shipping_cost / 100).toFixed(2),
-                currency: "GBP",
-              },
-              shippingDestination: { "@type": "DefinedRegion", addressCountry: "GB" },
-            },
-          }
-        : {}),
+      // Update 152: delivery per our rules + delivery time (Search Console asked for it).
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: { "@type": "MonetaryAmount", value: (ship.amount / 100).toFixed(2), currency: "GBP" },
+        shippingDestination: { "@type": "DefinedRegion", addressCountry: "GB" },
+        deliveryTime: {
+          "@type": "ShippingDeliveryTime",
+          handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 2, unitCode: "DAY" },
+          transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" },
+        },
+      },
       hasMerchantReturnPolicy: {
         "@type": "MerchantReturnPolicy",
         applicableCountry: "GB",
@@ -209,4 +211,16 @@ export default async function ProductPage({
       )}
     </div>
   );
+}
+
+// Update 152: well-known makers → schema.org brand (Google "brand or GTIN").
+const MAKERS = [
+  "Cartier", "Rolex", "Omega", "Longines", "Tissot", "Seiko", "Tag Heuer", "Breitling", "Smiths", "Rotary",
+  "Royal Crown Derby", "Royal Doulton", "Royal Worcester", "Royal Copenhagen", "Royal Albert", "Wedgwood", "Spode",
+  "Minton", "Moorcroft", "Meissen", "Herend", "Lladro", "Coalport", "Aynsley", "Shelley",
+  "Mappin & Webb", "Garrard", "Asprey", "Tiffany", "Georg Jensen", "Christofle", "Elkington", "Waterford",
+  "Swarovski", "Lalique", "Baccarat", "Charles Rivaud", "Leica", "Zeiss", "Rolleiflex", "Kodak",
+];
+function makerBrand(name: string): string | null {
+  return MAKERS.find((m) => new RegExp(`\\b${m.replace(/[&]/g, "\\$&")}\\b`, "i").test(name)) || null;
 }
