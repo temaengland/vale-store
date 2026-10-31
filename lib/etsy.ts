@@ -770,7 +770,7 @@ type InvProduct = {
   offerings: InvOffering[];
 };
 
-async function setEtsyPrice(listingId: number, pounds: number) {
+async function setEtsyPrice(listingId: number, pounds: number | null) {
   const inv = await etsy<{ products: InvProduct[]; price_on_property?: number[]; quantity_on_property?: number[]; sku_on_property?: number[] }>(
     "GET",
     `/listings/${listingId}/inventory`
@@ -787,7 +787,12 @@ async function setEtsyPrice(listingId: number, pounds: number) {
       values: v.values || [],
     })),
     offerings: p.offerings.map((o) => ({
-      price: Number(pounds.toFixed(2)),
+      price:
+        pounds != null
+          ? Number(pounds.toFixed(2))
+          : typeof o.price === "number"
+          ? o.price
+          : Number((o.price.amount / o.price.divisor).toFixed(2)),
       quantity: o.quantity || 1,
       is_enabled: o.is_enabled !== false,
       ...((o.readiness_state_id ?? ready) ? { readiness_state_id: o.readiness_state_id ?? ready } : {}),
@@ -933,7 +938,16 @@ export async function endEtsyListingsFor(productIds: string[]) {
     if (!link || link.state === "removed" || link.state === "sold" || link.state === "inactive") continue;
     try {
       if (link.state === "draft") await etsy("DELETE", `/listings/${link.listingId}`);
-      else await etsy("PATCH", `/shops/${t.shopId}/listings/${link.listingId}`, { state: "inactive" });
+      else {
+        try {
+          await etsy("PATCH", `/shops/${t.shopId}/listings/${link.listingId}`, { state: "inactive" });
+        } catch (e) {
+          // Update 154: older listings need a readiness state before Etsy accepts any change.
+          if (!/readiness|processing/i.test(e instanceof Error ? e.message : String(e))) throw e;
+          await setEtsyPrice(link.listingId, null);
+          await etsy("PATCH", `/shops/${t.shopId}/listings/${link.listingId}`, { state: "inactive" });
+        }
+      }
       map[id] = { ...link, state: link.state === "draft" ? "removed" : "inactive", at: new Date().toISOString() };
       out.push({ id, ok: true });
     } catch (e) {
@@ -952,7 +966,7 @@ type Receipt = { receipt_id: number; create_timestamp: number; transactions?: { 
  *  - sold on the site / eBay → Etsy listing removed
  *  - keeps draft/active state in the map up to date.
  */
-export type EtsySyncResult = { ok: boolean; skipped?: string; error?: string; soldOnEtsy: string[]; soldNames: string[]; ended: number };
+export type EtsySyncResult = { ok: boolean; skipped?: string; error?: string; soldOnEtsy: string[]; soldNames: string[]; ended: number; endErrors?: string[] };
 
 export async function runEtsySync(): Promise<EtsySyncResult> {
   const none = { soldOnEtsy: [], soldNames: [], ended: 0 };
@@ -1011,6 +1025,7 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
   await writeJson(MAP_KEY, map);
 
   // 3) Sold on the site or eBay → remove from Etsy.
+  let endErrors: string[] = [];
   const ids = Object.keys(map).filter((id) => ["draft", "active"].includes(map[id].state));
   let ended = 0;
   if (ids.length) {
@@ -1019,10 +1034,11 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
     const missing = ids.filter((id) => !(data || []).some((p) => p.id === id));
     const r = await endEtsyListingsFor([...soldHere, ...missing]);
     ended = r.filter((x) => x.ok).length;
+    endErrors = r.filter((x) => !x.ok).map((x) => `${x.id}: ${x.error}`);
   }
 
   await writeJson(LAST_KEY, { at: Date.now() });
-  return { ok: true, soldOnEtsy: soldIds, soldNames, ended };
+  return { ok: true, soldOnEtsy: soldIds, soldNames, ended, endErrors };
 }
 
 /** Items that can go to Etsy and are not there yet. */

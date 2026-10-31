@@ -73,6 +73,22 @@ function norm(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+// Update 154: titles edited on the site no longer match eBay exactly, so items
+// stayed unlinked and an eBay sale never reached the site. Similar titles
+// (most significant words shared) are now linked too — strictly, one-to-one.
+const STOP = new Set(["the", "and", "with", "for", "of", "a", "an", "in", "on", "to", "by", "set", "pair", "antique", "vintage"]);
+function words(s: string) {
+  return new Set(norm(s).split(" ").filter((w) => w.length > 1 && !STOP.has(w)));
+}
+function similarity(a: Set<string>, b: Set<string>) {
+  if (!a.size || !b.size) return 0;
+  let common = 0;
+  a.forEach((w) => {
+    if (b.has(w)) common++;
+  });
+  return common / Math.min(a.size, b.size);
+}
+
 /**
  * Ends the eBay listings of products that just sold on the site.
  * Called from the Stripe webhook and when a product is marked Sold in admin.
@@ -188,6 +204,28 @@ export async function runEbaySync() {
         linked++;
         events.push({ kind: "linked", text: `Linked to eBay listing: “${p.name}”` });
       }
+    }
+  }
+
+  // Similar-title linking for whatever is still unlinked (both sides one-to-one).
+  const freeActive = active.filter((a) => !knownIds.has(a.itemId)).map((a) => ({ a, w: words(a.title) }));
+  const stillUnlinked = unlinked.filter((p) => !p.ebay_item_id).map((p) => ({ p, w: words(p.name || "") }));
+  const pairs: { p: (typeof unlinked)[number]; itemId: string; score: number; second: number }[] = [];
+  for (const u of stillUnlinked) {
+    const scored = freeActive.map((f) => ({ itemId: f.a.itemId, score: similarity(u.w, f.w) })).sort((x, y) => y.score - x.score);
+    if (scored[0] && scored[0].score >= 0.75 && u.w.size >= 4 && scored[0].score - (scored[1]?.score || 0) >= 0.2)
+      pairs.push({ p: u.p, itemId: scored[0].itemId, score: scored[0].score, second: scored[1]?.score || 0 });
+  }
+  const claimed = new Map<string, number>();
+  pairs.forEach((x) => claimed.set(x.itemId, (claimed.get(x.itemId) || 0) + 1));
+  for (const x of pairs) {
+    if (claimed.get(x.itemId) !== 1) continue; // two site items want the same listing → leave both
+    const { error } = await db().from("products").update({ ebay_item_id: x.itemId }).eq("id", x.p.id);
+    if (!error) {
+      x.p.ebay_item_id = x.itemId;
+      knownIds.add(x.itemId);
+      linked++;
+      events.push({ kind: "linked", text: `Linked to eBay listing (similar title): “${x.p.name}”` });
     }
   }
 
