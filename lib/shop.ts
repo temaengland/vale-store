@@ -80,8 +80,16 @@ export function cleanTitle(name: string): string {
 export const FEED_RESTRICTED =
   /\b(ivory|tortoise ?shell|rhino|whalebone|whale bone|taxiderm\w*|stuffed|powder flask|gun ?powder|flintlock|musket|gun(?! ?metal)|guns|pistol|rifle|revolver|bayonet|sword|swords|sabre|dagger|daggers|machete|ammunition|bullets?|shell casing|trench art|tobacco|cigars?|cigarettes?)\b/i;
 
+// Update 153: harmless phrases that only look like weapons/tortoiseshell —
+// e.g. the Meissen "crossed swords" mark, faux tortoiseshell.
+const HARMLESS = /\b(crossed[\s-]+swords?(\s+marks?)?|swords?\s+marks?|faux\s+tortoise\s?shell|tortoise\s?shell\s+(effect|pattern|colou?r|style|acetate))\b/gi;
+
+export function restrictedTest(text: string) {
+  return FEED_RESTRICTED.test(text.replace(HARMLESS, " "));
+}
+
 export function isFeedRestricted(p: Pick<Product, "name" | "description">) {
-  return FEED_RESTRICTED.test(`${p.name} ${p.description || ""}`);
+  return restrictedTest(`${p.name} ${p.description || ""}`);
 }
 
 /**

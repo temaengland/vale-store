@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { absoluteImageUrl } from "@/lib/instagram";
-import { FEED_RESTRICTED } from "@/lib/shop";
+import { restrictedTest } from "@/lib/shop";
 import { etsyPriceFor, ebayPrices } from "@/lib/pricing";
 import { guessPlacement } from "@/lib/ebay";
 import { parcelSize, FREE_DELIVERY_FROM, TRACKED48_SMALL, TRACKED48_MEDIUM } from "@/lib/shipping";
@@ -699,7 +699,7 @@ export async function prepareEtsy(productId: string) {
 }
 
 export function etsyRestricted(p: { name: string; description?: string | null }) {
-  return FEED_RESTRICTED.test(`${p.name} ${p.description || ""}`);
+  return restrictedTest(`${p.name} ${p.description || ""}`);
 }
 
 // ---------- shop sections (same six as the site) ----------
@@ -960,6 +960,16 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
   const t = await readJson<Tokens | null>(TOKEN_KEY, null);
   if (!t?.shopId) return { ok: false, skipped: "not connected", ...none };
   const shopId = t.shopId;
+  // Update 153: keep the shop name current (shop was renamed to CharmChaseAntiques).
+  try {
+    const sh = await etsy<{ shop_name?: string; url?: string }>("GET", `/shops/${shopId}`);
+    if (sh.shop_name && sh.shop_name !== t.shopName) {
+      const cur = await readJson<Tokens | null>(TOKEN_KEY, null);
+      if (cur) await writeJson(TOKEN_KEY, { ...cur, shopName: sh.shop_name, shopUrl: sh.url || cur.shopUrl });
+    }
+  } catch {
+    /* name refresh is optional */
+  }
   const map = await etsyMap();
   const byListing = new Map<number, string>();
   for (const [pid, l] of Object.entries(map)) byListing.set(l.listingId, pid);
