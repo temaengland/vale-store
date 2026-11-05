@@ -10,6 +10,7 @@ import { CartProvider } from "@/lib/cart-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { Analytics } from "@vercel/analytics/next";
 import MetaPixel from "@/components/MetaPixel";
+import GoogleAds from "@/components/GoogleAds";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -81,6 +82,7 @@ export default function RootLayout({
             <Footer />
             <Analytics />
             <MetaPixel />
+            <GoogleAds />
           </CartProvider>
         </LanguageProvider>
       </body>

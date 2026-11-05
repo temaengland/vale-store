@@ -951,7 +951,12 @@ export async function endEtsyListingsFor(productIds: string[]) {
       map[id] = { ...link, state: link.state === "draft" ? "removed" : "inactive", at: new Date().toISOString() };
       out.push({ id, ok: true });
     } catch (e) {
-      out.push({ id, ok: false, error: e instanceof Error ? e.message : String(e) });
+      const msg = e instanceof Error ? e.message : String(e);
+      // Update 154: already removed by hand on Etsy → just record it.
+      if (/not found|404|does not exist|no listing|expired|sold out|already/i.test(msg)) {
+        map[id] = { ...link, state: "removed", at: new Date().toISOString() };
+        out.push({ id, ok: true });
+      } else out.push({ id, ok: false, error: msg });
     }
   }
   await writeJson(MAP_KEY, map);

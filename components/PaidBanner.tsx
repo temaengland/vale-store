@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useCart } from "@/lib/cart-context";
 import { useLanguage } from "@/lib/language-context";
-import { trackPixel } from "@/components/MetaPixel";
+import { reportPurchase } from "@/components/GoogleAds";
 
 export default function PaidBanner() {
   const { clear } = useCart();
@@ -12,7 +12,7 @@ export default function PaidBanner() {
 
   useEffect(() => {
     if (!cleared.current) {
-      trackPixel("Purchase", { currency: "GBP" });
+      reportPurchase(new URLSearchParams(window.location.search).get("sid"));
       clear();
       cleared.current = true;
     }

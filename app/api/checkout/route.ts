@@ -110,8 +110,8 @@ export async function POST(req: NextRequest) {
     // return to the homepage (there's no one product page to land on).
     const successUrl =
       products.length === 1
-        ? `${origin}/product/${products[0].slug}?paid=1`
-        : `${origin}/?paid=1`;
+        ? `${origin}/product/${products[0].slug}?paid=1&sid={CHECKOUT_SESSION_ID}`
+        : `${origin}/?paid=1&sid={CHECKOUT_SESSION_ID}`;
     const cancelUrl =
       products.length === 1
         ? `${origin}/product/${products[0].slug}?canceled=1`
