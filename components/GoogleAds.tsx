@@ -9,6 +9,42 @@ import { trackPixel } from "@/components/MetaPixel";
 // also needs NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_LABEL. Not loaded on /admin.
 const ID = (process.env.NEXT_PUBLIC_GOOGLE_ADS_ID || "").trim();
 const LABEL = (process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_LABEL || "").trim();
+// Update 157: Google Customer Reviews (free store rating). Off until
+// NEXT_PUBLIC_GOOGLE_MERCHANT_ID is set (after joining the programme in Merchant Center).
+const MERCHANT = (process.env.NEXT_PUBLIC_GOOGLE_MERCHANT_ID || "").trim();
+
+function addWorkingDays(days: number) {
+  const d = new Date();
+  let n = 0;
+  while (n < days) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) n++;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+function offerReviewSurvey(orderId: string, email: string) {
+  if (!MERCHANT || !email) return;
+  const w = window as unknown as {
+    renderOptIn?: () => void;
+    gapi?: { load: (m: string, cb: () => void) => void; surveyoptin: { render: (o: Record<string, unknown>) => void } };
+  };
+  w.renderOptIn = () => {
+    w.gapi?.load("surveyoptin", () => {
+      w.gapi?.surveyoptin.render({
+        merchant_id: Number(MERCHANT),
+        order_id: orderId,
+        email,
+        delivery_country: "GB",
+        estimated_delivery_date: addWorkingDays(4),
+      });
+    });
+  };
+  const s = document.createElement("script");
+  s.src = "https://apis.google.com/js/platform.js?onload=renderOptIn";
+  s.async = true;
+  document.body.appendChild(s);
+}
 
 type Gtag = (...a: unknown[]) => void;
 
@@ -31,10 +67,11 @@ export async function reportPurchase(sid: string | null) {
     try {
       const r = await fetch(`/api/checkout/session?sid=${encodeURIComponent(sid)}`);
       if (r.ok) {
-        const j = (await r.json()) as { paid?: boolean; value?: number };
+        const j = (await r.json()) as { paid?: boolean; value?: number; email?: string | null };
         if (j.paid === false) return;
         value = j.value;
         orderId = sid;
+        if (j.email) offerReviewSurvey(sid, j.email);
       }
     } catch {
       /* report without value */

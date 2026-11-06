@@ -13,6 +13,7 @@ import { isAvailable } from "@/lib/shop";
 import { trackProductView } from "@/lib/trackView";
 import { getTrust } from "@/lib/trust";
 import { cheapestUkPrice } from "@/lib/shipping";
+import { makerBrand } from "@/lib/shop";
 
 // Always fetch fresh data — see note on the homepage for why this matters.
 export const dynamic = "force-dynamic";
@@ -213,14 +214,3 @@ export default async function ProductPage({
   );
 }
 
-// Update 152: well-known makers → schema.org brand (Google "brand or GTIN").
-const MAKERS = [
-  "Cartier", "Rolex", "Omega", "Longines", "Tissot", "Seiko", "Tag Heuer", "Breitling", "Smiths", "Rotary",
-  "Royal Crown Derby", "Royal Doulton", "Royal Worcester", "Royal Copenhagen", "Royal Albert", "Wedgwood", "Spode",
-  "Minton", "Moorcroft", "Meissen", "Herend", "Lladro", "Coalport", "Aynsley", "Shelley",
-  "Mappin & Webb", "Garrard", "Asprey", "Tiffany", "Georg Jensen", "Christofle", "Elkington", "Waterford",
-  "Swarovski", "Lalique", "Baccarat", "Charles Rivaud", "Leica", "Zeiss", "Rolleiflex", "Kodak",
-];
-function makerBrand(name: string): string | null {
-  return MAKERS.find((m) => new RegExp(`\\b${m.replace(/[&]/g, "\\$&")}\\b`, "i").test(name)) || null;
-}

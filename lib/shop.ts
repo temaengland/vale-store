@@ -231,3 +231,50 @@ export function cleanDescription(text: string, title: string): string {
   }
   return removed ? lines.slice(i).join("\n").trim() : text;
 }
+
+// Update 152: well-known makers → schema.org brand (Google "brand or GTIN").
+const MAKERS = [
+  "Cartier", "Rolex", "Omega", "Longines", "Tissot", "Seiko", "Tag Heuer", "Breitling", "Smiths", "Rotary",
+  "Royal Crown Derby", "Royal Doulton", "Royal Worcester", "Royal Copenhagen", "Royal Albert", "Wedgwood", "Spode",
+  "Minton", "Moorcroft", "Meissen", "Herend", "Lladro", "Coalport", "Aynsley", "Shelley",
+  "Mappin & Webb", "Garrard", "Asprey", "Tiffany", "Georg Jensen", "Christofle", "Elkington", "Waterford",
+  "Swarovski", "Lalique", "Baccarat", "Charles Rivaud", "Leica", "Zeiss", "Rolleiflex", "Kodak",
+];
+export function makerBrand(name: string): string | null {
+  return MAKERS.find((m) => new RegExp(`\\b${m.replace(/[&]/g, "\\$&")}\\b`, "i").test(name)) || null;
+}
+
+// Update 157: extra Google Shopping details for jewellery & watches
+// (Google asks for gender, age group, colour and material in this category).
+export function jewelleryAttributes(name: string, description = "") {
+  const t = `${name} ${description}`.toLowerCase();
+  const n = name.toLowerCase();
+  const gender = /\b(men'?s|gents?|gentlemen'?s|male)\b/.test(n)
+    ? "male"
+    : /\b(ladies|lady'?s|women'?s|womens|female)\b/.test(n)
+    ? "female"
+    : "unisex";
+  const material = /platinum/.test(t)
+    ? "Platinum"
+    : /\b(9|14|15|18|22)\s?(ct|k|kt|carat)\b|\bgold\b/.test(t) && !/gold[- ]?(tone|plated|filled)|rolled gold/.test(t)
+    ? "Gold"
+    : /sterling|\b925\b|\bsilver\b/.test(t)
+    ? "Silver"
+    : /stainless steel|\bsteel\b/.test(t)
+    ? "Stainless Steel"
+    : /gold[- ]?(tone|plated|filled)|rolled gold/.test(t)
+    ? "Gold Plated"
+    : null;
+  const color = /rose gold/.test(t)
+    ? "Rose Gold"
+    : /white gold|platinum/.test(t)
+    ? "White"
+    : /two[- ]tone/.test(t)
+    ? "Silver/Gold"
+    : material === "Gold" || material === "Gold Plated"
+    ? "Gold"
+    : material === "Silver" || material === "Stainless Steel"
+    ? "Silver"
+    : null;
+  return { gender, ageGroup: "adult", material, color };
+}

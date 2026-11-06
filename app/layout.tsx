@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Suspense } from "react";
 import AutoBack from "@/components/AutoBack";
@@ -17,15 +17,22 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const serif = Playfair_Display({
-  subsets: ["latin"],
+// Update 157: fonts are stored in the site itself (app/fonts) — the build no
+// longer downloads them from Google Fonts (a failed download broke a deploy).
+const serif = localFont({
+  src: [
+    { path: "./fonts/playfair-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/playfair-700.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-serif",
-  weight: ["500", "700"],
+  display: "swap",
 });
 
-const sans = Inter({
-  subsets: ["latin"],
+const sans = localFont({
+  src: "./fonts/inter-latin-wght.woff2",
+  weight: "100 900",
   variable: "--font-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

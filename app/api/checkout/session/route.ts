@@ -10,7 +10,12 @@ export async function GET(req: NextRequest) {
   if (!/^cs_[A-Za-z0-9_]+$/.test(sid)) return NextResponse.json({ error: "bad id" }, { status: 400 });
   try {
     const s = await stripe().checkout.sessions.retrieve(sid);
-    return NextResponse.json({ paid: s.payment_status === "paid", value: (s.amount_total || 0) / 100 });
+    return NextResponse.json({
+      paid: s.payment_status === "paid",
+      value: (s.amount_total || 0) / 100,
+      // Update 157: for the optional Google Customer Reviews survey offer (buyer opts in on Google's pop-up).
+      email: s.customer_details?.email || null,
+    });
   } catch {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }

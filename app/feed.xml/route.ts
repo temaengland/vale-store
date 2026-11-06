@@ -1,7 +1,7 @@
 import { getAllProducts } from "@/lib/data";
 import { cheapestUkPrice } from "@/lib/shipping";
 import { Product } from "@/lib/products";
-import { isFeedRestricted } from "@/lib/shop";
+import { isFeedRestricted, makerBrand, jewelleryAttributes } from "@/lib/shop";
 
 // Product feed for Google Merchant Center (free Shopping listings)
 // and Meta Commerce Manager (Instagram / Facebook Shop).
@@ -80,12 +80,29 @@ function itemXml(p: Product, isMeta: boolean): string | null {
     `<g:availability>in stock</g:availability>`,
     `<g:price>${(p.price / 100).toFixed(2)} GBP</g:price>`,
     `<g:condition>used</g:condition>`,
-    `<g:google_product_category>${esc(GOOGLE_CATEGORY[p.category])}</g:google_product_category>`,
+    `<g:google_product_category>${esc(
+      p.category === "watches" && /clock/i.test(`${p.subcategory || ""} ${p.name}`)
+        ? "Home & Garden > Decor > Clocks" // update 157: clocks are decor, not watches
+        : GOOGLE_CATEGORY[p.category]
+    )}</g:google_product_category>`,
     `<g:product_type>${esc(productType)}</g:product_type>`,
     `<g:identifier_exists>no</g:identifier_exists>`,
   ];
-  // Meta requires a brand; Google prefers none for one-off antiques.
-  if (isMeta) lines.push(`<g:brand>CharmChase</g:brand>`);
+  // Meta requires a brand; Google: the maker when known (update 157), else none.
+  const maker = makerBrand(p.name);
+  if (maker) lines.push(`<g:brand>${esc(maker)}</g:brand>`);
+  else if (isMeta) lines.push(`<g:brand>CharmChase</g:brand>`);
+  // Update 157: Google asks for these in Apparel & Accessories (jewellery, watches).
+  if (p.category === "jewelry" || p.category === "watches") {
+    if (!(p.category === "watches" && /clock/i.test(`${p.subcategory || ""} ${p.name}`))) {
+      const a = jewelleryAttributes(p.name, p.description || "");
+      lines.push(`<g:gender>${a.gender}</g:gender>`, `<g:age_group>${a.ageGroup}</g:age_group>`);
+      if (a.material) lines.push(`<g:material>${esc(a.material)}</g:material>`);
+      if (a.color) lines.push(`<g:color>${esc(a.color)}</g:color>`);
+    }
+  }
+  // Dispatch within 1–2 working days (update 157).
+  lines.push(`<g:min_handling_time>1</g:min_handling_time>`, `<g:max_handling_time>2</g:max_handling_time>`);
   if (p.weight_grams) lines.push(`<g:shipping_weight>${p.weight_grams} g</g:shipping_weight>`);
 
   // UK delivery price shown on Google/Meta — update 130: same rules as the
