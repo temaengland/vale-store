@@ -403,15 +403,18 @@ const PRODUCT_COLS =
  *  - £150–£249: Tracked 24 £5.95 small / £12.95 medium
  *  - £250–£749: Special Delivery £11.95 small / £19.95 medium
  *  - £750–£999: £14.95 · £1,000–£2,499: £21.95 · £2,500+: £29.95 (insured, sent personally)
- *  - large items: courier price as before
+ *  - large items: furniture → courier price (£70 if none); other big items → medium-parcel rate (159)
  */
 export function etsyShipping(p: ProductRow) {
   const size = parcelSize(p);
-  if (size === "large") {
-    const c = p.shipping_cost && p.shipping_cost > 0 ? p.shipping_cost : 7000;
+  // Update 159: a "courier price" under £20 is an old eBay postage figure on big paintings/ceramics,
+  // not a real courier quote — those go as a medium parcel at the price-band rate below
+  // (furniture with no real courier price gets the default £70).
+  if (size === "large" && (p.category === "furniture" || (p.shipping_cost ?? 0) >= 2000)) {
+    const c = p.shipping_cost && p.shipping_cost >= 2000 ? p.shipping_cost : 7000;
     return { pence: c, label: `Courier £${(c / 100).toFixed(2)} (large item)` };
   }
-  const medium = size === "medium";
+  const medium = size !== "small";
   if (p.price < FREE_DELIVERY_FROM)
     return medium
       ? { pence: TRACKED48_MEDIUM, label: "Royal Mail Tracked 48 £12.95" }
