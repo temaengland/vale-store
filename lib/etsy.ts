@@ -396,17 +396,37 @@ type ProductRow = {
 const PRODUCT_COLS =
   "id, name, description, price, category, subcategory, era, images, image, status, is_draft, weight_grams, length_cm, width_cm, height_cm, shipping_cost";
 
-/** UK delivery price on Etsy (pence) and a label for admin. */
+/**
+ * UK delivery price on Etsy (pence) and a label for admin.
+ * Update 158: Etsy has no free delivery any more (the site keeps free delivery from £150).
+ *  - under £150: Tracked 48 £4.95 small / £12.95 medium (as before)
+ *  - £150–£249: Tracked 24 £5.95 small / £12.95 medium
+ *  - £250–£749: Special Delivery £11.95 small / £19.95 medium
+ *  - £750–£999: £14.95 · £1,000–£2,499: £21.95 · £2,500+: £29.95 (insured, sent personally)
+ *  - large items: courier price as before
+ */
 export function etsyShipping(p: ProductRow) {
   const size = parcelSize(p);
   if (size === "large") {
     const c = p.shipping_cost && p.shipping_cost > 0 ? p.shipping_cost : 7000;
     return { pence: c, label: `Courier £${(c / 100).toFixed(2)} (large item)` };
   }
-  if (p.price >= FREE_DELIVERY_FROM) return { pence: 0, label: "Free UK delivery (Royal Mail Special Delivery)" };
-  return size === "medium"
-    ? { pence: TRACKED48_MEDIUM, label: "Royal Mail Tracked 48 £12.95" }
-    : { pence: TRACKED48_SMALL, label: "Royal Mail Tracked 48 £4.95" };
+  const medium = size === "medium";
+  if (p.price < FREE_DELIVERY_FROM)
+    return medium
+      ? { pence: TRACKED48_MEDIUM, label: "Royal Mail Tracked 48 £12.95" }
+      : { pence: TRACKED48_SMALL, label: "Royal Mail Tracked 48 £4.95" };
+  if (p.price < 25000)
+    return medium
+      ? { pence: 1295, label: "Royal Mail Tracked 24 £12.95" }
+      : { pence: 595, label: "Royal Mail Tracked 24 £5.95" };
+  if (p.price < 75000)
+    return medium
+      ? { pence: 1995, label: "Royal Mail Special Delivery £19.95" }
+      : { pence: 1195, label: "Royal Mail Special Delivery £11.95" };
+  if (p.price < 100000) return { pence: 1495, label: "Royal Mail Special Delivery (£1,000 cover) £14.95" };
+  if (p.price < 250000) return { pence: 2195, label: "Royal Mail Special Delivery (£2,500 cover) £21.95" };
+  return { pence: 2995, label: "Fully insured delivery £29.95" };
 }
 
 type ShipProfile = { shipping_profile_id: number; title: string; origin_postal_code?: string | null };
@@ -971,7 +991,7 @@ type Receipt = { receipt_id: number; create_timestamp: number; transactions?: { 
  *  - sold on the site / eBay → Etsy listing removed
  *  - keeps draft/active state in the map up to date.
  */
-export type EtsySyncResult = { ok: boolean; skipped?: string; error?: string; soldOnEtsy: string[]; soldNames: string[]; ended: number; endErrors?: string[] };
+export type EtsySyncResult = { ok: boolean; skipped?: string; error?: string; soldOnEtsy: string[]; soldNames: string[]; ended: number; endErrors?: string[]; reshipped?: number };
 
 export async function runEtsySync(): Promise<EtsySyncResult> {
   const none = { soldOnEtsy: [], soldNames: [], ended: 0 };
@@ -1016,12 +1036,19 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
   }
 
   // 2) Live/draft state of our listings.
+  const liveProfiles = new Map<string, number | null>();
   for (const state of ["active", "draft", "inactive"] as const) {
     try {
-      const r = await etsy<{ results: { listing_id: number }[] }>("GET", `/shops/${shopId}/listings?state=${state}&limit=100`);
+      const r = await etsy<{ results: { listing_id: number; shipping_profile_id?: number | null }[] }>(
+        "GET",
+        `/shops/${shopId}/listings?state=${state}&limit=100`
+      );
       for (const l of r.results || []) {
         const pid = byListing.get(l.listing_id);
-        if (pid && map[pid] && map[pid].state !== "sold" && map[pid].state !== "removed") map[pid] = { ...map[pid], state };
+        if (pid && map[pid] && map[pid].state !== "sold" && map[pid].state !== "removed") {
+          map[pid] = { ...map[pid], state };
+          if (state === "active") liveProfiles.set(pid, l.shipping_profile_id ?? null);
+        }
       }
     } catch {
       /* not fatal */
@@ -1042,8 +1069,30 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
     endErrors = r.filter((x) => !x.ok).map((x) => `${x.id}: ${x.error}`);
   }
 
+  // 4) Update 158: keep each live listing on the right (paid) delivery profile.
+  let reshipped = 0;
+  try {
+    const liveIds = [...liveProfiles.keys()];
+    if (liveIds.length) {
+      const { data } = await db().from("products").select(PRODUCT_COLS).in("id", liveIds).neq("status", "sold");
+      for (const p of (data || []) as ProductRow[]) {
+        if (reshipped >= 30) break; // the rest on the next run
+        const want = await shippingProfileFor(etsyShipping(p).pence);
+        if (liveProfiles.get(p.id) === want) continue;
+        try {
+          await etsy("PATCH", `/shops/${shopId}/listings/${map[p.id].listingId}`, { shipping_profile_id: want });
+          reshipped++;
+        } catch (e) {
+          endErrors.push(`${p.id}: delivery — ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+    }
+  } catch (e) {
+    endErrors.push(`delivery profiles: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
   await writeJson(LAST_KEY, { at: Date.now() });
-  return { ok: true, soldOnEtsy: soldIds, soldNames, ended, endErrors };
+  return { ok: true, soldOnEtsy: soldIds, soldNames, ended, endErrors, reshipped };
 }
 
 /** Items that can go to Etsy and are not there yet. */
