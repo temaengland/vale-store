@@ -888,7 +888,7 @@ export async function sendToEtsy(productId: string, d: EtsyDraft) {
     return_policy_id: await returnPolicyId(),
     readiness_state_id: await readinessStateId(),
     shop_section_id: await sectionIdFor(p.category),
-    should_auto_renew: true,
+    should_auto_renew: false, // update 160: Artem renews by hand
     type: "physical",
   };
   if (p.weight_grams) {
@@ -1040,9 +1040,10 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
 
   // 2) Live/draft state of our listings.
   const liveProfiles = new Map<string, number | null>();
+  const autoRenew = new Set<string>(); // update 160: listings still set to auto-renew
   for (const state of ["active", "draft", "inactive"] as const) {
     try {
-      const r = await etsy<{ results: { listing_id: number; shipping_profile_id?: number | null }[] }>(
+      const r = await etsy<{ results: { listing_id: number; shipping_profile_id?: number | null; should_auto_renew?: boolean }[] }>(
         "GET",
         `/shops/${shopId}/listings?state=${state}&limit=100`
       );
@@ -1050,7 +1051,10 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
         const pid = byListing.get(l.listing_id);
         if (pid && map[pid] && map[pid].state !== "sold" && map[pid].state !== "removed") {
           map[pid] = { ...map[pid], state };
-          if (state === "active") liveProfiles.set(pid, l.shipping_profile_id ?? null);
+          if (state === "active") {
+            liveProfiles.set(pid, l.shipping_profile_id ?? null);
+            if (l.should_auto_renew) autoRenew.add(pid);
+          }
         }
       }
     } catch {
@@ -1073,6 +1077,7 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
   }
 
   // 4) Update 158: keep each live listing on the right (paid) delivery profile.
+  //    Update 160: and switch auto-renew off (Artem renews by hand).
   let reshipped = 0;
   try {
     const liveIds = [...liveProfiles.keys()];
@@ -1081,9 +1086,12 @@ export async function runEtsySync(): Promise<EtsySyncResult> {
       for (const p of (data || []) as ProductRow[]) {
         if (reshipped >= 30) break; // the rest on the next run
         const want = await shippingProfileFor(etsyShipping(p).pence);
-        if (liveProfiles.get(p.id) === want) continue;
+        const patch: Record<string, unknown> = {};
+        if (liveProfiles.get(p.id) !== want) patch.shipping_profile_id = want;
+        if (autoRenew.has(p.id)) patch.should_auto_renew = false;
+        if (!Object.keys(patch).length) continue;
         try {
-          await etsy("PATCH", `/shops/${shopId}/listings/${map[p.id].listingId}`, { shipping_profile_id: want });
+          await etsy("PATCH", `/shops/${shopId}/listings/${map[p.id].listingId}`, patch);
           reshipped++;
         } catch (e) {
           endErrors.push(`${p.id}: delivery — ${e instanceof Error ? e.message : String(e)}`);
