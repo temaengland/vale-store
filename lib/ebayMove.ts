@@ -59,7 +59,21 @@ export type DraftRow = {
   photos: string; // "|"-separated, max 12
   conditionId: string;
   description: string;
+  specifics: Record<string, string>; // update 169: Brand, Material, Type… → "C:" columns
 };
+
+/** Item specifics of an old listing (multiple values joined with "|", eBay's file format). */
+function specificsOf(it: Raw): Record<string, string> {
+  const out: Record<string, string> = {};
+  const list = it?.ItemSpecifics?.NameValueList || [];
+  for (const n of Array.isArray(list) ? list : [list]) {
+    const name = text(n?.Name).trim();
+    if (!name || name.length > 60) continue;
+    const vals = (Array.isArray(n.Value) ? n.Value : [n.Value]).map((v: Raw) => text(v).trim()).filter(Boolean);
+    if (vals.length) out[name] = vals.join("|").slice(0, 300);
+  }
+  return out;
+}
 
 /** Full details of a few old listings, ready for the drafts file. */
 export async function draftRows(itemIds: string[]) {
@@ -72,7 +86,7 @@ export async function draftRows(itemIds: string[]) {
       const price =
         Number(text(it.StartPrice)) || Number(text(it.BuyItNowPrice)) || Number(text(it.SellingStatus?.CurrentPrice)) || 0;
       const pics: string[] = (it.PictureDetails?.PictureURL || [])
-        .map((u: Raw) => text(u).replace(/s-l\d+\./, "s-l1600."))
+        .map((u: Raw) => text(u).replace(/s-l\d+\./, "s-l1600.").replace(/\$_\d+\.(JPG|PNG|jpg|png)(\?.*)?$/, "$_57.$1"))
         .filter((u: string) => u.startsWith("https://"))
         .slice(0, 12);
       rows.push({
@@ -81,8 +95,10 @@ export async function draftRows(itemIds: string[]) {
         title: text(it.Title).slice(0, 80),
         price: price ? price.toFixed(2) : "",
         photos: pics.join("|"),
-        conditionId: text(it.ConditionID),
+        // Update 168: the drafts template wants a condition word, not eBay's number.
+        conditionId: ["1000", "1500", "1750"].includes(text(it.ConditionID)) ? "NEW" : "USED",
         description: text(it.Description),
+        specifics: specificsOf(it),
       });
     } catch (e) {
       errors.push({ itemId: id, error: e instanceof Error ? e.message : String(e) });

@@ -13,6 +13,7 @@ type DraftRow = {
   photos: string;
   conditionId: string;
   description: string;
+  specifics?: Record<string, string>;
 };
 
 const HEAD = [
@@ -31,15 +32,39 @@ const HEAD = [
 
 const cell = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
+// Update 168: eBay only recognises the file with its own #INFO lines on top.
+const INFO = [
+  "#INFO,Version=0.0.2,Template= eBay-draft-listings-template_GB,,,,,,,,",
+  "#INFO Action and Category ID are required fields. 1) Set Action to Draft 2) Please find the category ID for your listings here: https://pages.ebay.com/sellerinformation/news/categorychanges.html,,,,,,,,,,",
+  '"#INFO After you\'ve successfully uploaded your draft from the Seller Hub Reports tab, complete your drafts to active listings here: https://www.ebay.co.uk/sh/lst/drafts",,,,,,,,,,',
+  "#INFO,,,,,,,,,,",
+];
+
 function toCsv(rows: DraftRow[]) {
-  const lines = [HEAD.map(cell).join(",")];
+  // Update 169: item specifics (Brand, Material, Type…) go in as eBay "C:Name" columns.
+  const names: string[] = [];
+  for (const r of rows) for (const n of Object.keys(r.specifics || {})) if (!names.includes(n)) names.push(n);
+  const lines = [...INFO, [...HEAD, ...names.map((n) => `C:${n}`)].map((h, i) => (i < HEAD.length ? h : cell(h))).join(",")];
   for (const r of rows)
     lines.push(
-      ["Draft", r.sku, r.categoryId, r.title, "", r.price, "1", r.photos, r.conditionId, r.description, "FixedPrice"]
+      [
+        "Draft",
+        r.sku,
+        r.categoryId,
+        r.title,
+        "",
+        r.price,
+        "1",
+        r.photos,
+        r.conditionId,
+        r.description,
+        "FixedPrice",
+        ...names.map((n) => (r.specifics || {})[n] || ""),
+      ]
         .map(cell)
         .join(",")
     );
-  return "﻿" + lines.join("\r\n");
+  return lines.join("\n");
 }
 
 export default function EbayOldPanel() {
