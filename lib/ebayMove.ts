@@ -86,10 +86,15 @@ const cdata = (v: unknown) => `<![CDATA[${String(v ?? "").replace(/]]>/g, "]]]]>
 const text = (v: Raw): string => (v && typeof v === "object" && "#text" in v ? String(v["#text"]) : String(v ?? ""));
 const isFurniture = (it: Raw) => /furniture/i.test(text(it?.PrimaryCategory?.CategoryName));
 
-/** A live listing on the main account to borrow delivery/returns/payment policies from. */
-async function templateFor(mainToken: string, furniture: boolean): Promise<Raw> {
+/**
+ * A live listing on the main account to borrow business policies (delivery/returns/payment) from.
+ * Returns null when the main account's listings don't use business policies — then the old
+ * listing's own delivery and returns settings are copied instead (update 161b).
+ */
+async function templateFor(mainToken: string, furniture: boolean): Promise<Raw | null> {
   const cacheKey = furniture ? "ebay_move_template_large" : "ebay_move_template_small";
   const cached = await readJson<string | null>(cacheKey, null);
+  if (cached === "none") return null;
   if (cached) {
     try {
       const it = await getItemRaw(mainToken, cached);
@@ -100,17 +105,65 @@ async function templateFor(mainToken: string, furniture: boolean): Promise<Raw> 
   }
   const mains = await allActiveListings(mainToken);
   let fallback: Raw = null;
-  for (const m of mains.slice(0, 25)) {
+  for (const m of mains.slice(0, 6)) {
     const it = await getItemRaw(mainToken, m.itemId).catch(() => null);
-    if (!it?.SellerProfiles) continue;
+    if (!it?.SellerProfiles?.SellerShippingProfile) continue;
     if (isFurniture(it) === furniture) {
       await writeJson(cacheKey, m.itemId);
       return it;
     }
     fallback = fallback || it;
   }
-  if (fallback) return fallback;
-  throw new Error("Could not find a live listing on the new eBay account with delivery/returns policies to copy.");
+  if (!fallback) await writeJson(cacheKey, "none");
+  return fallback;
+}
+
+const arr = (v: Raw) => (v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]);
+const money = (v: Raw) => {
+  const n = Number(text(v));
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+};
+
+/** Delivery + returns copied from the old listing itself (when no business policies to borrow). */
+function ownShippingXml(it: Raw) {
+  const sd = it.ShippingDetails || {};
+  const dom = arr(sd.ShippingServiceOptions)
+    .filter((o: Raw) => o?.ShippingService)
+    .slice(0, 4)
+    .map(
+      (o: Raw, i: number) => `<ShippingServiceOptions>
+<ShippingService>${esc(text(o.ShippingService))}</ShippingService>
+<ShippingServicePriority>${i + 1}</ShippingServicePriority>
+${text(o.FreeShipping) === "true" ? "<FreeShipping>true</FreeShipping>" : `<ShippingServiceCost currencyID="GBP">${money(o.ShippingServiceCost)}</ShippingServiceCost>`}
+${o.ShippingServiceAdditionalCost !== undefined ? `<ShippingServiceAdditionalCost currencyID="GBP">${money(o.ShippingServiceAdditionalCost)}</ShippingServiceAdditionalCost>` : ""}
+</ShippingServiceOptions>`
+    );
+  const intl = arr(sd.InternationalShippingServiceOption)
+    .filter((o: Raw) => o?.ShippingService)
+    .slice(0, 3)
+    .map(
+      (o: Raw, i: number) => `<InternationalShippingServiceOption>
+<ShippingService>${esc(text(o.ShippingService))}</ShippingService>
+<ShippingServicePriority>${i + 1}</ShippingServicePriority>
+<ShippingServiceCost currencyID="GBP">${money(o.ShippingServiceCost)}</ShippingServiceCost>
+${arr(o.ShipToLocation).map((l: Raw) => `<ShipToLocation>${esc(text(l))}</ShipToLocation>`).join("")}
+</InternationalShippingServiceOption>`
+    );
+  if (!dom.length) {
+    // Collection only / no service on the old listing: offer UK collection in person.
+    dom.push(`<ShippingServiceOptions><ShippingService>UK_CollectInPerson</ShippingService><ShippingServicePriority>1</ShippingServicePriority><ShippingServiceCost currencyID="GBP">0.00</ShippingServiceCost></ShippingServiceOptions>`);
+  }
+  const shipping = `<ShippingDetails><ShippingType>${esc(text(sd.ShippingType) || "Flat")}</ShippingType>${dom.join("")}${intl.join("")}</ShippingDetails>`;
+
+  const rp = it.ReturnPolicy || {};
+  const accepted = text(rp.ReturnsAcceptedOption) || "ReturnsAccepted";
+  const returns =
+    accepted === "ReturnsNotAccepted"
+      ? `<ReturnPolicy><ReturnsAcceptedOption>ReturnsNotAccepted</ReturnsAcceptedOption></ReturnPolicy>`
+      : `<ReturnPolicy><ReturnsAcceptedOption>ReturnsAccepted</ReturnsAcceptedOption><ReturnsWithinOption>${esc(
+          text(rp.ReturnsWithinOption) || "Days_30"
+        )}</ReturnsWithinOption><ShippingCostPaidByOption>${esc(text(rp.ShippingCostPaidByOption) || "Buyer")}</ShippingCostPaidByOption></ReturnPolicy>`;
+  return shipping + returns;
 }
 
 function specificsXml(it: Raw) {
@@ -140,7 +193,7 @@ export async function moveListing(oldItemId: string) {
     throw new Error("Old listing is no longer active.");
 
   const tpl = await templateFor(mainToken, isFurniture(it));
-  const sp = tpl.SellerProfiles;
+  const sp = tpl?.SellerProfiles;
   const price =
     Number(text(it.StartPrice)) || Number(text(it.BuyItNowPrice)) || Number(text(it.SellingStatus?.CurrentPrice)) || 0;
   if (!price) throw new Error("Old listing has no price.");
@@ -155,9 +208,9 @@ export async function moveListing(oldItemId: string) {
 <StartPrice currencyID="GBP">${price.toFixed(2)}</StartPrice>
 <Currency>GBP</Currency>
 <Country>GB</Country>
-<Location>${esc(text(tpl.Location) || "Evesham")}</Location>
-${tpl.PostalCode ? `<PostalCode>${esc(text(tpl.PostalCode))}</PostalCode>` : ""}
-<DispatchTimeMax>${esc(text(tpl.DispatchTimeMax) || "2")}</DispatchTimeMax>
+<Location>${esc(text(tpl?.Location) || "Evesham")}</Location>
+<PostalCode>${esc(text(tpl?.PostalCode) || "WR11 4DA")}</PostalCode>
+<DispatchTimeMax>${esc(text(tpl?.DispatchTimeMax) || text(it.DispatchTimeMax) || "2")}</DispatchTimeMax>
 <ListingDuration>GTC</ListingDuration>
 <ListingType>FixedPriceItem</ListingType>
 <Quantity>1</Quantity>
@@ -165,11 +218,15 @@ ${it.ConditionID ? `<ConditionID>${esc(text(it.ConditionID))}</ConditionID>` : "
 ${it.ConditionDescription ? `<ConditionDescription>${esc(text(it.ConditionDescription)).slice(0, 1000)}</ConditionDescription>` : ""}
 <PictureDetails>${pics.map((u) => `<PictureURL>${esc(u)}</PictureURL>`).join("")}</PictureDetails>
 ${specificsXml(it)}
-<SellerProfiles>
+${
+  sp?.SellerShippingProfile
+    ? `<SellerProfiles>
 <SellerShippingProfile><ShippingProfileID>${esc(text(sp.SellerShippingProfile?.ShippingProfileID))}</ShippingProfileID></SellerShippingProfile>
 <SellerReturnProfile><ReturnProfileID>${esc(text(sp.SellerReturnProfile?.ReturnProfileID))}</ReturnProfileID></SellerReturnProfile>
 <SellerPaymentProfile><PaymentProfileID>${esc(text(sp.SellerPaymentProfile?.PaymentProfileID))}</PaymentProfileID></SellerPaymentProfile>
-</SellerProfiles>
+</SellerProfiles>`
+    : ownShippingXml(it)
+}
 </Item>`;
 
   const r = await trading("AddFixedPriceItem", xml, mainToken);

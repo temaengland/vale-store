@@ -47,6 +47,7 @@ export default function EbayOldPanel({ onMoved }: { onMoved?: () => void }) {
     if (!todo.length) return;
     setResults([]);
     let done = 0;
+    let okCount = 0;
     for (const r of todo) {
       setMoving(`Moving ${++done} of ${todo.length}…`);
       try {
@@ -58,6 +59,7 @@ export default function EbayOldPanel({ onMoved }: { onMoved?: () => void }) {
         const d = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(d.error || "failed");
         const text = `moved → new eBay ${d.newItemId}${d.endError ? ` (old not ended: ${d.endError})` : ""}`;
+        okCount++;
         setResults((x) => [...x, { itemId: r.itemId, title: r.title, text, ok: true }]);
         setRows((rs) => (rs || []).map((x) => (x.itemId === r.itemId ? { ...x, movedTo: d.newItemId } : x)));
       } catch (e) {
@@ -65,8 +67,12 @@ export default function EbayOldPanel({ onMoved }: { onMoved?: () => void }) {
       }
     }
     setMoving("");
-    setMsg("Done. Now adding the moved items to the site as drafts…");
-    onMoved?.();
+    if (okCount) {
+      setMsg(`${okCount} moved. Now adding them to the site as drafts…`);
+      onMoved?.();
+    } else {
+      setMsg("Nothing was moved — see the red lines below for the reason.");
+    }
   }
 
   const visible = (rows || []).filter((r) => showDupes || (!r.duplicateOf && !r.movedTo));
@@ -105,7 +111,7 @@ export default function EbayOldPanel({ onMoved }: { onMoved?: () => void }) {
       </div>
       {!status?.connected && (
         <p className="mt-2 text-xs text-muted">
-          On the eBay page that opens, sign in with the OLD account (charm chase), not the new one.
+          On the eBay page that opens, sign in with the OLD account (e.g. Tim Antigua), not pl.ten_60.
         </p>
       )}
       {msg && <p className="mt-3 text-xs">{msg}</p>}
