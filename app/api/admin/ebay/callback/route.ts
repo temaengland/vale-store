@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     if (msg) u.searchParams.set("msg", msg.slice(0, 200));
     const res = NextResponse.redirect(u);
     res.cookies.delete("ebay_oauth_state");
+    res.cookies.delete("ebay_oauth_account");
     return res;
   };
 
@@ -27,8 +28,9 @@ export async function GET(req: NextRequest) {
   if (!state || state !== expected) return back("error", "Connection expired — press Connect eBay again.");
 
   try {
-    await connectWithCode(code);
-    return back("connected");
+    const account = req.cookies.get("ebay_oauth_account")?.value === "old" ? "old" : "main";
+    await connectWithCode(code, account);
+    return back(account === "old" ? "old-connected" : "connected");
   } catch (e) {
     return back("error", e instanceof Error ? e.message : "Connection failed.");
   }
