@@ -77,10 +77,10 @@ function norm(s: string) {
 // stayed unlinked and an eBay sale never reached the site. Similar titles
 // (most significant words shared) are now linked too — strictly, one-to-one.
 const STOP = new Set(["the", "and", "with", "for", "of", "a", "an", "in", "on", "to", "by", "set", "pair", "antique", "vintage"]);
-function words(s: string) {
+export function words(s: string) {
   return new Set(norm(s).split(" ").filter((w) => w.length > 1 && !STOP.has(w)));
 }
-function similarity(a: Set<string>, b: Set<string>) {
+export function similarity(a: Set<string>, b: Set<string>) {
   if (!a.size || !b.size) return 0;
   let common = 0;
   a.forEach((w) => {
