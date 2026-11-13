@@ -124,6 +124,17 @@ const money = (v: Raw) => {
   return Number.isFinite(n) ? n.toFixed(2) : "0.00";
 };
 
+/** Our UK postage for eBay when the old listing has none we can copy: [service code, £]. */
+function ourUkPostage(it: Raw): [string, string] {
+  const price = Number(text(it.StartPrice)) || Number(text(it.SellingStatus?.CurrentPrice)) || 0;
+  if (isFurniture(it)) return ["UK_OtherCourier", "70.00"];
+  if (price < 150) return ["UK_RoyalMailTracked48", "4.95"];
+  if (price < 250) return ["UK_RoyalMailTracked24", "5.95"];
+  if (price < 750) return ["UK_RoyalMailSpecialDeliveryNextDay", "11.95"];
+  if (price < 1000) return ["UK_RoyalMailSpecialDeliveryNextDay", "14.95"];
+  return ["UK_RoyalMailSpecialDeliveryNextDay", "21.95"];
+}
+
 /** Delivery + returns copied from the old listing itself (when no business policies to borrow). */
 function ownShippingXml(it: Raw) {
   const sd = it.ShippingDetails || {};
@@ -149,11 +160,18 @@ ${o.ShippingServiceAdditionalCost !== undefined ? `<ShippingServiceAdditionalCos
 ${arr(o.ShipToLocation).map((l: Raw) => `<ShipToLocation>${esc(text(l))}</ShipToLocation>`).join("")}
 </InternationalShippingServiceOption>`
     );
-  if (!dom.length) {
-    // Collection only / no service on the old listing: offer UK collection in person.
-    dom.push(`<ShippingServiceOptions><ShippingService>UK_CollectInPerson</ShippingService><ShippingServicePriority>1</ShippingServicePriority><ShippingServiceCost currencyID="GBP">0.00</ShippingServiceCost></ShippingServiceOptions>`);
+  // Update 162b: listings on eBay's own "Standard Tracked Delivery" / calculated postage
+  // don't return a service we can copy — use our own UK rates instead.
+  const usable = dom.filter((x) => !x.includes("UK_CollectInPerson"));
+  if (!usable.length) {
+    dom.length = 0;
+    intl.length = 0; // calculated/eBay-label international rates can't be copied either
+    const [svc, cost] = ourUkPostage(it);
+    dom.push(
+      `<ShippingServiceOptions><ShippingService>${svc}</ShippingService><ShippingServicePriority>1</ShippingServicePriority><ShippingServiceCost currencyID="GBP">${cost}</ShippingServiceCost></ShippingServiceOptions>`
+    );
   }
-  const shipping = `<ShippingDetails><ShippingType>${esc(text(sd.ShippingType) || "Flat")}</ShippingType>${dom.join("")}${intl.join("")}</ShippingDetails>`;
+  const shipping = `<ShippingDetails><ShippingType>Flat</ShippingType>${dom.join("")}${intl.join("")}</ShippingDetails>`;
 
   const rp = it.ReturnPolicy || {};
   const accepted = text(rp.ReturnsAcceptedOption) || "ReturnsAccepted";
