@@ -9,10 +9,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 const API = process.env.EBAY_API_BASE || "https://api.ebay.com";
 const AUTH = process.env.EBAY_AUTH_BASE || "https://auth.ebay.com";
 const REFRESH_KEY = "ebay_refresh_token";
-// Update 161: a second, read-and-end connection to the OLD eBay account ("charm chase"),
-// used only to move its listings to the main account.
-export type EbayAccount = "main" | "old";
-const keyFor = (a: EbayAccount) => (a === "old" ? "ebay_refresh_token_old" : REFRESH_KEY);
 // Scopes asked for on "Connect eBay". Full seller access so the site can also
 // END a listing when the item sells on the site (read-only can't do that).
 export const EBAY_SCOPES = [
@@ -40,7 +36,7 @@ function basicAuth() {
   return "Basic " + Buffer.from(`${env("EBAY_APP_ID")}:${env("EBAY_CERT_ID")}`).toString("base64");
 }
 
-export function authorizeUrl(state: string, account: EbayAccount = "main") {
+export function authorizeUrl(state: string) {
   const q = new URLSearchParams({
     client_id: env("EBAY_APP_ID"),
     response_type: "code",
@@ -48,8 +44,6 @@ export function authorizeUrl(state: string, account: EbayAccount = "main") {
     scope: EBAY_SCOPES.join(" "),
     state,
   });
-  // Old account: always show the eBay sign-in, so you can log in as the other account.
-  if (account === "old") q.set("prompt", "login");
   return `${AUTH}/oauth2/authorize?${q}`;
 }
 
@@ -68,7 +62,7 @@ async function tokenRequest(body: Record<string, string>) {
 }
 
 /** Exchanges the code from the eBay consent screen and saves the refresh token. */
-export async function connectWithCode(code: string, account: EbayAccount = "main") {
+export async function connectWithCode(code: string) {
   const t = await tokenRequest({
     grant_type: "authorization_code",
     code,
@@ -79,7 +73,7 @@ export async function connectWithCode(code: string, account: EbayAccount = "main
   const { error } = await supabaseAdmin()
     .from("app_settings")
     .upsert({
-      key: keyFor(account),
+      key: REFRESH_KEY,
       value: JSON.stringify({ token: t.refresh_token, expiresAt, scopes: EBAY_SCOPES }),
       updated_at: new Date().toISOString(),
     });
@@ -87,11 +81,11 @@ export async function connectWithCode(code: string, account: EbayAccount = "main
   return { expiresAt };
 }
 
-export async function getConnection(account: EbayAccount = "main") {
+export async function getConnection() {
   const { data } = await supabaseAdmin()
     .from("app_settings")
     .select("value, updated_at")
-    .eq("key", keyFor(account))
+    .eq("key", REFRESH_KEY)
     .maybeSingle();
   if (!data) return null;
   try {
@@ -109,14 +103,9 @@ export async function getConnection(account: EbayAccount = "main") {
   }
 }
 
-export async function userAccessToken(account: EbayAccount = "main") {
-  const c = await getConnection(account);
-  if (!c)
-    throw new Error(
-      account === "old"
-        ? "Old eBay account is not connected — press “Connect old account” first."
-        : "eBay is not connected yet — press “Connect eBay” first."
-    );
+export async function userAccessToken() {
+  const c = await getConnection();
+  if (!c) throw new Error("eBay is not connected yet — press “Connect eBay” first.");
   const t = await tokenRequest({
     grant_type: "refresh_token",
     refresh_token: c.token,
@@ -213,17 +202,6 @@ export async function getItem(token: string, itemId: string): Promise<ListingDet
     categoryId: String(it.PrimaryCategory?.CategoryID || ""),
     categoryName: String(it.PrimaryCategory?.CategoryName || ""),
   };
-}
-
-/** Full GetItem reply (update 161: used to copy a listing to another account). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getItemRaw(token: string, itemId: string): Promise<any> {
-  const r = await trading(
-    "GetItem",
-    `<ItemID>${itemId}</ItemID><DetailLevel>ReturnAll</DetailLevel><IncludeItemSpecifics>true</IncludeItemSpecifics>`,
-    token
-  );
-  return r.Item?.[0] || r.Item || {};
 }
 
 // ---------- helpers for turning a listing into a site draft ----------

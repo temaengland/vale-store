@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { categories } from "@/lib/products";
-import EbayOldPanel from "@/components/admin/EbayOldPanel";
 
 type EbayStatus = {
   configured: boolean;
@@ -258,8 +257,6 @@ export default function DraftsPanel({
           </div>
         )}
       </div>
-
-      {ebay?.connected && <EbayOldPanel onMoved={runImport} />}
 
       <p className="text-sm text-muted">
         Items pulled in from eBay land here first — nothing goes live on the
