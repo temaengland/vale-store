@@ -9,7 +9,7 @@ import BackLink from "@/components/BackLink";
 import ProductCard from "@/components/ProductCard";
 import T from "@/components/T";
 import { getCategory } from "@/lib/data";
-import { isAvailable } from "@/lib/shop";
+import { isAvailable, isFeedRestricted } from "@/lib/shop";
 import { trackProductView } from "@/lib/trackView";
 import { getTrust } from "@/lib/trust";
 import { cheapestUkPrice } from "@/lib/shipping";
@@ -103,6 +103,10 @@ export default async function ProductPage({
   // this page is a product listing rather than plain text.
   const ship = cheapestUkPrice(product);
   const brand = makerBrand(product.name);
+  // Update 170: items Google Shopping doesn't allow (left out of the feed) get no
+  // price/offer markup either — otherwise Merchant Center "finds" them on the site
+  // and adds them to Shopping by itself, which can get the account suspended.
+  const restricted = isFeedRestricted(product);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -117,7 +121,7 @@ export default async function ProductPage({
     // Update 152: short SKU (Google limit 50 chars) + maker as brand when known.
     sku: `CC-${String(product.id || product.slug).replace(/-/g, "").slice(0, 10).toUpperCase()}`,
     ...(brand ? { brand: { "@type": "Brand", name: brand } } : {}),
-    offers: {
+    ...(restricted ? {} : { offers: {
       "@type": "Offer",
       url: `https://www.charmchase.co.uk/product/${product.slug}`,
       priceCurrency: "GBP",
@@ -149,7 +153,7 @@ export default async function ProductPage({
         returnMethod: "https://schema.org/ReturnByMail",
         returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
       },
-    },
+    } }),
   };
 
   const crumbs: { href: string; labelKey?: string; label?: string; name: string; url: string }[] = [

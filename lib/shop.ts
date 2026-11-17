@@ -82,7 +82,10 @@ export const FEED_RESTRICTED =
 
 // Update 153: harmless phrases that only look like weapons/tortoiseshell —
 // e.g. the Meissen "crossed swords" mark, faux tortoiseshell.
-const HARMLESS = /\b(crossed[\s-]+swords?(\s+marks?)?|swords?\s+marks?|faux\s+tortoise\s?shell|tortoise\s?shell\s+(effect|pattern|colou?r|style|acetate))\b/gi;
+// Update 170: furniture "sabre legs" and the colour "ivory" (ivory porcelain,
+// ivory glaze, ivory ground…) are not weapons or ivory either.
+const HARMLESS =
+  /\b(crossed[\s-]+swords?(\s+marks?)?|swords?\s+marks?|faux\s+tortoise\s?shell|tortoise\s?shell\s+(effect|pattern|colou?r|style|acetate)|sabre[\s-]+(legs?|legged|feet)|ivory[\s-]+(colou?r(ed)?|white|tone[ds]?|ground|glaze[ds]?|porcelain|china|bone\s+china|body|enamel(led)?|dial|paint(ed)?|finish|background|silk|satin|velvet|fabric|upholstery|leather|ceramic|stoneware|earthenware|faience|slip|cream|bisque|parian|lustre|crackle))\b/gi;
 
 export function restrictedTest(text: string) {
   return FEED_RESTRICTED.test(text.replace(HARMLESS, " "));
