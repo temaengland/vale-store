@@ -61,7 +61,26 @@ export default function InquiriesPanel() {
               {i.phone ? ` · ${i.phone}` : ""}
               {i.product_name ? ` · re: ${i.product_name}` : ""}
             </p>
-            <p className="mt-2 whitespace-pre-line break-words text-sm">{i.message}</p>
+            {(() => {
+              // Update 174: photo links (clearance form) shown as thumbnails you can open.
+              const urls = i.message.match(/https?:\/\/\S+\.(?:jpe?g|png|webp)/gi) || [];
+              const text = i.message.replace(/\n?Photos:\n?/i, "\n").replace(/https?:\/\/\S+\.(?:jpe?g|png|webp)/gi, "").trim();
+              return (
+                <>
+                  <p className="mt-2 whitespace-pre-line break-words text-sm">{text}</p>
+                  {urls.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {urls.map((u) => (
+                        <a key={u} href={u} target="_blank" rel="noreferrer" title="Open full photo">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={u} alt="Photo from enquiry" className="h-24 w-24 rounded-md border border-border object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <select
               value={i.status}
               onChange={(e) => updateStatus(i.id, e.target.value)}
