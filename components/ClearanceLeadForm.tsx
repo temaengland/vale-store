@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Update 171: lead form for /before-clearance.
 // 1) photos are shrunk in the browser (so they fit Vercel's upload limit),
@@ -35,6 +35,13 @@ export default function ClearanceLeadForm() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const thanksRef = useRef<HTMLDivElement>(null);
+
+  // Update 173: on phones the form is long, so after sending, bring the
+  // "Thank you" message into view (otherwise it sits above the screen).
+  useEffect(() => {
+    if (done) thanksRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [done]);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -83,8 +90,17 @@ export default function ClearanceLeadForm() {
 
   if (done) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-6">
-        <p className="font-serif text-2xl text-ink">Thank you — we&apos;ve got your details.</p>
+      <div
+        ref={thanksRef}
+        role="status"
+        aria-live="polite"
+        className="scroll-mt-24 rounded-xl border-2 border-[#2e7d32] bg-[#f1f8f1] p-6 text-center sm:text-left"
+      >
+        <p className="flex items-center justify-center gap-3 font-serif text-2xl text-ink sm:justify-start">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2e7d32] text-xl text-white">✓</span>
+          Sent — thank you!
+        </p>
+        <p className="mt-3 text-sm font-medium text-ink">We&apos;ve received your details.</p>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           We&apos;ll be in touch shortly, usually the same day, to arrange a convenient time to come and have a look.
           If it&apos;s urgent, call or WhatsApp us on{" "}
