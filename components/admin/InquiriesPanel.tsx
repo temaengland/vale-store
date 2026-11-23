@@ -61,7 +61,7 @@ export default function InquiriesPanel() {
               {i.phone ? ` · ${i.phone}` : ""}
               {i.product_name ? ` · re: ${i.product_name}` : ""}
             </p>
-            <p className="mt-2 text-sm">{i.message}</p>
+            <p className="mt-2 whitespace-pre-line break-words text-sm">{i.message}</p>
             <select
               value={i.status}
               onChange={(e) => updateStatus(i.id, e.target.value)}

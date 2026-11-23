@@ -36,6 +36,9 @@ export default function SellPage() {
           <a href={WA} target="_blank" rel="noreferrer" className="rounded-md bg-[#25D366] px-5 py-2.5 text-sm text-white">
             Send photos on WhatsApp
           </a>
+          <a href="/before-clearance" className="rounded-md bg-ink px-5 py-2.5 text-sm text-white">
+            Clearing a house? Free visit →
+          </a>
           <a
             href="https://www.valeauction.co.uk"
             target="_blank"
