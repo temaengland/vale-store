@@ -8,6 +8,10 @@ import Script from "next/script";
 // is set in Vercel. Sends PageView on every page; product pages add ViewContent,
 // the "paid" page adds Purchase. Not loaded on /admin.
 const ID = (process.env.NEXT_PUBLIC_META_PIXEL_ID || "").trim();
+// Update 178: the CharmChase ad account (Ads Manager) uses its own dataset
+// "CharmChase website". Send every event to it too, so Facebook adverts can see
+// leads and sales. A Vercel variable with the same name overrides it.
+const ADS_ID = (process.env.NEXT_PUBLIC_META_PIXEL_ID_ADS || "2062697284433907").trim();
 
 type Fbq = (...a: unknown[]) => void;
 
@@ -31,7 +35,7 @@ export default function MetaPixel() {
   if (!ID || admin) return null;
   return (
     <Script id="meta-pixel" strategy="afterInteractive">
-      {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${ID}');fbq('track','PageView');`}
+      {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${ID}');${ADS_ID && ADS_ID !== ID ? `fbq('init','${ADS_ID}');` : ""}fbq('track','PageView');`}
     </Script>
   );
 }
