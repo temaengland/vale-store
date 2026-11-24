@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { trackPixel } from "@/components/MetaPixel";
+import { reportLead } from "@/components/GoogleAds";
 
 // Update 171: lead form for /before-clearance.
 // 1) photos are shrunk in the browser (so they fit Vercel's upload limit),
@@ -79,8 +79,8 @@ export default function ClearanceLeadForm() {
         }),
       }).catch(() => {});
 
-      // Update 176: tell Meta Pixel a lead came in, so adverts can optimise for enquiries.
-      trackPixel("Lead", { content_name: "Before clearance visit" });
+      // Update 176/177: tell Meta and Google Ads a lead came in.
+      reportLead("form", "Before clearance visit");
       setDone(true);
       form.reset();
       setFiles([]);

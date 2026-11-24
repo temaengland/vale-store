@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { trackPixel } from "@/components/MetaPixel";
 
@@ -12,6 +13,11 @@ const LABEL = (process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_LABEL || "").trim();
 // Update 157: Google Customer Reviews (free store rating). Off until
 // NEXT_PUBLIC_GOOGLE_MERCHANT_ID is set (after joining the programme in Merchant Center).
 const MERCHANT = (process.env.NEXT_PUBLIC_GOOGLE_MERCHANT_ID || "").trim();
+// Update 177: enquiries as Google Ads conversions. Labels of the conversion
+// actions "Call or WhatsApp click" and "Enquiry form sent" (Google Ads → Goals).
+// A Vercel variable with the same name overrides the built-in value.
+const CONTACT_LABEL = (process.env.NEXT_PUBLIC_GOOGLE_ADS_CONTACT_LABEL || "NqTFCLnCwb4dEO2mlZFF").trim();
+const FORM_LABEL = (process.env.NEXT_PUBLIC_GOOGLE_ADS_FORM_LABEL || "KTsaCLzCwb4dEO2mlZFF").trim();
 
 function addWorkingDays(days: number) {
   const d = new Date();
@@ -47,6 +53,29 @@ function offerReviewSurvey(orderId: string, email: string) {
 }
 
 type Gtag = (...a: unknown[]) => void;
+
+/**
+ * Update 177: report an enquiry to Google Ads and Meta.
+ * "whatsapp" / "call" / "email" = a click on a contact link,
+ * "form" = an enquiry form was sent successfully.
+ */
+export function reportLead(kind: "whatsapp" | "call" | "email" | "form", what?: string) {
+  if (typeof window === "undefined") return;
+  if (kind === "form") trackPixel("Lead", what ? { content_name: what } : undefined);
+  else trackPixel("Contact", { content_name: kind });
+  const g = (window as unknown as { gtag?: Gtag }).gtag;
+  const label = kind === "form" ? FORM_LABEL : CONTACT_LABEL;
+  if (g && ID && label && !label.startsWith("__")) {
+    g("event", "conversion", { send_to: `${ID}/${label}`, value: kind === "form" ? 20 : 10, currency: "GBP" });
+  }
+}
+
+function contactKind(href: string): "whatsapp" | "call" | "email" | null {
+  if (href.startsWith("tel:")) return "call";
+  if (href.startsWith("mailto:")) return "email";
+  if (/wa\.me\/|api\.whatsapp\.com|whatsapp:\/\//i.test(href)) return "whatsapp";
+  return null;
+}
 
 /**
  * Called once on the "payment received" page. Reads the real amount from
@@ -91,7 +120,21 @@ export async function reportPurchase(sid: string | null) {
 
 export default function GoogleAds() {
   const path = usePathname() || "";
-  if (!ID || path.startsWith("/admin")) return null;
+  const admin = path.startsWith("/admin");
+
+  // Update 177: every WhatsApp / phone / email link on the site counts as an enquiry.
+  useEffect(() => {
+    if (admin) return;
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      const kind = a ? contactKind(a.getAttribute("href") || "") : null;
+      if (kind) reportLead(kind);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [admin]);
+
+  if (!ID || admin) return null;
   return (
     <>
       <Script src={`https://www.googletagmanager.com/gtag/js?id=${ID}`} strategy="afterInteractive" />

@@ -57,6 +57,14 @@ function absUrl(u: string) {
   return u.startsWith("http") ? u : `${BASE_URL}${u.startsWith("/") ? "" : "/"}${u}`;
 }
 
+function priceBand(pence: number) {
+  const gbp = pence / 100;
+  if (gbp < 100) return "under_100";
+  if (gbp < 300) return "100_300";
+  if (gbp < 1000) return "300_1000";
+  return "over_1000";
+}
+
 function itemXml(p: Product, isMeta: boolean): string | null {
   const photos = (p.images && p.images.length ? p.images : p.image ? [p.image] : []).map(absUrl);
   if (!photos.length) return null; // both platforms reject items without a photo
@@ -87,6 +95,8 @@ function itemXml(p: Product, isMeta: boolean): string | null {
     )}</g:google_product_category>`,
     `<g:product_type>${esc(productType)}</g:product_type>`,
     `<g:identifier_exists>no</g:identifier_exists>`,
+    // Update 177: price band, so Google Ads can bid by price (e.g. leave out items under £100).
+    `<g:custom_label_0>${priceBand(p.price)}</g:custom_label_0>`,
   ];
   // Meta requires a brand; Google: the maker when known (update 157), else none.
   const maker = makerBrand(p.name);

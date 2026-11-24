@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Product, formatPrice } from "@/lib/products";
 import { useLanguage } from "@/lib/language-context";
+import { reportLead } from "@/components/GoogleAds";
 
 // Replace with the real business WhatsApp number, in international format
 // with no + or spaces, e.g. 447911123456 for a UK mobile.
@@ -65,6 +66,7 @@ export default function InquiryForm({
           product_name: product.name,
         }),
       });
+      if (res.ok) reportLead("form", product.name); // update 177
       setStatus(res.ok ? "sent" : "error");
     } catch {
       setStatus("error");
