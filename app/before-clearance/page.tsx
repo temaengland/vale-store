@@ -22,24 +22,23 @@ const WA =
 
 const AREAS = "Worcestershire, Gloucestershire, Warwickshire and Oxfordshire";
 
+// Update 175: gentle, no criticism of clearance companies.
 const without = [
-  "You pay a firm to empty the whole house.",
-  "Furniture, jewellery and silver go out with everything else.",
-  "Valuable pieces are often kept and sold by the clearance firm.",
-  "You never find out what they were worth.",
+  "Everything leaves the house together, in one go.",
+  "Furniture, jewellery and silver can easily go out with everything else.",
+  "Nobody has had a proper look at what might be worth money.",
 ];
 const withUs = [
-  "We look through the house first and pick out what's worth money.",
-  "You get an honest offer and are paid on the day.",
-  "The clearance then takes what's left — often less to clear.",
-  "You know exactly what was sold and for how much.",
+  "We look through the home first and tell you honestly what's worth money.",
+  "If you'd like to sell, you get a fair offer and are paid on the day.",
+  "Then the clearance goes ahead as planned — with less to take away.",
 ];
 
 const why: [string, string][] = [
   ["Free visit, no obligation", "We come to the property and look through everything. If you don't want to sell, that's absolutely fine."],
   ["Paid on the day", "Agree a price and we pay you there and then — no waiting for an auction, no commission."],
   ["A real local shop", "CharmChase Antiques is at 51 High Street, Evesham. You deal with us directly, not a call centre."],
-  ["Honest and discreet", "Clearing a family home can be hard. We take our time and explain what things are and what they're worth."],
+  ["Honest and discreet", "We know this can be a difficult time. We take our time and explain what things are and what they're worth."],
 ];
 
 const steps: [string, string][] = [
@@ -93,13 +92,14 @@ export default function BeforeClearancePage() {
 
       <h2 className="mt-14 font-serif text-2xl text-ink">What does &ldquo;buying before the clearance&rdquo; mean?</h2>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-        When a home is cleared after a death, a move into care or a downsize, good things are easily lost. We step in
-        first, buy anything of value, and leave the rest for whoever is doing the clearance.
+        Whether a family home is being cleared, someone is moving into care or downsizing, it&apos;s worth having
+        things looked at first. We value what&apos;s there, buy anything you&apos;d like to sell, and leave the rest for
+        whoever is doing the clearance.
       </p>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <div className="rounded-xl border border-border p-5">
-          <p className="font-serif text-lg text-ink">Clearance company only</p>
-          <ul className="mt-3 space-y-2 text-sm text-muted">{without.map((t) => tick(t, "✕", "text-red-700"))}</ul>
+          <p className="font-serif text-lg text-ink">Straight to the clearance</p>
+          <ul className="mt-3 space-y-2 text-sm text-muted">{without.map((t) => tick(t, "•", "text-muted"))}</ul>
         </div>
         <div className="rounded-xl border border-[#AD8A4E] bg-surface p-5">
           <p className="font-serif text-lg text-ink">CharmChase first, then the clearance</p>
