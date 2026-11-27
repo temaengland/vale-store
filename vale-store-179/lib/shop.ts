@@ -1,0 +1,283 @@
+import type { Product } from "@/lib/products";
+
+// Shared shop helpers (update 116).
+
+export type ProductWithMeta = Product & { id?: string; created_at?: string };
+
+export function isAvailable(p: Product) {
+  return !p.status || p.status === "available";
+}
+
+/** Available pieces first (in the order given — newest first from the DB), sold/unavailable at the end. */
+export function soldLast<T extends Product>(list: T[]): T[] {
+  return [...list.filter(isAvailable), ...list.filter((p) => !isAvailable(p))];
+}
+
+export type SortKey = "newest" | "price-asc" | "price-desc";
+
+export function parseSort(v?: string): SortKey {
+  return v === "price-asc" || v === "price-desc" ? v : "newest";
+}
+
+/** Sorts the available pieces; sold ones always stay at the end (newest first). */
+/**
+ * Update 133: in Art & Decor the "Newest" view is grouped by type, in the same
+ * order as the type buttons — Paintings, then Prints and drawings, Sculpture,
+ * Photography, then the decorative pieces. Newest first inside each type.
+ * Sold pieces stay at the end. Price sorting is unchanged.
+ */
+export const FINE_ART_SUBS = ["Paintings", "Prints and drawings", "Sculpture", "Photography"];
+export function groupBySubcategory<T extends Product>(list: T[], order: string[]): T[] {
+  const rank = (p: T) => {
+    const sub = p.subcategory === "Collectables" ? "Curiosities" : p.subcategory;
+    const i = sub ? order.indexOf(sub) : -1;
+    return i === -1 ? order.length : i;
+  };
+  const avail = list.filter(isAvailable);
+  const gone = list.filter((p) => !isAvailable(p));
+  const ranked = avail.map((p, i) => ({ p, i, r: rank(p) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.p);
+  return [...ranked, ...gone];
+}
+
+export function sortForListing<T extends Product>(list: T[], sort: SortKey = "newest"): T[] {
+  const avail = list.filter(isAvailable);
+  const gone = list.filter((p) => !isAvailable(p));
+  if (sort === "price-asc") avail.sort((a, b) => a.price - b.price);
+  if (sort === "price-desc") avail.sort((a, b) => b.price - a.price);
+  return [...avail, ...gone];
+}
+
+// Short all-caps tokens that should stay upper case after cleaning a title.
+const KEEP_UPPER = new Set(["UK", "GB", "USA", "US", "WR", "MOP", "II", "III", "IV", "VI", "VII", "VIII", "IX", "XL", "GR", "VR", "EPNS", "WWI", "WWII", "RAF", "DDR", "USSR", "LED", "TV", "HM", "CT"]);
+
+/**
+ * eBay-style ALL-CAPS titles ("ANTIQUE 17TH CENTURY TURKISH …") are shown in
+ * normal case on the site. Titles that are already mixed case are untouched.
+ * Only the display changes — the database and eBay keep the original.
+ */
+export function cleanTitle(name: string): string {
+  const letters = name.replace(/[^A-Za-z]/g, "");
+  if (letters.length < 12) return name;
+  const upper = letters.replace(/[^A-Z]/g, "").length;
+  if (upper / letters.length < 0.8) return name;
+  return name
+    .split(/(\s+|[-/(),&])/)
+    .map((w) => {
+      if (!/[A-Za-z]/.test(w)) return w;
+      if (KEEP_UPPER.has(w) && w !== "CT") return w;
+      if (/^\d/.test(w)) return w.toLowerCase(); // 17TH → 17th, 18CT → 18ct, 925
+      return w.charAt(0) + w.slice(1).toLowerCase();
+    })
+    .join("");
+}
+
+/**
+ * Items Google Shopping / Meta don't allow (endangered-species materials,
+ * weapons and the like). They stay on the site and sell as normal — they are
+ * only left out of the Merchant Center / Meta product feed (update 116), so
+ * one item can't get the whole account suspended.
+ */
+export const FEED_RESTRICTED =
+  /\b(ivory|tortoise ?shell|rhino|whalebone|whale bone|taxiderm\w*|stuffed|powder flask|gun ?powder|flintlock|musket|gun(?! ?metal)|guns|pistol|rifle|revolver|bayonet|sword|swords|sabre|dagger|daggers|machete|ammunition|bullets?|shell casing|trench art|tobacco|cigars?|cigarettes?)\b/i;
+
+// Update 153: harmless phrases that only look like weapons/tortoiseshell —
+// e.g. the Meissen "crossed swords" mark, faux tortoiseshell.
+// Update 170: furniture "sabre legs" and the colour "ivory" (ivory porcelain,
+// ivory glaze, ivory ground…) are not weapons or ivory either.
+const HARMLESS =
+  /\b(crossed[\s-]+swords?(\s+marks?)?|swords?\s+marks?|faux\s+tortoise\s?shell|tortoise\s?shell\s+(effect|pattern|colou?r|style|acetate)|sabre[\s-]+(legs?|legged|feet)|ivory[\s-]+(colou?r(ed)?|white|tone[ds]?|ground|glaze[ds]?|porcelain|china|bone\s+china|body|enamel(led)?|dial|paint(ed)?|finish|background|silk|satin|velvet|fabric|upholstery|leather|ceramic|stoneware|earthenware|faience|slip|cream|bisque|parian|lustre|crackle))\b/gi;
+
+export function restrictedTest(text: string) {
+  return FEED_RESTRICTED.test(text.replace(HARMLESS, " "));
+}
+
+export function isFeedRestricted(p: Pick<Product, "name" | "description">) {
+  return restrictedTest(`${p.name} ${p.description || ""}`);
+}
+
+/**
+ * Pulls a "Dimensions" block out of a free-text description so it can be
+ * shown on its own (update 116). Returns null when there's nothing clear.
+ */
+export function extractDimensions(text: string): { label: string; value: string }[] | null {
+  if (!text) return null;
+  const lines = text.split(/\r?\n/).map((l) => l.replace(/^[\s•\-–*·]+/, "").trim());
+  const out: { label: string; value: string }[] = [];
+  const re = /^(height|width|depth|length|diameter|dia\.?|drop|size|ring size|case(?: size| diameter)?|weight|h|w|d|l)\b\s*(\([^)]*\))?\s*[:\-–]?\s*(.+\d.*)$/i;
+  for (const l of lines) {
+    const m = l.match(re);
+    if (!m) continue;
+    const value = m[3].trim();
+    if (value.length > 60 || !/(cm|mm|in|inch|inches|"|g|kg|size)/i.test(value)) continue;
+    const label = (m[1] + (m[2] ? ` ${m[2]}` : "")).replace(/^(h|w|d|l)$/i, (x) => ({ h: "Height", w: "Width", d: "Depth", l: "Length" } as Record<string, string>)[x.toLowerCase()]);
+    out.push({ label: label.charAt(0).toUpperCase() + label.slice(1), value });
+    if (out.length >= 6) break;
+  }
+  return out.length >= 1 ? out : null;
+}
+
+/** Simple site search (update 117): every word must appear in the name, type, era or description. */
+export function searchProducts<T extends Product>(list: T[], q: string): T[] {
+  const words = q
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1)
+    .slice(0, 8);
+  if (!words.length) return [];
+  const scored = list
+    .map((p) => {
+      const name = p.name.toLowerCase();
+      const hay = `${name} ${p.subcategory || ""} ${p.era || ""} ${p.category} ${p.description || ""}`.toLowerCase();
+      if (!words.every((w) => hay.includes(w))) return null;
+      const score = words.reduce((s, w) => s + (name.includes(w) ? 2 : 1), 0) + (isAvailable(p) ? 10 : 0);
+      return { p, score };
+    })
+    .filter((x): x is { p: T; score: number } => x !== null);
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((x) => x.p);
+}
+
+/**
+ * Update 121: "Popular right now" chips on the homepage. Each one links to its
+ * category filtered by ?tag=…; an item matches by its type (subcategory) or by
+ * words in its name. A chip only shows when something in stock matches.
+ */
+export type PopularTag = { key: string; label: string; category: string; sub?: string; re: RegExp };
+
+export const POPULAR_TAGS: PopularTag[] = [
+  { key: "rings", label: "Rings", category: "jewelry", sub: "Rings", re: /\brings?\b|\bsolitaire\b|\btrilogy\b/i },
+  { key: "necklaces", label: "Necklaces", category: "jewelry", sub: "Necklaces", re: /\b(necklaces?|chains?|pendants?|lockets?)\b/i },
+  { key: "earrings", label: "Earrings", category: "jewelry", sub: "Earrings", re: /\b(earrings?|studs?)\b/i },
+  { key: "bracelets", label: "Bracelets", category: "jewelry", sub: "Bracelets", re: /\b(bracelets?|bangles?)\b/i },
+  { key: "brooches", label: "Brooches", category: "jewelry", sub: "Brooches", re: /\bbrooch(es)?\b/i },
+  { key: "wristwatches", label: "Wristwatches", category: "watches", sub: "Wristwatches", re: /\b(wrist ?watch(es)?|watch)\b/i },
+  { key: "pocket-watches", label: "Pocket Watches", category: "watches", sub: "Pocket Watches", re: /\bpocket watch(es)?\b/i },
+  { key: "clocks", label: "Clocks", category: "watches", sub: "Clocks", re: /\b(clocks?|carriage clock|mantel clock|bracket clock|longcase)\b/i },
+  { key: "chairs", label: "Chairs", category: "furniture", sub: "Chairs", re: /\b(chairs?|armchairs?|stools?)\b/i },
+  { key: "tables", label: "Tables", category: "furniture", sub: "Tables", re: /\btables?\b/i },
+  { key: "chests-of-drawers", label: "Chests of Drawers", category: "furniture", sub: "Chest of Drawers", re: /\b(chest of drawers|chests of drawers|commodes?)\b/i },
+  { key: "desks", label: "Desks", category: "furniture", sub: "Desks & Office", re: /\b(desks?|bureaus?|davenports?)\b/i },
+  { key: "salvers", label: "Salvers & Trays", category: "silver", sub: "Salvers & Trays", re: /\b(salvers?|trays?)\b/i },
+  { key: "christening", label: "Christening & Baby", category: "silver", sub: "Christening & Baby", re: /\b(rattles?|christening|baby)\b/i },
+  { key: "porcelain", label: "Porcelain", category: "ceramics", sub: "Porcelain", re: /\b(porcelain|china|meissen|sitzendorf|dresden|royal copenhagen|doulton|worcester|wedgwood)\b/i },
+  { key: "art-glass", label: "Art Glass", category: "ceramics", sub: "Art Glass", re: /\b(murano|art glass|glass|crystal)\b/i },
+  { key: "paintings", label: "Oil Paintings", category: "art", sub: "Paintings", re: /\b(paintings?|oil on)\b/i },
+  { key: "mirrors", label: "Mirrors", category: "art", sub: "Mirrors", re: /\bmirrors?\b/i },
+];
+
+export function matchesTag<T extends Product>(p: T, t: PopularTag) {
+  if (p.category !== t.category) return false;
+  if (t.sub && p.subcategory === t.sub) return true;
+  if (t.key === "wristwatches" && /\bpocket watch/i.test(p.name)) return false;
+  if (t.key === "wristwatches" && p.subcategory === "Clocks") return false;
+  return t.re.test(p.name);
+}
+
+/**
+ * Update 126: what UK delivery the buyer will actually be offered at checkout
+ * for this one item — mirrors the rules in app/api/checkout/route.ts (which
+ * are NOT changed): under £150 → Tracked 48 or Special Delivery; £150–£999 →
+ * Special Delivery only (£750 insured); £1000+ → insured delivery arranged
+ * with the buyer; too big for Royal Mail → delivery by arrangement.
+ */
+export type DeliveryLine = { label: string; price: number | null };
+
+export function ukDeliveryLines(p: Pick<Product, "price" | "shipping_cost" | "length_cm" | "width_cm" | "height_cm" | "weight_grams">): {
+  kind: "standard" | "special" | "insured" | "large";
+  lines: DeliveryLine[];
+} {
+  const t48 = p.shipping_cost ?? 0;
+  const sd = Math.max(815, t48 + 450);
+  const dims = [p.length_cm, p.width_cm, p.height_cm].filter(Boolean) as number[];
+  const sorted = [...dims].sort((a, b) => b - a);
+  const tooBig =
+    (sorted[0] ?? 0) > 61 || (sorted[1] ?? 0) > 46 || (sorted[2] ?? 0) > 46 || (p.weight_grams ?? 0) > 20000;
+  if (tooBig) return { kind: "large", lines: [{ label: "Delivery by arrangement — we'll contact you", price: t48 > 0 ? t48 : null }] };
+  if (p.price >= 100000) return { kind: "insured", lines: [{ label: "Fully insured delivery — arranged with you", price: t48 > 0 ? t48 : null }] };
+  if (p.price >= 15000)
+    return { kind: "special", lines: [{ label: "Royal Mail Special Delivery · next day, £750 insured", price: sd }] };
+  return {
+    kind: "standard",
+    lines: [
+      { label: "Royal Mail Tracked 48", price: t48 },
+      { label: "or Special Delivery · next day, £750 insured", price: sd },
+    ],
+  };
+}
+
+/**
+ * Update 128: eBay descriptions often start with the title repeated and a lone
+ * "Description" heading. Drop those leading lines when showing the text on the
+ * site (the stored description and eBay are not changed).
+ */
+export function cleanDescription(text: string, title: string): string {
+  if (!text) return text;
+  const words = (s: string) =>
+    s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2);
+  const titleWords = new Set(words(title));
+  const lines = text.split(/\r?\n/);
+  let i = 0;
+  let removed = 0;
+  while (i < lines.length && removed < 4) {
+    const l = lines[i].trim();
+    if (!l) { i++; continue; }
+    if (/^(item\s+)?(description|details|about this item)\s*:?$/i.test(l)) { i++; removed++; continue; }
+    const w = words(l);
+    // A title line: short, no sentence-ending punctuation, mostly the title's words.
+    if (w.length >= 3 && l.length <= 140 && !/[.!?:;]$/.test(l)) {
+      const shared = w.filter((x) => titleWords.has(x)).length;
+      if (shared / w.length >= 0.6) { i++; removed++; continue; }
+    }
+    break;
+  }
+  return removed ? lines.slice(i).join("\n").trim() : text;
+}
+
+// Update 152: well-known makers → schema.org brand (Google "brand or GTIN").
+const MAKERS = [
+  "Cartier", "Rolex", "Omega", "Longines", "Tissot", "Seiko", "Tag Heuer", "Breitling", "Smiths", "Rotary",
+  "Royal Crown Derby", "Royal Doulton", "Royal Worcester", "Royal Copenhagen", "Royal Albert", "Wedgwood", "Spode",
+  "Minton", "Moorcroft", "Meissen", "Herend", "Lladro", "Coalport", "Aynsley", "Shelley",
+  "Mappin & Webb", "Garrard", "Asprey", "Tiffany", "Georg Jensen", "Christofle", "Elkington", "Waterford",
+  "Swarovski", "Lalique", "Baccarat", "Charles Rivaud", "Leica", "Zeiss", "Rolleiflex", "Kodak",
+];
+export function makerBrand(name: string): string | null {
+  return MAKERS.find((m) => new RegExp(`\\b${m.replace(/[&]/g, "\\$&")}\\b`, "i").test(name)) || null;
+}
+
+// Update 157: extra Google Shopping details for jewellery & watches
+// (Google asks for gender, age group, colour and material in this category).
+export function jewelleryAttributes(name: string, description = "") {
+  const t = `${name} ${description}`.toLowerCase();
+  const n = name.toLowerCase();
+  const gender = /\b(men'?s|gents?|gentlemen'?s|male)\b/.test(n)
+    ? "male"
+    : /\b(ladies|lady'?s|women'?s|womens|female)\b/.test(n)
+    ? "female"
+    : "unisex";
+  const material = /platinum/.test(t)
+    ? "Platinum"
+    : /\b(9|14|15|18|22)\s?(ct|k|kt|carat)\b|\bgold\b/.test(t) && !/gold[- ]?(tone|plated|filled)|rolled gold/.test(t)
+    ? "Gold"
+    : /sterling|\b925\b|\bsilver\b/.test(t)
+    ? "Silver"
+    : /stainless steel|\bsteel\b/.test(t)
+    ? "Stainless Steel"
+    : /gold[- ]?(tone|plated|filled)|rolled gold/.test(t)
+    ? "Gold Plated"
+    : null;
+  const color = /rose gold/.test(t)
+    ? "Rose Gold"
+    : /white gold|platinum/.test(t)
+    ? "White"
+    : /two[- ]tone/.test(t)
+    ? "Silver/Gold"
+    : material === "Gold" || material === "Gold Plated"
+    ? "Gold"
+    : material === "Silver" || material === "Stainless Steel"
+    ? "Silver"
+    : null;
+  return { gender, ageGroup: "adult", material, color };
+}

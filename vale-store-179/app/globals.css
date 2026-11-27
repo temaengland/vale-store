@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  color: #1e1d1b;
+}
+
+/* Force the admin photo-crop image to stay contained within the modal,
+   regardless of the crop library's own CSS (which sets max-height: inherit
+   on the image and can end up unconstrained). */
+.crop-viewport,
+.crop-viewport .ReactCrop,
+.crop-viewport .ReactCrop__child-wrapper {
+  max-height: 58dvh !important;
+  /* Update 138: never wider than the editor (on iPhone it used to spill
+     off the right side of the screen). */
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+.crop-viewport {
+  width: 100%;
+  /* fingers move the frame, never zoom or scroll the page underneath */
+  touch-action: none;
+}
+.crop-viewport .ReactCrop__child-wrapper > img {
+  max-height: 58dvh !important;
+  max-width: 100% !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* eBay-style crop selection: solid border (no marching-ants animation),
+   the area outside the frame dimmed, and clean solid square handles
+   instead of the library's default small semi-transparent ones. */
+.crop-viewport .ReactCrop__crop-selection {
+  animation: none !important;
+  background-image: none !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+}
+.crop-viewport .ReactCrop__drag-handle {
+  width: 14px !important;
+  height: 14px !important;
+  background-color: #fff !important;
+  border: none !important;
+  border-radius: 3px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.crop-viewport .ReactCrop .ord-n,
+.crop-viewport .ReactCrop .ord-e,
+.crop-viewport .ReactCrop .ord-s,
+.crop-viewport .ReactCrop .ord-w {
+  display: block !important;
+}
+.crop-viewport .ReactCrop__drag-bar {
+  background: transparent;
+}
+/* Only corner handles (nw/ne/sw/se) stay visible as dots — the side
+   midpoint handles (n/e/s/w) are hidden, but their underlying drag-bar
+   hit area along the border stays fully active, so the edge itself can
+   still be grabbed and dragged directly, the way most photo editors work,
+   without a dedicated dot cluttering the middle of each side. */
+.crop-viewport .ReactCrop__drag-handle.ord-n,
+.crop-viewport .ReactCrop__drag-handle.ord-e,
+.crop-viewport .ReactCrop__drag-handle.ord-s,
+.crop-viewport .ReactCrop__drag-handle.ord-w {
+  display: none !important;
+}
+/* On touch devices the library hides the N/E/S/W edge drag-bars entirely
+   by default, leaving only diagonal corner-dragging — that's what made
+   side-dragging impossible on mobile. Force the hit area visible/active
+   and make it generously wide enough to grab comfortably with a finger,
+   even though no dot is shown there. */
+@media (pointer: coarse) {
+  .crop-viewport .ReactCrop .ord-n,
+  .crop-viewport .ReactCrop .ord-e,
+  .crop-viewport .ReactCrop .ord-s,
+  .crop-viewport .ReactCrop .ord-w {
+    display: block !important;
+  }
+  .crop-viewport .ReactCrop__drag-handle.ord-n,
+  .crop-viewport .ReactCrop__drag-handle.ord-e,
+  .crop-viewport .ReactCrop__drag-handle.ord-s,
+  .crop-viewport .ReactCrop__drag-handle.ord-w {
+    display: none !important;
+  }
+  .crop-viewport .ReactCrop__drag-bar.ord-n,
+  .crop-viewport .ReactCrop__drag-bar.ord-s {
+    height: 28px !important;
+  }
+  .crop-viewport .ReactCrop__drag-bar.ord-e,
+  .crop-viewport .ReactCrop__drag-bar.ord-w {
+    width: 28px !important;
+  }
+  .crop-viewport .ReactCrop__drag-handle.ord-nw,
+  .crop-viewport .ReactCrop__drag-handle.ord-ne,
+  .crop-viewport .ReactCrop__drag-handle.ord-sw,
+  .crop-viewport .ReactCrop__drag-handle.ord-se {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+/* Update 136: admin on phones.
+   iPhone zooms the page in when you tap a field whose text is smaller than
+   16px, and then the page sits off to the right. Admin fields get 16px text
+   on phones and tablets, and the admin page can never be wider than the
+   screen (clip, not hidden, so the sticky tab bar keeps working). */
+@media (max-width: 1023px) {
+  /* Update 140: also without :has(), for older iPhones */
+  .admin-root input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  .admin-root select,
+  .admin-root textarea {
+    font-size: 16px !important;
+  }
+  body:has(.admin-root) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  body:has(.admin-root) select,
+  body:has(.admin-root) textarea {
+    font-size: 16px !important;
+  }
+}
+body:has(.admin-root) {
+  overflow-x: clip;
+}
+.admin-root {
+  overflow-x: clip;
+}
+.admin-root img,
+.admin-root video {
+  max-width: 100%;
+}
