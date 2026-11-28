@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notifyIndexNow } from "@/lib/indexnow";
+import { productsChanged } from "@/lib/productsCache";
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Unknown server error.";
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
       notifyIndexNow([`https://www.charmchase.co.uk/product/${data.slug}`]);
     }
 
+    productsChanged();
     return NextResponse.json({ product: data });
   } catch (e) {
     return NextResponse.json(

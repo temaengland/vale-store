@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notifyIndexNow } from "@/lib/indexnow";
 import { endEbayListingsFor } from "@/lib/ebaySync";
 import { endEtsyListingsFor } from "@/lib/etsy";
+import { productsChanged } from "@/lib/productsCache";
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Unknown server error.";
@@ -47,6 +48,7 @@ export async function PUT(
       await endEtsyListingsFor([data.id]).catch(() => []);
     }
 
+    productsChanged();
     return NextResponse.json({ product: data, ebay });
   } catch (e) {
     return NextResponse.json(
@@ -71,6 +73,7 @@ export async function DELETE(
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
+    productsChanged();
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(

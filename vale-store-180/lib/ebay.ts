@@ -1,0 +1,473 @@
+import "server-only";
+import { XMLParser } from "fast-xml-parser";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+
+// eBay connection for importing our own eBay listings as drafts.
+// Env (Vercel): EBAY_APP_ID, EBAY_CERT_ID, EBAY_DEV_ID, EBAY_RUNAME.
+// The long-lived refresh token (18 months) is stored in Supabase app_settings.
+
+const API = process.env.EBAY_API_BASE || "https://api.ebay.com";
+const AUTH = process.env.EBAY_AUTH_BASE || "https://auth.ebay.com";
+const REFRESH_KEY = "ebay_refresh_token";
+// Update 161: a second, read-and-end connection to the OLD eBay account ("charm chase"),
+// used only to move its listings to the main account.
+export type EbayAccount = "main" | "old";
+const keyFor = (a: EbayAccount) => (a === "old" ? "ebay_refresh_token_old" : REFRESH_KEY);
+// Scopes asked for on "Connect eBay". Full seller access so the site can also
+// END a listing when the item sells on the site (read-only can't do that).
+export const EBAY_SCOPES = [
+  "https://api.ebay.com/oauth/api_scope",
+  "https://api.ebay.com/oauth/api_scope/sell.inventory",
+  "https://api.ebay.com/oauth/api_scope/sell.account",
+  "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+];
+// What connections made before update 107 were granted (read-only).
+const LEGACY_SCOPES = [
+  "https://api.ebay.com/oauth/api_scope",
+  "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly",
+];
+const WRITE_SCOPE = "https://api.ebay.com/oauth/api_scope/sell.inventory";
+
+function env(name: string) {
+  return (process.env[name] || "").trim();
+}
+
+export function ebayConfigured() {
+  return Boolean(env("EBAY_APP_ID") && env("EBAY_CERT_ID") && env("EBAY_RUNAME"));
+}
+
+function basicAuth() {
+  return "Basic " + Buffer.from(`${env("EBAY_APP_ID")}:${env("EBAY_CERT_ID")}`).toString("base64");
+}
+
+export function authorizeUrl(state: string, account: EbayAccount = "main") {
+  const q = new URLSearchParams({
+    client_id: env("EBAY_APP_ID"),
+    response_type: "code",
+    redirect_uri: env("EBAY_RUNAME"),
+    scope: EBAY_SCOPES.join(" "),
+    state,
+  });
+  // Old account: always show the eBay sign-in, so you can log in as the other account.
+  if (account === "old") q.set("prompt", "login");
+  return `${AUTH}/oauth2/authorize?${q}`;
+}
+
+async function tokenRequest(body: Record<string, string>) {
+  const res = await fetch(`${API}/identity/v1/oauth2/token`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { Authorization: basicAuth(), "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.access_token) {
+    throw new Error(`eBay token error: ${data.error_description || data.error || res.status}`);
+  }
+  return data as { access_token: string; refresh_token?: string; refresh_token_expires_in?: number };
+}
+
+/** Exchanges the code from the eBay consent screen and saves the refresh token. */
+export async function connectWithCode(code: string, account: EbayAccount = "main") {
+  const t = await tokenRequest({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: env("EBAY_RUNAME"),
+  });
+  if (!t.refresh_token) throw new Error("eBay did not return a refresh token.");
+  const expiresAt = new Date(Date.now() + (t.refresh_token_expires_in || 0) * 1000).toISOString();
+  const { error } = await supabaseAdmin()
+    .from("app_settings")
+    .upsert({
+      key: keyFor(account),
+      value: JSON.stringify({ token: t.refresh_token, expiresAt, scopes: EBAY_SCOPES }),
+      updated_at: new Date().toISOString(),
+    });
+  if (error) throw new Error(`Could not save eBay connection: ${error.message}`);
+  return { expiresAt };
+}
+
+export async function getConnection(account: EbayAccount = "main") {
+  const { data } = await supabaseAdmin()
+    .from("app_settings")
+    .select("value, updated_at")
+    .eq("key", keyFor(account))
+    .maybeSingle();
+  if (!data) return null;
+  try {
+    const v = JSON.parse(data.value) as { token: string; expiresAt?: string; scopes?: string[] };
+    const scopes = v.scopes && v.scopes.length ? v.scopes : LEGACY_SCOPES;
+    return {
+      token: v.token,
+      expiresAt: v.expiresAt,
+      connectedAt: data.updated_at as string,
+      scopes,
+      canEndListings: scopes.includes(WRITE_SCOPE),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function userAccessToken(account: EbayAccount = "main") {
+  const c = await getConnection(account);
+  if (!c)
+    throw new Error(
+      account === "old"
+        ? "Old eBay account is not connected — press “Connect old account” first."
+        : "eBay is not connected yet — press “Connect eBay” first."
+    );
+  const t = await tokenRequest({
+    grant_type: "refresh_token",
+    refresh_token: c.token,
+    scope: c.scopes.join(" "), // only what this connection was granted
+  });
+  return t.access_token;
+}
+
+// ---------- Trading API ----------
+
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: "@_",
+  isArray: (name) =>
+    ["Item", "PictureURL", "NameValueList", "Errors", "OrderTransaction", "Transaction", "Order"].includes(name),
+});
+
+export async function trading(callName: string, innerXml: string, token: string) {
+  const body = `<?xml version="1.0" encoding="utf-8"?>
+<${callName}Request xmlns="urn:ebay:apis:eBLBaseComponents">
+${innerXml}
+</${callName}Request>`;
+  const res = await fetch(`${API}/ws/api.dll`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "text/xml",
+      "X-EBAY-API-CALL-NAME": callName,
+      "X-EBAY-API-SITEID": "3", // eBay UK
+      "X-EBAY-API-COMPATIBILITY-LEVEL": "1193",
+      "X-EBAY-API-IAF-TOKEN": token,
+    },
+    body,
+  });
+  const text = await res.text();
+  const json = parser.parse(text);
+  const r = json[`${callName}Response`];
+  if (!r) throw new Error(`eBay ${callName}: unexpected reply (${res.status})`);
+  if (r.Ack === "Failure") {
+    const e = (r.Errors || [])[0] || {};
+    throw new Error(`eBay ${callName}: ${e.LongMessage || e.ShortMessage || "failed"}`);
+  }
+  return r;
+}
+
+export type ListingSummary = { itemId: string; title: string };
+
+export async function activeListingsPage(token: string, page: number, perPage: number) {
+  const r = await trading(
+    "GetMyeBaySelling",
+    `<ActiveList><Include>true</Include><Pagination><EntriesPerPage>${perPage}</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination></ActiveList>
+<DetailLevel>ReturnAll</DetailLevel>`,
+    token
+  );
+  const list = r.ActiveList || {};
+  const items: ListingSummary[] = ((list.ItemArray && list.ItemArray.Item) || []).map(
+    (i: { ItemID: string | number; Title: string }) => ({ itemId: String(i.ItemID), title: String(i.Title || "") })
+  );
+  const totalPages = Number(list.PaginationResult?.TotalNumberOfPages || (items.length ? 1 : 0));
+  const totalItems = Number(list.PaginationResult?.TotalNumberOfEntries || items.length);
+  return { items, totalPages, totalItems };
+}
+
+export type ListingDetails = {
+  itemId: string;
+  title: string;
+  descriptionHtml: string;
+  pricePence: number;
+  pictures: string[];
+  categoryId: string;
+  categoryName: string;
+};
+
+function num(v: unknown) {
+  if (v && typeof v === "object" && "#text" in (v as Record<string, unknown>)) return Number((v as { "#text": unknown })["#text"]);
+  return Number(v);
+}
+
+export async function getItem(token: string, itemId: string): Promise<ListingDetails> {
+  const r = await trading(
+    "GetItem",
+    `<ItemID>${itemId}</ItemID><DetailLevel>ReturnAll</DetailLevel><IncludeItemSpecifics>true</IncludeItemSpecifics>`,
+    token
+  );
+  const it = r.Item?.[0] || r.Item || {};
+  const price = num(it.SellingStatus?.CurrentPrice) || num(it.BuyItNowPrice) || num(it.StartPrice) || 0;
+  const pics: string[] = (it.PictureDetails?.PictureURL || []).map(String);
+  return {
+    itemId: String(it.ItemID || itemId),
+    title: String(it.Title || ""),
+    descriptionHtml: String(it.Description || ""),
+    pricePence: Math.round(price * 100),
+    pictures: pics.map((u) => u.replace(/\$_\d+\.(JPG|PNG|jpg|png)/, "$_57.$1").replace(/s-l\d+\./, "s-l1600.")),
+    categoryId: String(it.PrimaryCategory?.CategoryID || ""),
+    categoryName: String(it.PrimaryCategory?.CategoryName || ""),
+  };
+}
+
+/** Full GetItem reply (update 161: used to copy a listing to another account). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getItemRaw(token: string, itemId: string): Promise<any> {
+  const r = await trading(
+    "GetItem",
+    `<ItemID>${itemId}</ItemID><DetailLevel>ReturnAll</DetailLevel><IncludeItemSpecifics>true</IncludeItemSpecifics>`,
+    token
+  );
+  return r.Item?.[0] || r.Item || {};
+}
+
+// ---------- helpers for turning a listing into a site draft ----------
+
+export function htmlToText(html: string) {
+  return html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h\d|tr)>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "• ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
+    .trim();
+}
+
+export function slugify(s: string) {
+  return s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 80)
+    .replace(/-$/, "");
+}
+
+/**
+ * Best guess of the site category from eBay's category name and the title.
+ * Whole words only (update 115): "Collectables"/"Tableware" are not tables and
+ * "Manchester" is not a chest, so plates no longer land in Furniture.
+ */
+export function guessCategory(categoryName: string, title: string): SiteCategory {
+  return guessPlacement(categoryName, title).category;
+}
+
+type SiteCategory = import("@/lib/products").CategorySlug;
+
+// Update 127: words that mark Chinese / Japanese / other Asian pieces.
+const ASIAN_WORDS =
+  "chinese|china export|japanese|japan|oriental|asian|qianlong|kangxi|yongzheng|jiaqing|daoguang|guangxu|tongzhi|xianfeng|ming|qing|canton|famille rose|famille verte|nanking|tek sing|satsuma|imari|arita|kutani|noritake|meiji|korean|celadon";
+
+/** Update 138: true when the title alone clearly says what the item is. */
+export function titleIsClear(title: string): boolean {
+  const g = guessPlacement("", title);
+  return !(g.category === "art" && (g.subcategory === "Curiosities" || g.subcategory === null));
+}
+
+export function guessPlacement(categoryName: string, title: string): { category: SiteCategory; subcategory: string | null } {
+  // Update 137: eBay sends the full category path, e.g.
+  // "Jewellery & Watches:Fine Jewellery:Fine Rings". The top-level name
+  // contains the word "Watches", which sent every ring and brooch to
+  // Watches & Clocks. Drop that top-level name before guessing.
+  const catPath = categoryName.replace(/jewe?l(?:le)?ry\s*(?:&|and)\s*watch(?:es)?/gi, "Jewellery");
+  const t = `${catPath} ${title}`.toLowerCase();
+  const has = (re: RegExp) => re.test(t);
+  const W = (words: string) => new RegExp(`\\b(${words})\\b`);
+
+  // Update 127: coins and medals → Silver › Coins & Medals — unless the
+  // piece is worn as jewellery (a coin brooch, a St Christopher medal pendant).
+  const wornAs: [string, string][] = [
+    ["brooch|brooches|pins?", "Brooches"],
+    ["pendants?|necklaces?|chains?|lockets?", "Pendants"],
+    ["rings?", "Rings"],
+    ["bracelets?|bangles?|charms?", "Bracelets"],
+    ["cufflinks?", "Cufflinks"],
+    ["earrings?", "Earrings"],
+  ];
+  const coinOrMedal = has(W("coins?|sovereigns?|half sovereign|shillings?|florins?|guineas?|farthings?|half crowns?|krugerrands?|bullion|numismatics?|proof set|sixpences?|groats?|medals?|medallions?|memorial cross"));
+  if (coinOrMedal) {
+    const worn = wornAs.find(([re]) => has(W(re)));
+    if (worn) return { category: "jewelry", subcategory: worn[1] };
+    return { category: "silver", subcategory: "Coins & Medals" };
+  }
+  // Update 138: the TITLE decides watches and clocks first — before anything
+  // eBay's category path says (a watch listed under any eBay category is
+  // still a watch).
+  const tt = title.toLowerCase();
+  const T = (words: string) => new RegExp(`\\b(${words})\\b`).test(tt);
+  if (T("pocket watch|pocket watches|half hunter|full hunter")) return { category: "watches", subcategory: "Pocket Watches" };
+  if (T("watch|watches|wristwatch|wristwatches|chronograph")) return { category: "watches", subcategory: "Wristwatches" };
+  // Watch brands count too — unless the title is clearly a piece of jewellery
+  // ("Omega chain necklace", "Rotary bangle").
+  if (
+    T("rolex|omega|seiko|citizen|tissot|longines|sekonda|rotary|timex|swatch|tudor|zenith|garrard|eterna|bulova|hamilton|accurist|ingersoll|casio|breitling|tag heuer|oris|certina|rado|mido|movado|poljot|vostok|raketa|slava|precimax|brax") &&
+    !T("necklaces?|chains?|bracelets?|bangles?|rings?|earrings?|brooch|brooches|pendants?|lockets?|cufflinks?")
+  ) return { category: "watches", subcategory: "Wristwatches" };
+  if (T("clock|clocks|longcase|carriage clock|mantel clock|bracket clock|wall clock")) return { category: "watches", subcategory: "Clocks" };
+  // eBay's own category says furniture → trust it (a "china cabinet" is still a cabinet).
+  if (/\bfurniture\b/i.test(catPath)) return { category: "furniture", subcategory: null };
+  // Update 121: watches have their own category.
+  if (has(W("pocket watch|pocket watches|hunter|half hunter"))) return { category: "watches", subcategory: "Pocket Watches" };
+  if (has(W("watch|watches|wristwatch|wristwatches|chronograph"))) return { category: "watches", subcategory: "Wristwatches" };
+  // Update 122: clocks live in "Watches & Clocks".
+  if (has(W("clock|clocks|timepiece|longcase|carriage clock|mantel clock|bracket clock|wall clock"))) return { category: "watches", subcategory: "Clocks" };
+  // Update 117: silverware (not silver jewellery) → Silver.
+  const isSilver = has(W("silver|sterling|hallmarked|epns|silver ?plated?"));
+  if (isSilver) {
+    const sub: [string, string][] = [
+      // Update 128: more specific silver types first.
+      ["pepper|peppers|pepper mill|salts?|salt cellars?|mustards?|cruets?|condiments?|casters?|muffineers?", "Condiments & Cruets"],
+      ["wine coasters?|bottle coasters?|coasters?|wine labels?|decanter labels?|hip flasks?|flasks?|corkscrews?|wine funnels?|wine tasters?|tastevin|bottle stoppers?|cocktail|jiggers?|bar", "Wine & Bar"],
+      ["pipes?|vestas?|vesta case|cigarette cases?|cigar cases?|cheroot|snuff|tobacco|ashtrays?|lighters?|match ?box|match ?case", "Smoking & Vestas"],
+      ["purses?|card cases?|card holders?|coin purse|chatelaine purse|mesh purse|aide memoire|stamp case", "Purses & Card Cases"],
+      ["photo frames?|picture frames?|frames?", "Photo Frames"],
+      ["posy bowls?|bowls?|dishes|dish|bon ?bon|sweetmeat|bonbonniere|vases?|comports?|tazza|baskets?", "Bowls & Dishes"],
+      ["salvers?|trays?|waiter|card tray", "Salvers & Trays"],
+      ["creamers?|pitchers?|teapots?|coffee ?pots?|tea set|tea service|cream jug|milk jug|sugar bowl|tea caddy|caddy spoon|hot water jug", "Tea & Coffee"],
+      ["spoons?|forks?|ladles?|cutlery|flatware|sugar tongs|butter knife|fish knives|canteen", "Cutlery & Flatware"],
+      ["candlesticks?|candelabra|chambersticks?", "Candlesticks"],
+      ["vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|cases?|compact", "Boxes & Cases"],
+      ["rattles?|christening|napkin rings?|teething|baby", "Christening & Baby"],
+      ["trophy|trophies|challenge cup|goblets?|tankards?|cups?", "Cups & Trophies"],
+      ["hand mirror|brush|dressing table|vanity|scent bottle|perfume bottle|pin cushion|hair tidy|button hook", "Dressing Table"],
+    ];
+    const isObject = has(W("tongs|sugar tongs|hip flasks?|flasks?|corkscrews?|wine labels?|pipes?|cigarette cases?|cigar cases?|ashtrays?|lighters?|card cases?|card holders?|photo frames?|comports?|bon ?bon|sweetmeat|mustards?|cruets?|casters?|creamers?|pitchers?|salvers?|trays?|teapots?|coffee ?pots?|jugs?|spoons?|forks?|ladles?|cutlery|flatware|candlesticks?|candelabra|vesta|snuff ?box|card case|cigarette case|pill ?box|trinket box|boxes|box|rattles?|christening|napkin rings?|trophy|challenge cup|goblets?|tankards?|mug|cups?|hand mirror|dressing table|scent bottle|perfume bottle|pin cushion|pepper|salt|cruet|mustard|toast rack|bowls?|dish|purse|thimble|photo frame|frame|vase|sauce boat|tureen|basket|coasters?|ornament|figure|model|mill"));
+    // Update 138: "Sterling silver necklace with box chain" is jewellery, not a silver box.
+    const wornJewellery =
+      has(W("necklaces?|bracelets?|bangles?|earrings?|brooch|brooches|pendants?|lockets?|cufflinks?|rings?")) &&
+      !has(W("posy ring|napkin rings?|ring bowl|ring stand|ring box|ring tree|bowl|bowls"));
+    if (isObject && !wornJewellery) {
+      if (has(W("epns|silver ?plated?|plated"))) return { category: "silver", subcategory: "Silver Plate" };
+      // Update 127: Chinese export, Japanese, Malay, Indian … silver → Asian Silver.
+      if (has(W(ASIAN_WORDS + "|export silver|wang hing|straits|malay|malayan|siam|siamese|thai|burmese|indian|kutch|cutch|persian"))) return { category: "silver", subcategory: "Asian Silver" };
+      for (const [words, name] of sub) if (has(W(words))) return { category: "silver", subcategory: name };
+      return { category: "silver", subcategory: "Novelties & Collectables" };
+    }
+  }
+  if (has(W("jewellery|jewelry|jewel|rings?|necklaces?|pendants?|bracelets?|earrings?|brooch|brooches|cufflinks?|medals?|bangles?|lockets?|charms?"))) {
+    // Update 137: also pick the type from the title (title words win over eBay's path).
+    const types: [string, string][] = [
+      ["earrings?|studs?|ear ?rings?", "Earrings"],
+      ["cufflinks?", "Cufflinks"],
+      ["brooch|brooches|pins?", "Brooches"],
+      ["bracelets?|bangles?|cuffs?", "Bracelets"],
+      ["pendants?|lockets?", "Pendants"],
+      ["necklaces?|chains?|chokers?|beads|pearls? strand", "Necklaces"],
+      ["rings?|solitaire|trilogy|eternity|signet", "Rings"],
+    ];
+    const tl = title.toLowerCase();
+    const byTitle = types.find(([w]) => new RegExp(`\\b(${w})\\b`).test(tl));
+    const byPath = byTitle ? null : types.find(([w]) => has(W(w)));
+    return { category: "jewelry", subcategory: (byTitle || byPath)?.[1] ?? null };
+  }
+  // Paintings and prints first (a painting *of* a vase is still a painting).
+  if (has(W("paintings?|oil on (canvas|board|panel)|watercolou?rs?|etchings?|lithographs?|engravings?|prints?|drawings?"))) {
+    return { category: "art", subcategory: has(W("paintings?|oil on (canvas|board|panel)|watercolou?rs?")) ? "Paintings" : "Prints and drawings" };
+  }
+  // Update 121: porcelain, pottery and glass → Ceramics & Glass.
+  const ceramic = has(W("porcelain|china|pottery|ceramics?|stoneware|earthenware|faience|majolica|delft|meissen|sitzendorf|dresden|royal copenhagen|doulton|wedgwood|moorcroft|worcester|minton|spode|staffordshire|limoges|herend|lladro|capodimonte|carlton ware|clarice cliff|poole|coalport|royal crown derby|crown derby|aynsley|shelley|royal albert|belleek|beswick|goebel|hummel|glaze|flambe|lustre ?ware|art pottery|bone china"));
+  const glass = has(W("glass|glassware|crystal|murano|lalique|whitefriars|venetian|decanters?|vaseline"));
+  // Update 127: Chinese / Japanese porcelain → Ceramics & Glass › Asian Ceramics.
+  if (has(W(ASIAN_WORDS)) && !glass && (ceramic || has(W("blue (and|&) white|bowls?|vases?|platters?|plates?|chargers?|ginger jars?|jars?|teapots?|dish|dishes|cups?|saucers?|tea bowls?")))) {
+    return { category: "ceramics", subcategory: "Asian Ceramics" };
+  }
+  if (ceramic || glass) {
+    let sub: string | null = null;
+    if (has(W("figurines?|figures?|statues?|statuettes?|groups?"))) sub = "Figurines";
+    else if (has(W("vases?|jardinieres?|urns?"))) sub = glass && !ceramic ? "Art Glass" : "Vases";
+    else if (has(W("plates?|dish|dishes|bowls?|cups?|saucers?|teapots?|tea set|tea service|dinner service|jugs?|tureens?|tableware|dinnerware|comports?|tazza"))) sub = glass && !ceramic ? "Glassware" : "Tableware";
+    else if (glass) sub = has(W("murano|lalique|whitefriars|art glass|venetian")) ? "Art Glass" : "Glassware";
+    else sub = has(W("pottery|stoneware|earthenware|studio")) ? "Pottery" : "Porcelain";
+    return { category: "ceramics", subcategory: sub };
+  }
+  if (has(W("tribal|african|oceanic|ethnographic|tuareg"))) return { category: "art", subcategory: "Tribal & World" };
+  if (!has(W("wood|wooden|carved|treen|brass|copper|pewter|tin")) && has(W("plates?|dish|dishes|bowls?|cups?|saucers?|teapots?|tea set|tea service|dinner service|jugs?|tureens?|tableware|dinnerware"))) {
+    return { category: "ceramics", subcategory: "Tableware" };
+  }
+  if (has(W("strong ?box|safe|furniture|chairs?|tables?|desks?|cabinets?|chests?|drawers|wardrobes?|sideboards?|bookcases?|dressers?|stools?|benches|bench|sofas?|armchairs?|beds?|trunks?|commodes?|bureaus?|bureau|plant stand|jardiniere stand"))) {
+    return { category: "furniture", subcategory: null };
+  }
+  // Everything else → Art & Decor.
+  if (has(W("mirrors?"))) return { category: "art", subcategory: "Mirrors" };
+  if (has(W("sculptures?|bronzes?|busts?"))) return { category: "art", subcategory: "Sculpture" };
+  if (has(W("photographs?|photography"))) return { category: "art", subcategory: "Photography" };
+  if (has(W("candlesticks?|candelabra"))) return { category: "art", subcategory: "Candlesticks" };
+  if (has(W("boxes|box|caskets?|tea caddy"))) return { category: "art", subcategory: "Boxes" };
+  if (has(W("tribal|african|oceanic|ethnographic|tuareg|asian|chinese|japanese|islamic|ottoman"))) return { category: "art", subcategory: "Tribal & World" };
+  if (has(W("textiles?|tapestry|tapestries|quilts?|samplers?|embroidery|lace|rugs?"))) return { category: "art", subcategory: "Textiles" };
+  if (has(W("ornaments?|figurines?|figures?|statues?"))) return { category: "art", subcategory: "Ornaments" };
+  return { category: "art", subcategory: has(W("art")) ? null : "Curiosities" };
+}
+
+// ---------- two-way sync helpers (update 107) ----------
+
+/** Every ItemID found anywhere inside an XML-parsed object. */
+function collectItemIds(node: unknown, out: Set<string>) {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    node.forEach((n) => collectItemIds(n, out));
+    return;
+  }
+  for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+    if (k === "ItemID" && (typeof v === "string" || typeof v === "number")) out.add(String(v));
+    else collectItemIds(v, out);
+  }
+}
+
+/** Item IDs of listings that SOLD on eBay in the last `days` days (max 60). */
+export async function soldItemIds(token: string, days = 30) {
+  const ids = new Set<string>();
+  for (let page = 1; page <= 10; page++) {
+    const r = await trading(
+      "GetMyeBaySelling",
+      `<SoldList><Include>true</Include><DurationInDays>${days}</DurationInDays><Pagination><EntriesPerPage>200</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination></SoldList>`,
+      token
+    );
+    const list = r.SoldList || {};
+    collectItemIds(list.OrderTransactionArray, ids);
+    const pages = Number(list.PaginationResult?.TotalNumberOfPages || 1);
+    if (page >= pages) break;
+  }
+  return ids;
+}
+
+/** All ACTIVE listings (id + title), 200 per request. */
+export async function allActiveListings(token: string) {
+  const out: ListingSummary[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const { items, totalPages } = await activeListingsPage(token, page, 200);
+    out.push(...items);
+    if (page >= totalPages) break;
+  }
+  return out;
+}
+
+/** Ends an eBay listing because the item sold elsewhere. Already-ended counts as done. */
+export async function endListing(token: string, itemId: string) {
+  try {
+    await trading(
+      "EndItem",
+      `<ItemID>${itemId}</ItemID><EndingReason>NotAvailable</EndingReason>`,
+      token
+    );
+    return { ok: true as const };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/already been closed|already ended|has ended|is closed/i.test(msg)) return { ok: true as const };
+    return { ok: false as const, error: msg };
+  }
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
-import { getAllProducts } from "@/lib/data";
+import { getAllProductsFresh } from "@/lib/data";
 import { ukDelivery } from "@/lib/shipping";
 
 // Handles both "Buy now" (a single slug) and cart checkout (multiple
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No items given." }, { status: 400 });
     }
 
-    const all = await getAllProducts();
+    const all = await getAllProductsFresh();
     const products = slugs
       .map((slug) => all.find((p) => p.slug === slug))
       .filter((p): p is NonNullable<typeof p> => Boolean(p));

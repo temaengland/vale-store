@@ -3,6 +3,7 @@ import { isAdminAuthed } from "@/lib/adminAuth";
 import { runEbaySync, endEbayListingsFor, logSyncEvents } from "@/lib/ebaySync";
 import { runEtsySync, type EtsySyncResult } from "@/lib/etsy";
 import { maybeWeeklyBackup } from "@/lib/backup";
+import { productsChanged } from "@/lib/productsCache";
 
 // Two-way sold sync with eBay (update 107).
 // Called every 15 min by Supabase (pg_cron), once a day by Vercel Cron,
@@ -40,6 +41,10 @@ async function handle(req: NextRequest) {
     }
     // Same 15-minute job also makes the weekly Google Drive backup (update 113).
     const backup = await maybeWeeklyBackup().catch((e) => ({ status: "failed", error: String(e) }));
+    // Update 180: refresh the site's cached item list only when something actually changed
+    // (this job runs every 15 minutes — refreshing every time would waste Supabase egress).
+    const n = sync as { markedSold?: number; linked?: number };
+    if ((n.markedSold || 0) + (n.linked || 0) + etsy.soldOnEtsy.length + etsy.ended + (etsy.reshipped || 0) > 0) productsChanged();
     return NextResponse.json({ ...sync, etsy, backup: backup.status });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Sync failed" }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { saveEbayPrices, sitePriceFromEbay } from "@/lib/pricing";
+import { productsChanged } from "@/lib/productsCache";
 
 // Update 147: site prices X% below eBay/Etsy, with a saved copy of the old
 // prices so it can be undone.
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
         const { error } = await db.from("products").update({ price }).eq("id", id);
         if (!error) n++;
       }
+      productsChanged();
       return NextResponse.json({ ok: true, restored: n });
     }
     const percent = Math.max(1, Math.min(30, Number(body.percent) || 10));
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest) {
       const { error: e } = await db.from("products").update({ price: r.to }).eq("id", r.id);
       if (!e) n++;
     }
+    productsChanged();
     return NextResponse.json({ ok: true, changed: n, backup: key });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 400 });

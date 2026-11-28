@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { guessPlacement } from "@/lib/ebay";
+import { productsChanged } from "@/lib/productsCache";
 
 // Update 121: one-off move of existing items into the six categories —
 // watches out of Jewellery, silverware into Silver, the old Decor split into
@@ -80,6 +81,7 @@ export async function POST() {
         .eq("id", m.id);
       if (!error) done++;
     }
+    productsChanged();
     return NextResponse.json({ done, total: moves.length });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });

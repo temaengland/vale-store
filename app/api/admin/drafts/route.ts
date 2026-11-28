@@ -3,6 +3,7 @@ import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { notifyIndexNow } from "@/lib/indexnow";
 import { guessPlacement, titleIsClear } from "@/lib/ebay";
+import { productsChanged } from "@/lib/productsCache";
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Unknown server error.";
@@ -87,6 +88,7 @@ export async function PATCH(req: NextRequest) {
       notifyIndexNow([`https://www.charmchase.co.uk/product/${data.slug}`]);
     }
 
+    productsChanged();
     return NextResponse.json({ product: data });
   } catch (e) {
     return NextResponse.json(
@@ -113,6 +115,7 @@ export async function DELETE(req: NextRequest) {
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
+    productsChanged();
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(

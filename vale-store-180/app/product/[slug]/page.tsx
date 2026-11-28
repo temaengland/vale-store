@@ -1,0 +1,220 @@
+import { notFound } from "next/navigation";
+import { Metadata } from "next";
+import { getProduct, getAllProducts } from "@/lib/data";
+import { formatPrice, Product } from "@/lib/products";
+import ProductGallery from "@/components/ProductGallery";
+import ProductInfoPanel from "@/components/ProductInfoPanel";
+import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
+import BackLink from "@/components/BackLink";
+import ProductCard from "@/components/ProductCard";
+import T from "@/components/T";
+import { getCategory } from "@/lib/data";
+import { isAvailable, isFeedRestricted } from "@/lib/shop";
+import { trackProductView } from "@/lib/trackView";
+import { getTrust } from "@/lib/trust";
+import { cheapestUkPrice } from "@/lib/shipping";
+import { makerBrand } from "@/lib/shop";
+
+// Always fetch fresh data — see note on the homepage for why this matters.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const product = await getProduct(params.slug);
+  if (!product) return {};
+  const image = product.images?.[0] ?? product.image;
+  const shortDescription = buildMetaDescription(product);
+  return {
+    title: `${product.name} — ${formatPrice(product.price)}`,
+    description: shortDescription,
+    alternates: { canonical: `/product/${product.slug}` },
+    openGraph: {
+      title: product.name,
+      description: shortDescription,
+      images: image ? [{ url: image }] : undefined,
+    },
+  };
+}
+
+// Search engines want meta descriptions roughly 70–155 characters — too
+// short (e.g. a brief placeholder description) or too long both get
+// flagged. Pad short ones with name/category context; trim long ones.
+function buildMetaDescription(product: Product): string {
+  const MIN = 70;
+  const MAX = 155;
+  let text = product.description;
+
+  if (text.length < MIN) {
+    const details = [product.era, product.subcategory]
+      .filter(Boolean)
+      .join(" ");
+    const suffix = details
+      ? ` ${details} piece from CharmChase, Evesham.`
+      : " Available now from CharmChase, Evesham.";
+    text = `${product.name} — ${text}.${suffix}`;
+  }
+
+  return text.length > MAX ? text.slice(0, MAX - 3) + "..." : text;
+}
+
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams: { paid?: string; canceled?: string };
+}) {
+  const product = await getProduct(params.slug);
+  if (!product) return notFound();
+
+  // Awaited (not fire-and-forget) — in a serverless environment the
+  // function can be frozen right after the response is sent, which would
+  // cut off an un-awaited call before it finishes.
+  await trackProductView(product.slug);
+
+  // "You might also like" (update 116: for every piece, not only sold ones) —
+  // other pieces in stock from the same type, then the same category, then anything.
+  const all = await getAllProducts();
+  const available = all.filter((p) => p.slug !== product.slug && isAvailable(p));
+  const sameSubcategory = product.subcategory
+    ? available.filter((p) => p.category === product.category && p.subcategory === product.subcategory)
+    : [];
+  const sameCategory = available.filter(
+    (p) => p.category === product.category && !sameSubcategory.includes(p)
+  );
+  const others = available.filter((p) => p.category !== product.category);
+  // Only what the cards need (update 121): keeps other items' photo lists and
+  // descriptions out of this page, so Google ties each photo to its own page.
+  const relatedProducts: Product[] = [...sameSubcategory, ...sameCategory, ...others].slice(0, 5).map((p) => {
+    const cover = p.images?.[0] || p.image || undefined;
+    return { ...p, description: "", images: cover ? [cover] : [], image: undefined };
+  });
+  const forSale = isAvailable(product);
+  // Update 151: no videos on the site — photos only (Reels stay on Instagram).
+  const category = getCategory(product.category);
+
+  // Structured data (schema.org Product) — lets Google show price and
+  // stock status directly in search results, and helps it understand
+  // this page is a product listing rather than plain text.
+  const ship = cheapestUkPrice(product);
+  const brand = makerBrand(product.name);
+  // Update 170: items Google Shopping doesn't allow (left out of the feed) get no
+  // price/offer markup either — otherwise Merchant Center "finds" them on the site
+  // and adds them to Shopping by itself, which can get the account suspended.
+  const restricted = isFeedRestricted(product);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description,
+    image: (product.images && product.images.length > 0
+      ? product.images
+      : product.image
+      ? [product.image]
+      : []
+    ).map((u) => (u.startsWith("/") ? `https://www.charmchase.co.uk${u}` : u)) || undefined,
+    // Update 152: short SKU (Google limit 50 chars) + maker as brand when known.
+    sku: `CC-${String(product.id || product.slug).replace(/-/g, "").slice(0, 10).toUpperCase()}`,
+    ...(brand ? { brand: { "@type": "Brand", name: brand } } : {}),
+    ...(restricted ? {} : { offers: {
+      "@type": "Offer",
+      url: `https://www.charmchase.co.uk/product/${product.slug}`,
+      priceCurrency: "GBP",
+      price: (product.price / 100).toFixed(2),
+      availability:
+        product.status === "sold"
+          ? "https://schema.org/SoldOut"
+          : product.status === "unavailable"
+          ? "https://schema.org/OutOfStock"
+          : "https://schema.org/InStock",
+      itemCondition: "https://schema.org/UsedCondition",
+      seller: { "@type": "Organization", name: "CharmChase" },
+      // Update 152: delivery per our rules + delivery time (Search Console asked for it).
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: { "@type": "MonetaryAmount", value: (ship.amount / 100).toFixed(2), currency: "GBP" },
+        shippingDestination: { "@type": "DefinedRegion", addressCountry: "GB" },
+        deliveryTime: {
+          "@type": "ShippingDeliveryTime",
+          handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 2, unitCode: "DAY" },
+          transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" },
+        },
+      },
+      hasMerchantReturnPolicy: {
+        "@type": "MerchantReturnPolicy",
+        applicableCountry: "GB",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: 14,
+        returnMethod: "https://schema.org/ReturnByMail",
+        returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
+      },
+    } }),
+  };
+
+  const crumbs: { href: string; labelKey?: string; label?: string; name: string; url: string }[] = [
+    { href: "/", labelKey: "crumb.home", name: "Home", url: "/" },
+    { href: `/category/${product.category}`, labelKey: `category.name.${product.category}`, name: category?.name || product.category, url: `/category/${product.category}` },
+    ...(product.subcategory
+      ? [{ href: `/category/${product.category}?sub=${encodeURIComponent(product.subcategory)}`, label: product.subcategory, name: product.subcategory, url: `/category/${product.category}?sub=${encodeURIComponent(product.subcategory)}` }]
+      : []),
+  ];
+
+  return (
+    <div className="lg:-mt-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(crumbs.map((c) => ({ name: c.name, url: c.url })))) }}
+      />
+      {/* Update 121: "Back" returns to where you came from (same list, same place). */}
+      {/* Update 125 (computers): Back and the path share one line. */}
+      <div className="lg:mb-3.5 lg:flex lg:items-center lg:gap-3 lg:[&_button]:mb-0 lg:[&_nav]:mb-0">
+        <BackLink fallback={`/category/${product.category}`} />
+        <span aria-hidden className="hidden text-border-strong lg:inline">|</span>
+        <div className="-mt-2 hidden sm:block lg:mt-0">
+          <Breadcrumbs items={crumbs.map((c) => ({ href: c.href, labelKey: c.labelKey, label: c.label }))} />
+        </div>
+      </div>
+      <div className="grid min-w-0 gap-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-12 [&>*]:min-w-0">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <ProductGallery
+          images={product.images}
+          legacyImage={product.image}
+          icon={product.icon}
+          alt={product.name}
+        />
+        <ProductInfoPanel
+          product={product}
+          paid={searchParams.paid}
+          canceled={searchParams.canceled}
+          relatedProducts={forSale ? [] : relatedProducts.slice(0, 4)}
+          trust={await getTrust()}
+        />
+      </div>
+
+      {forSale && relatedProducts.length > 0 && (
+        <div className="mt-16">
+          <p className="text-xs tracking-widest text-muted">
+            <T k="product.alsoLike" />
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-4 lg:grid-cols-5 lg:gap-5">
+            {relatedProducts.map((p, i) => (
+              // Update 125: 5 in a row on computers; phones keep 4.
+              <div key={p.slug} className={i >= 4 ? "hidden lg:block" : ""}>
+                <ProductCard product={p} hideFromImageSearch />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

@@ -9,6 +9,7 @@ import {
   shippingNameToServiceCode,
   needsManualDelivery,
 } from "@/lib/royalMail";
+import { productsChanged } from "@/lib/productsCache";
 
 export const runtime = "nodejs";
 
@@ -192,6 +193,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    productsChanged();
     return NextResponse.json({ received: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error.";

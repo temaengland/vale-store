@@ -11,6 +11,7 @@ import {
   userAccessToken,
 } from "@/lib/ebay";
 import { saveEbayPrices, sitePriceFromEbay } from "@/lib/pricing";
+import { productsChanged } from "@/lib/productsCache";
 
 // POST { page } — imports one page (5 listings) of your ACTIVE eBay listings
 // as hidden drafts (is_draft = true) for review in Admin → Review drafts.
@@ -139,6 +140,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    productsChanged();
     return NextResponse.json({ page, totalPages, totalItems, results });
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 500 });

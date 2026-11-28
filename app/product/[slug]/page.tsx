@@ -112,12 +112,12 @@ export default async function ProductPage({
     "@type": "Product",
     name: product.name,
     description: product.description,
-    image:
-      product.images && product.images.length > 0
-        ? product.images
-        : product.image
-        ? [product.image]
-        : undefined,
+    image: (product.images && product.images.length > 0
+      ? product.images
+      : product.image
+      ? [product.image]
+      : []
+    ).map((u) => (u.startsWith("/") ? `https://www.charmchase.co.uk${u}` : u)) || undefined,
     // Update 152: short SKU (Google limit 50 chars) + maker as brand when known.
     sku: `CC-${String(product.id || product.slug).replace(/-/g, "").slice(0, 10).toUpperCase()}`,
     ...(brand ? { brand: { "@type": "Brand", name: brand } } : {}),

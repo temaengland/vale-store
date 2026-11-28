@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
   categories,
@@ -6,6 +7,7 @@ import {
   getCategory as getSeedCategory,
 } from "@/lib/products";
 import { cleanTitle } from "@/lib/shop";
+import { cdnUrl } from "@/lib/cdn";
 
 // Every function here checks Supabase first and falls back to the seed
 // data in lib/products.ts if Supabase isn't set up yet. This means the
@@ -19,7 +21,13 @@ import { cleanTitle } from "@/lib/shop";
 const PUBLIC_PRODUCT_COLUMNS =
   "id, slug, name, price, category, subcategory, era, description, image, images, icon, status, shipping_cost, international_shipping_cost, weight_grams, length_cm, width_cm, height_cm, created_at, ebay_item_id";
 
-export async function getAllProducts(): Promise<Product[]> {
+// Update 180: the full product list used to be downloaded from Supabase on
+// EVERY page view (and every live-search keystroke) — ~0.4 MB each time, which
+// pushed us over the free 5 GB egress. Now it is kept in Vercel's data cache
+// for 30 minutes and refreshed straight away whenever an item is added,
+// edited, sold or deleted (revalidateTag("products") — see lib/productsCache.ts).
+// Checkout still reads fresh data so a sold item can never be bought twice.
+export async function getAllProductsFresh(): Promise<Product[]> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from("products")
@@ -31,6 +39,23 @@ export async function getAllProducts(): Promise<Product[]> {
   }
   return seedProducts;
 }
+
+// Photos point at our own /img/... copies (update 180, lib/cdn.ts). Checkout keeps
+// the original Supabase links (Stripe needs a full address).
+async function getAllProductsForSite(): Promise<Product[]> {
+  const all = await getAllProductsFresh();
+  return all.map((p) => ({
+    ...p,
+    image: cdnUrl(p.image),
+    images: Array.isArray(p.images) ? p.images.map((u) => cdnUrl(u)) : p.images,
+  }));
+}
+
+export const getAllProducts: () => Promise<Product[]> = unstable_cache(
+  getAllProductsForSite,
+  ["all-products-v1"],
+  { revalidate: 1800, tags: ["products"] }
+);
 
 export async function getProductsByCategory(slug: string): Promise<Product[]> {
   const all = await getAllProducts();
